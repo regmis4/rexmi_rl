@@ -1,0 +1,20 @@
+# pyproject.toml — Build system declaration for rexmi_rl
+#
+# Why this file is needed
+# -----------------------
+# Modern pip (>= 21.3) requires a pyproject.toml or setup.py to recognise a
+# directory as a Python project.  setup.cfg alone is not sufficient.
+#
+# This file tells pip:
+#   "Use setuptools to build this package, and read the metadata + options
+#    from setup.cfg in the same directory."
+#
+# After this file exists, `pip install -e .` will:
+#   1. Find pyproject.toml → know setuptools is the build backend
+#   2. Read setup.cfg → find package_dir=source/, packages=find:
+#   3. Install rexmi_rl in editable mode so imports resolve to ./source/rexmi_rl/
+
+[build-system]
+# setuptools >= 61 is required for full setup.cfg support (PEP 517/518)
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"

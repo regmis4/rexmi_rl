@@ -1,0 +1,41 @@
+# =============================================================================
+# REXMI RL - .gitignore
+# =============================================================================
+
+# USD generated assets (regenerate via scripts/convert_urdf.py)
+assets/robots/*/usd/
+assets/terrains/*/usd/
+
+# Isaac Lab / IsaacSim runtime artifacts
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Training logs and checkpoints (can be large)
+logs/
+runs/
+wandb/
+
+# Local environment config (contains machine-specific paths)
+.env
+
+# Python virtual envs
+.venv/
+venv/
+env/
+
+# VSCode workspace settings (keep launch.json if desired)
+.vscode/settings.json
+.vscode/tasks.json
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# Jupyter notebooks checkpoints
+.ipynb_checkpoints/

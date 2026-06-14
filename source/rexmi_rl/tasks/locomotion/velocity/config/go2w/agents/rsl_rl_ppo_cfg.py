@@ -148,3 +148,64 @@ class Go2wFlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         # Prevents exploding gradients during early training.
         max_grad_norm=1.0,
     )
+
+
+# ==============================================================================
+# Phase 4 — Rough terrain PPO config
+# ==============================================================================
+
+@configclass
+class Go2wRoughPPORunnerCfg(Go2wFlatPPORunnerCfg):
+    """
+    PPO runner configuration for the Go2W rough-terrain velocity task.
+
+    Key differences from the flat config:
+      1. Larger network — height scan adds 160 dims to the observation vector
+         (~48 flat → ~208 rough).  [512, 256, 128] handles the larger input
+         while keeping inference fast on embedded hardware.
+      2. More iterations — rough terrain takes longer to converge because the
+         curriculum must progress through 10 difficulty levels.  3000 iterations
+         × 98k transitions = ~294M environment interactions (~25-30 min).
+      3. Separate experiment_name — logs go to logs/rsl_rl/go2w_velocity_rough/
+         so flat and rough runs don't overwrite each other.
+      4. empirical_normalization=True — running mean/std normalisation of the
+         ~208-dim obs is important when height values span a wide range.
+
+    Obs size breakdown (~208 dims):
+      3   base linear velocity
+      3   base angular velocity
+      3   projected gravity vector
+      3   velocity command (vx, vy, ωz)
+      16  joint positions  (12 leg + 4 wheel)
+      16  joint velocities (12 leg + 4 wheel)
+      16  last actions
+    +160  height scan (1.6 m × 1.0 m grid at 0.1 m resolution)
+    -----
+     220  total (approximate — depends on exact base class fields)
+    """
+
+    # Larger network to handle ~208-dim observation space.
+    # [512, 256, 128] is the standard Isaac Lab rough-terrain architecture.
+    policy = RslRlPpoActorCriticCfg(
+        init_noise_std=1.0,
+        actor_hidden_dims=[512, 256, 128],
+        critic_hidden_dims=[512, 256, 128],
+        activation="elu",
+    )
+
+    # 3000 iterations to allow curriculum to progress all 10 difficulty levels.
+    # Rough terrain convergence is slower — stair climbing requires discovering
+    # that legs must be actively used to step over obstacles.
+    max_iterations = 3000
+
+    # Save more frequently so we can inspect intermediate policies
+    save_interval = 100
+
+    # Separate log directory from flat runs
+    experiment_name = "go2w_velocity_rough"
+
+    # Running normalisation is important for height scan observations:
+    # terrain heights can vary from -0.5 m to +0.5 m depending on terrain type,
+    # while proprioceptive obs are typically in [-1, 1].  Normalising with
+    # empirical stats prevents height values from dominating the network input.
+    empirical_normalization = True

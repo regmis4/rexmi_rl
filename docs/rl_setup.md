@@ -1,10 +1,13 @@
 # REXMI RL — Complete Developer Reference
 
-> **Phase 1: Unitree Go2W · Flat Terrain · Wheel-Only Locomotion**
+> **Current status: Phase 4 — Rough Terrain / Stairs with Full Height-Scan Perception**
+>
+> Phases 1–3 complete. Phase 4 training in progress.
 
-This document explains **every design decision** made in the Phase 1 RL setup.
-The goal is that after reading this you understand the full pipeline from
-the physical robot model to a trained policy, with zero assumed prior knowledge.
+This document explains **every design decision** made across all four phases of
+the Go2W RL setup.  The goal is that after reading this you understand the full
+pipeline from the physical robot model to a trained policy, with zero assumed
+prior knowledge.
 
 ---
 
@@ -15,18 +18,19 @@ the physical robot model to a trained policy, with zero assumed prior knowledge.
 3. [What Is an MDP?](#3-what-is-an-mdp)
 4. [Isaac Lab Architecture](#4-isaac-lab-architecture)
 5. [File-by-File Walkthrough](#5-file-by-file-walkthrough)
-6. [The MDP in Detail](#6-the-mdp-in-detail)
+6. [The MDP in Detail (Phase 3+)](#6-the-mdp-in-detail)
 7. [PPO Algorithm Explained](#7-ppo-algorithm-explained)
-8. [Training Workflow](#8-training-workflow)
+8. [Training Workflow — All Tasks](#8-training-workflow)
 9. [Reward Engineering Guide](#9-reward-engineering-guide)
-10. [Phase 2 Roadmap](#10-phase-2-roadmap)
+10. [Phase History & What We Learned](#10-phase-history)
+11. [Phase 5 Roadmap](#11-phase-5-roadmap)
 
 ---
 
 ## 1. Big Picture — What Are We Actually Doing?
 
-We are teaching a simulated robot to **drive in any commanded direction**
-using **Reinforcement Learning (RL)**.
+We are teaching a simulated robot to **drive in any commanded direction across
+varied terrain** using **Reinforcement Learning (RL)**.
 
 At the highest level:
 ```
@@ -40,13 +44,19 @@ At the highest level:
 ```
 
 - **Policy**: A neural network that maps observations → actions
-- **Observations**: What the robot "senses" (velocity, joint angles, commanded direction)
-- **Actions**: Wheel velocity targets (how fast each wheel should spin)
-- **Reward**: A scalar signal that tells the policy how well it did
-- **Environment**: Isaac Sim running the physics of 4096 robot copies simultaneously
+- **Observations**: Velocity, joint angles, IMU, commanded direction, height scan
+- **Actions**: Wheel velocity targets + all 12 leg joint position targets (16 DOF)
+- **Reward**: Velocity tracking + stability penalties + contact/deviation penalties
+- **Environment**: Isaac Sim running 4096 robot copies on GPU simultaneously
 
-After ~300 updates the policy has seen ~29 million robot-steps of experience
-and has learned a controller good enough to track velocity commands on flat terrain.
+The project has progressed through 4 phases, each unlocking more capability:
+
+| Phase | Terrain | Action DOF | Key addition |
+|-------|---------|-----------|--------------|
+| 1 | Flat | 4 (wheels only) | Robot rolls, legs locked |
+| 2 | Flat | 8 (wheels + thighs) | CG shifting — 99% success rate |
+| 3 | Flat | 16 (all joints) | Full leg control, spider-walk fix |
+| 4 | **Rough** | 16 | Height scanner, terrain curriculum |
 
 ---
 
@@ -71,22 +81,24 @@ The Go2W is a **wheeled hybrid quadruped** — it has 4 legs each ending in a wh
 
 ### Joint inventory (16 controllable DOF)
 
-| Group | Joints | Type | Count |
-|-------|--------|------|-------|
-| Hips | `FL/FR/RL/RR_hip_joint` | revolute | 4 |
-| Thighs | `FL/FR/RL/RR_thigh_joint` | revolute | 4 |
-| Calfs | `FL/FR/RL/RR_calf_joint` | revolute | 4 |
-| Wheels | `FL/FR/RL/RR_foot_joint` | continuous | 4 |
+| Group | Joints | Type | Actuator (Phase 3+) | Count |
+|-------|--------|------|---------------------|-------|
+| Hips | `FL/FR/RL/RR_hip_joint` | revolute | soft PD stiffness=5 | 4 |
+| Thighs | `FL/FR/RL/RR_thigh_joint` | revolute | soft PD stiffness=5 | 4 |
+| Calves | `FL/FR/RL/RR_calf_joint` | revolute | soft PD stiffness=5, damping=0.8 | 4 |
+| Wheels | `FL/FR/RL/RR_foot_joint` | continuous | velocity mode stiffness=0, damping=2 | 4 |
 
-### Phase 1 control strategy
+### Phase 3+ control strategy
 
-In Phase 1 the **legs are locked** in their default stance by a stiff PD controller.
-The RL policy controls only the **4 wheel joints** via velocity targets.
+All 16 DOFs are RL-controllable.  The actuator model uses **ImplicitActuatorCfg**
+(PhysX internal PD):
 
-This simplifies the problem enormously:
-- 4 action dimensions instead of 16
-- No gait patterns to learn
-- Robot behaves like a wheeled vehicle with adjustable wheel heights
+```
+τ = stiffness × (θ_target + Δθ_action − θ_actual) + damping × (0 − ω_actual)
+```
+
+- `stiffness=5` → soft restoring force; RL can easily override default pose
+- `stiffness=0` → pure velocity mode for wheels; no position restoring force
 
 ---
 
@@ -97,32 +109,24 @@ It has 5 components: **(S, A, T, R, γ)**
 
 | Symbol | Name | In our context |
 |--------|------|----------------|
-| **S** | State space | Robot position, velocity, joint angles, IMU readings |
-| **A** | Action space | Wheel velocity targets (4 floats ∈ [-1, 1] × scale) |
+| **S** | State space | Robot velocity, joint angles, IMU, height scan |
+| **A** | Action space | 16 floats: 4 wheel velocities + 12 leg position offsets |
 | **T** | Transition | PhysX physics simulation |
-| **R** | Reward function | Velocity tracking + stability penalties |
+| **R** | Reward function | Velocity tracking + stability + contact + deviation penalties |
 | **γ** | Discount factor | 0.99 (future rewards count almost as much as immediate) |
-
-### Markov property
-
-"The next state depends only on the current state and action, not on history."
-
-In our case this is approximately true — the robot's next position depends on
-where it is now and what the wheels do, not on what happened 10 steps ago.
-Small violations (e.g., joint velocity effects) are handled by including
-joint velocities in the observation.
 
 ### Episode structure
 
 ```
-t=0: Robot spawned at random XY position and orientation
-     Velocity command sampled uniformly: vx ∈ [-1,1], vy ∈ [-1,1], ωz ∈ [-1,1]
-t=1..N: Policy observes state, outputs wheel velocities, physics steps forward
+t=0: Robot spawned at random XY position and orientation on terrain tile
+     Velocity command sampled: vx ∈ [-0.5,0.5] m/s, vy ∈ [-0.5,0.5], ωz ∈ [-1,1] rad/s
+t=1..N: Policy observes state, outputs 16 actions, physics steps forward
         Reward computed each step
 t=T: Episode ends when:
      (a) base touches ground (fell over) → terminated
-     (b) 20 seconds elapsed (4000 steps at 50Hz) → timeout
-     Then robot is reset to a new random pose
+     (b) tilt > 1.0 rad (57°) from vertical → terminated (bad_orientation)
+     (c) 20 seconds elapsed (1000 steps at 50Hz) → timeout
+     Then robot is reset to terrain tile matching current curriculum level
 ```
 
 ---
@@ -140,29 +144,31 @@ Isaac Lab is NVIDIA's RL framework built on top of Isaac Sim (PhysX).
 
 **Manager-based environments** (`ManagerBasedRLEnv`):
 - The environment behaviour is entirely driven by config classes
-- No subclassing needed — you just configure:
-  - `SceneCfg` → what goes in the world
+- No subclassing needed — you just configure managers:
+  - `SceneCfg` → what goes in the world (terrain, robot, sensors)
   - `ObservationsCfg` → what the policy sees
   - `ActionsCfg` → what the policy controls
   - `RewardsCfg` → reward terms and weights
   - `TerminationsCfg` → episode end conditions
-  - `EventsCfg` → randomisation
+  - `EventsCfg` → randomisation at reset/interval
+  - `CurriculumCfg` → automatic difficulty scaling
 
-**ArticulationCfg** (how robots are described):
-- Points to a USD file containing the robot geometry + physics
-- Specifies actuator models (motor physics)
-- Specifies initial state (spawn height, joint angles)
+**TerrainGeneratorCfg** (Phase 4):
+- Builds a `num_rows × num_cols` grid of terrain tiles
+- Each row = one difficulty level (row 0 = flat, row 9 = hardest)
+- Sub-terrain types are procedurally generated: stairs, slopes, boxes, rough
 
 ### Data flow each physics step
 
 ```
-1. EventManager  → apply randomisation if interval triggered
-2. ObservationManager → collect sensor readings into obs tensor [N_envs, obs_dim]
-3. ActionManager → decode policy output into joint commands [N_envs, action_dim]
+1. EventManager  → apply randomisation if interval triggered (e.g. push_robot)
+2. ObservationManager → collect sensor readings → obs tensor [N_envs, ~208]
+3. ActionManager → decode policy output → 16 joint commands [N_envs, 16]
 4. PhysX step    → simulate physics for dt=0.005s × decimation=4 = 0.02s
 5. RewardManager → compute reward [N_envs, 1]
 6. TerminationManager → check done flags [N_envs, 1]
-7. If done: reset that env's robot to new random state
+7. CurriculumManager → update terrain level if applicable
+8. If done: reset that env to terrain tile of appropriate difficulty
 ```
 
 ---
@@ -171,231 +177,189 @@ Isaac Lab is NVIDIA's RL framework built on top of Isaac Sim (PhysX).
 
 ### Package install: `setup.cfg`
 
-```
-setup.cfg
-```
-
 Tells pip how to install `rexmi_rl` as a Python package.
 Critical for Isaac Lab to discover our environments via `import rexmi_rl`.
 
-**Command:** `pip install -e .` (from repo root)
-The `-e` flag = "editable" — edits to source files take effect without re-install.
+```bash
+pip install -e .   # from repo root; -e = editable (no re-install after edits)
+```
 
 ---
 
 ### Robot asset: `source/rexmi_rl/assets/go2w.py`
 
-```
+```python
 GO2W_CFG = ArticulationCfg(
-    spawn  → UsdFileCfg(usd_path=".../go2w.usd", activate_contact_sensors=True, ...)
-    init_state → InitialStateCfg(pos=(0,0,0.43), joint_pos={...})
-    actuators → {
-        "leg_joints":   ImplicitActuatorCfg(stiffness=25, damping=0.5)   # PD hold
-        "wheel_joints": ImplicitActuatorCfg(stiffness=0,  damping=5.0)   # vel mode
+    spawn = UsdFileCfg("assets/robots/go2w/urdf/go2w/go2w.usd",
+                       activate_contact_sensors=True, ...)
+    init_state = InitialStateCfg(
+        pos=(0, 0, 0.43),
+        joint_pos={
+            ".*L_hip_joint": 0.1, ".*R_hip_joint": -0.1,
+            "F[L,R]_thigh_joint": 0.8,  "R[L,R]_thigh_joint": 1.0,
+            ".*_calf_joint": -1.5,       ".*_foot_joint": 0.0,
+        }
+    )
+    actuators = {
+        "hip_joints":   ImplicitActuatorCfg(stiffness=5,   damping=0.5)  # soft PD
+        "thigh_joints": ImplicitActuatorCfg(stiffness=5,   damping=0.5)  # soft PD
+        "calf_joints":  ImplicitActuatorCfg(stiffness=5,   damping=0.8)  # soft PD
+        "wheel_joints": ImplicitActuatorCfg(stiffness=0,   damping=2.0)  # vel mode
     }
 )
 ```
 
-**USD path resolution**: The path is built relative to `__file__` so it works
-regardless of where the repo is cloned.
-
-**Actuator models**:
-- `ImplicitActuatorCfg` lets PhysX handle the motor physics internally.
-- `stiffness = Kp` (position gain), `damping = Kd` (velocity gain)
-- For wheels: `stiffness=0` disables position control entirely.
-  The motor only applies torque proportional to velocity error:
-  ```
-  τ = Kd × (ω_desired - ω_actual)
-  ```
+**Phase evolution of actuators:**
+- Phase 1: `leg_joints` (stiffness=25, locked) + `wheel_joints`
+- Phase 2: `hip_calf_joints` (stiffness=25) + `thigh_joints` (stiffness=5) + `wheel_joints`
+- Phase 3+: all 3 leg groups stiffness=5 (soft PD, fully RL-controllable)
 
 ---
 
-### Base environment: `source/rexmi_rl/tasks/locomotion/velocity/config/go2w/rough_env_cfg.py`
+### Base environment: `rough_env_cfg.py`
 
-The core file — defines everything about the MDP.
+This file hosts ALL environment config classes:
 
 ```
-Go2wFlatEnvCfg(LocomotionVelocityRoughEnvCfg)
-    __post_init__:
-        scene.robot = GO2W_CFG          # set our robot
-        terrain_type = "plane"          # flat ground
-        height_scanner = None           # not needed
-        actions.joint_pos = JointVelocityActionCfg([".*_foot_joint"], scale=10)
-        rewards.track_lin_vel_xy_exp.weight = 1.5
-        rewards.flat_orientation_l2.weight = -2.5
-        ... (all reward/event/termination tuning)
+Go2wFlatEnvCfg(LocomotionVelocityRoughEnvCfg)   — Phase 1-3 foundation
+    └── Go2wFlatEnvCfg_PLAY                      — visualization variant
+    └── Go2wRoughEnvCfg(Go2wFlatEnvCfg)          — Phase 4: adds terrain+scanner
+            └── Go2wRoughEnvCfg_PLAY             — visualization variant
 ```
 
-**Why inherit from `LocomotionVelocityRoughEnvCfg`?**
-That base class (from Isaac Lab) already wires up:
-- The scene template with terrain, robot placeholder, sensors, lighting
-- All MDP manager instances
-- Simulation timing (dt, decimation)
-- Default reward terms (tracking, energy, air time)
+`Go2wFlatEnvCfg.__post_init__()` overrides:
+1. Robot → `GO2W_CFG`
+2. Terrain → flat plane, no generator
+3. Height scanner → `None` (saves GPU ray-cast time on flat terrain)
+4. Actions → 4 wheel velocity + 12 leg position DOFs
+5. Rewards → velocity tracking + stability + contact penalties (see §6)
+6. Commands → ±0.5 m/s forward/lateral, ±1.0 rad/s yaw
+7. Terminations → `base_contact` + `bad_orientation` (1.0 rad limit)
+8. Curriculum → `None` (flat terrain has no difficulty levels)
 
-We only override what's different for the Go2W.
+`Go2wRoughEnvCfg.__post_init__()` additionally:
+1. Re-enables terrain generator (stairs/slopes/boxes/rough, 10 difficulty rows)
+2. Re-creates `RayCasterCfg` height scanner (1.6 m × 1.0 m, 10 cm resolution)
+3. Adds `height_scan` observation term (160 dims)
+4. Re-enables `terrain_levels_vel` curriculum
 
 ---
 
-### Flat env wrapper: `flat_env_cfg.py`
+### Entry-point shim: `flat_env_cfg.py`
 
-A thin re-export. In Phase 1 it just re-exports `Go2wFlatEnvCfg` from
-`rough_env_cfg.py`. In Phase 2, this file will become the "flat baseline"
-and `rough_env_cfg.py` will add terrain complexity.
+A thin re-export of all 4 config classes from `rough_env_cfg.py`.
+`__init__.py` uses this module path for all `gym.register()` entry points.
 
 ---
 
 ### PPO config: `agents/rsl_rl_ppo_cfg.py`
 
-```
-Go2wFlatPPORunnerCfg:
-    num_steps_per_env = 24        # steps per rollout per env
-    max_iterations = 300          # total updates
-    experiment_name = "go2w_velocity_flat"
-    policy:
-        actor_hidden_dims = [128, 128, 128]
-        critic_hidden_dims = [128, 128, 128]
-        activation = "elu"
-    algorithm:
-        clip_param = 0.2
-        learning_rate = 1e-3
-        gamma = 0.99
-        lam = 0.95
-```
+| Config class | Task | Network | Iterations | Obs dims |
+|---|---|---|---|---|
+| `Go2wFlatPPORunnerCfg` | Flat | [128,128,128] | 1000 | ~48 |
+| `Go2wRoughPPORunnerCfg` | Rough | [512,256,128] | 3000 | ~208 |
+
+Key difference: `empirical_normalization=True` for rough terrain — height scan
+values span ±0.5 m, which would dominate the network input without normalisation.
 
 ---
 
 ### Gym registration: `config/go2w/__init__.py`
 
 ```python
-gym.register(
-    id="RexmiRl-Go2w-Velocity-Flat-v0",
-    entry_point="isaaclab.envs:ManagerBasedRLEnv",
-    kwargs={
-        "env_cfg_entry_point": "...flat_env_cfg:Go2wFlatEnvCfg",
-        "rsl_rl_cfg_entry_point": "...rsl_rl_ppo_cfg:Go2wFlatPPORunnerCfg",
-    }
-)
+# Flat terrain
+gym.register("RexmiRl-Go2w-Velocity-Flat-v0",      env=Go2wFlatEnvCfg,      ppo=Go2wFlatPPORunnerCfg)
+gym.register("RexmiRl-Go2w-Velocity-Flat-Play-v0", env=Go2wFlatEnvCfg_PLAY, ppo=Go2wFlatPPORunnerCfg)
+# Rough terrain
+gym.register("RexmiRl-Go2w-Velocity-Rough-v0",      env=Go2wRoughEnvCfg,      ppo=Go2wRoughPPORunnerCfg)
+gym.register("RexmiRl-Go2w-Velocity-Rough-Play-v0", env=Go2wRoughEnvCfg_PLAY, ppo=Go2wRoughPPORunnerCfg)
 ```
-
-This is called once when `import rexmi_rl` runs (triggered by `train.py`).
-
----
-
-### Scripts: `scripts/train.py` and `scripts/play.py`
-
-Both scripts follow the same pattern:
-1. Set up `sys.path` so `import rexmi_rl` works
-2. `import rexmi_rl` → triggers `gym.register()`
-3. `runpy.run_path(IsaacLab_script)` → delegates to Isaac Lab's trainer/player
-
-This pattern avoids duplicating Isaac Lab's complex argument parsing logic.
 
 ---
 
 ## 6. The MDP in Detail
 
-### Observations (what the policy "sees")
-
-The observation vector is concatenated in this order:
+### Observations (Phase 3+ — flat; Phase 4 adds height scan)
 
 | Term | Dim | Description |
 |------|-----|-------------|
 | `base_lin_vel` | 3 | Linear velocity of base (x,y,z) in body frame [m/s] |
-| `base_ang_vel` | 3 | Angular velocity of base (roll,pitch,yaw) [rad/s] |
-| `projected_gravity` | 3 | Gravity vector projected into body frame — encodes tilt |
-| `velocity_commands` | 3 | Commanded (vx, vy, ωz) — what we're being asked to do |
+| `base_ang_vel` | 3 | Angular velocity (roll,pitch,yaw) [rad/s] |
+| `projected_gravity` | 3 | Gravity vector in body frame — encodes tilt |
+| `velocity_commands` | 3 | Commanded (vx, vy, ωz) |
 | `joint_pos` | 16 | All joint positions relative to default [rad] |
 | `joint_vel` | 16 | All joint velocities [rad/s] |
-| `actions` | 4 | Previous wheel velocity actions (history) |
-| **Total** | **48** | |
+| `actions` | 16 | Previous 16 actions (history) |
+| `height_scan` *(Phase 4)* | 160 | Terrain heights under 1.6m×1.0m grid [m] |
+| **Total flat** | **~60** | (exact depends on base class fields) |
+| **Total rough** | **~220** | |
 
-**Gaussian noise** is added to obs during training (not during play) to
-make the policy robust to sensor imperfections:
+**Noise** is added to obs during training for sim-to-real robustness:
 - `base_lin_vel`: ±0.1 m/s
 - `base_ang_vel`: ±0.2 rad/s
 - `projected_gravity`: ±0.05
+- `height_scan`: ±0.1 m (Phase 4)
 
-### Actions (what the policy controls)
+### Actions (Phase 3+)
 
 ```
-output ∈ [-1, 1]⁴  (one per wheel: FL, FR, RL, RR)
-target_velocity = output × scale = output × 10 rad/s
+output ∈ [-1, 1]¹⁶  split into:
+  [0:4]   → wheel velocity targets  × scale=10 rad/s
+  [4:8]   → thigh position offsets  × scale=0.5 rad  (from default)
+  [8:12]  → hip   position offsets  × scale=0.3 rad  (from default)
+  [12:16] → calf  position offsets  × scale=0.5 rad  (from default)
 ```
 
-The four wheels can be set independently, allowing:
-- **Forward**: all 4 wheels at +v
-- **Backward**: all 4 wheels at -v
-- **Left turn**: left wheels at -v, right at +v (differential steering)
-- **Right turn**: left wheels at +v, right at -v
-- **Any combination** for diagonal motion
+`use_default_offset=True` means action=0 → hold the default stance.
 
-### Reward function
-
-The total reward at each step is the **sum of all active terms**:
+### Reward function (Phase 3+)
 
 | Term | Weight | Formula | Purpose |
 |------|--------|---------|---------|
-| `track_lin_vel_xy_exp` | +1.5 | exp(-‖vxy - cmd‖² / 0.25) | Match forward/lateral speed |
+| `track_lin_vel_xy_exp` | +2.0 | exp(-‖vxy - cmd‖² / 0.25) | Match forward/lateral speed |
 | `track_ang_vel_z_exp` | +0.75 | exp(-(ωz - ωz_cmd)² / 0.25) | Match turning rate |
+| `is_alive` | +0.2 | 1 while running, 0 at termination | Stay upright |
 | `flat_orientation_l2` | -2.5 | ‖gravity_projected_xy‖² | Keep base level |
 | `lin_vel_z_l2` | -2.0 | vz² | No bouncing |
-| `ang_vel_xy_l2` | -0.05 | (ωx² + ωy²) | No roll/pitch wobble |
+| `ang_vel_xy_l2` | -0.5 | ωx² + ωy² | No pitch/roll wobble |
 | `dof_torques_l2` | -1e-5 | ‖τ‖² | Minimise energy |
 | `dof_acc_l2` | -2.5e-7 | ‖q̈‖² | Smooth accelerations |
-| `action_rate_l2` | -0.01 | ‖a_t - a_{t-1}‖² | Smooth wheel commands |
+| `action_rate_l2` | -0.01 | ‖a_t - a_{t-1}‖² | Smooth commands |
+| `undesired_contacts` | -1.0 | contact force on hip/thigh/calf > 1N | No spider-walking |
+| `dof_pos_limits` | -0.1 | joints beyond soft limit | Stay within URDF range |
+| `leg_deviation` | -0.2 | Σ\|joint - default\| (leg joints) | No excessive leg spread |
 
-**Why exponential tracking rewards?**
-`exp(-error²/σ²)` gives:
-- Reward = 1.0 when perfectly on target
-- Reward ≈ 0 when far from target
-- Smooth gradient everywhere (unlike piecewise rewards)
-
-The `std` parameter σ=√0.25=0.5 means the reward drops to e⁻¹≈0.37 when
-the velocity error is 0.5 m/s.
+**`undesired_contacts`** and **`leg_deviation`** were added after Phase 3 revealed
+two reward-gaming behaviours: spider-walking (legs touching ground) and extreme
+hip spreading.
 
 ### Terminations
 
-| Condition | Type |
-|-----------|------|
-| Base link contacts ground (`threshold > 1 N`) | Episode end (failure) |
-| 20 seconds elapsed (4000 steps) | Timeout (not counted as failure) |
+| Condition | Type | Note |
+|-----------|------|------|
+| `base_contact` (base link touches ground) | failure | Legs/wheels contact is normal |
+| `bad_orientation` (tilt > 1.0 rad = 57°) | failure | Catches falls before base hits |
+| 20 seconds elapsed (1000 steps) | timeout | Success — episode ran to completion |
 
-The distinction matters for GAE advantage estimation:
-- Terminated episodes have value = 0 at the last step (the robot failed)
-- Timed-out episodes use the value function's estimate of future returns
+### Velocity commands
 
-### Commands
-
-Velocity commands are sampled uniformly each episode:
 ```
-vx  ∈ [-1.0, 1.0] m/s    (forward/backward)
-vy  ∈ [-1.0, 1.0] m/s    (lateral)
+vx  ∈ [-0.5, 0.5] m/s    (forward/backward)
+vy  ∈ [-0.5, 0.5] m/s    (lateral — all 4 wheels + legs for sideways)
 ωz  ∈ [-1.0, 1.0] rad/s  (turning)
 ```
 
-`rel_standing_envs=0.02` means 2% of environments get a zero command —
-this teaches the robot to actively hold still rather than drift.
-
-`heading_command=True` means the yaw command is specified as a **heading direction**
-(where the robot should face) and converted to ωz internally. This produces
-more natural turning behaviour than raw ωz targets.
+Commands are re-sampled every ~10 seconds (UniformVelocityCommandCfg default).
 
 ### Domain randomisation (Events)
 
-These perturbations are applied at episode reset to prevent overfitting to
-a single simulated scenario:
-
 | Event | When | Effect |
 |-------|------|--------|
-| `randomize_rigid_body_material` | startup | Random friction on all links |
-| `randomize_rigid_body_mass` | startup | ±1 to +3 kg added to base |
-| `reset_root_state_uniform` | reset | Random XY position + yaw orientation |
-| `reset_joints_by_scale` | reset | Joints reset to exactly default (scale=1.0) |
-
-Friction randomisation is especially important — it forces the policy to
-work across a range of wheel-ground friction coefficients, which will help
-transfer to the real robot.
+| `add_base_mass` | startup | ±1 to +3 kg added to base link |
+| `base_external_force_torque` | reset | Reference body for force application |
+| `reset_robot_joints` | reset | All joints reset to default (scale=1.0) |
+| `reset_base` | reset | Random XY ±0.5 m, yaw ±π |
+| `push_robot` | interval (~10 s) | Random impulse — tests recovery |
 
 ---
 
@@ -407,10 +371,10 @@ algorithm for locomotion RL in Isaac Lab.
 ### The training loop
 
 ```
-for iteration in range(300):
+for iteration in range(max_iterations):
     # ── Rollout phase ────────────────────────────────────────────
     for step in range(24):  # 24 steps × 4096 envs = 98,304 transitions
-        obs = env.get_observations()          # [4096, 48]
+        obs = env.get_observations()          # [4096, ~60 or ~220]
         actions, log_probs, values = policy(obs)
         obs_next, rewards, dones = env.step(actions)
         store (obs, actions, log_probs, values, rewards, dones)
@@ -422,172 +386,207 @@ for iteration in range(300):
     # ── Update phase (5 epochs, 4 mini-batches) ──────────────────
     for epoch in range(5):
         for mini_batch in split(data, 4):
-            new_log_probs, new_values, entropy = policy(mini_batch.obs)
-
-            # Policy loss (clipped ratio)
             ratio = exp(new_log_probs - old_log_probs)
-            surr1 = ratio × advantages
-            surr2 = clip(ratio, 1-0.2, 1+0.2) × advantages
-            policy_loss = -mean(min(surr1, surr2))
-
-            # Value loss
-            value_loss = MSE(new_values, returns)
-
-            # Total loss
+            policy_loss = -mean(min(ratio × A, clip(ratio, 0.8, 1.2) × A))
+            value_loss  = MSE(new_values, returns)
             loss = policy_loss + 1.0 × value_loss - 0.01 × entropy
-            loss.backward()
-            clip_grad_norm(params, 1.0)
-            optimizer.step()
-
-    log_metrics()
-    if iteration % 50 == 0:
-        save_checkpoint()
+            loss.backward(); clip_grad_norm(1.0); optimizer.step()
 ```
 
-### Key PPO concepts
-
-**Ratio clipping** — the "proximal" part:
-If the new policy's probability differs too much from the old policy's
-(ratio > 1+ε or < 1-ε), the gradient is clipped. This prevents
-catastrophically large updates that could ruin a good policy.
-
-**GAE (Generalised Advantage Estimation)**:
-```
-A_t = δ_t + γλ·δ_{t+1} + (γλ)²·δ_{t+2} + ...
-where δ_t = r_t + γ·V(s_{t+1}) - V(s_t)
-```
-λ=0.95 gives a good bias-variance tradeoff for locomotion.
-
-**Adaptive learning rate**:
-If `KL(old_policy, new_policy) > 2 × desired_kl=0.01`, halve the LR.
-If `KL < 0.5 × desired_kl`, double the LR.
-This keeps the policy updates in a safe regime automatically.
-
-### What the metrics mean
+### What the training metrics mean
 
 | Metric | Good sign | Bad sign |
 |--------|-----------|----------|
-| `mean_reward` | Increasing | Flat or decreasing after 50 iters |
-| `value_loss` | Decreasing and stable | Exploding |
-| `policy_loss` | Oscillating slightly | Monotone (entropy collapsed) |
-| `mean_episode_length` | Increasing toward 4000 | Stuck at < 100 (falling constantly) |
-| `entropy` | Slowly decreasing | Collapses to near 0 too fast |
+| `mean_reward` | Increasing | Flat after 50 iters |
+| `Episode_length` | → 1000 (full timeout) | Stuck < 100 |
+| `track_lin_vel_xy_exp` | → 2.0 (max weight) | < 0.5 |
+| `undesired_contacts` | → 0 | Increasingly negative |
+| `leg_deviation` | Small negative, stable | Growing negative (spreading) |
+| `value_loss` | Decreasing | Exploding |
+| `entropy` | Slowly decreasing | Collapses to near 0 |
+
+### Final Phase 3 metrics (reference baseline)
+
+```
+Episode_length:               ~1000 (99.8% timeout)
+track_lin_vel_xy_exp:         1.88 / 2.0  (94% max)
+track_ang_vel_z_exp:          0.69 / 0.75 (92% max)
+undesired_contacts:           ≈ 0.000  ✓ no spider-walking
+flat_orientation_l2:          ≈ -0.006  ✓ nearly flat
+leg_deviation:                ≈ -0.22   (stable, not worsening)
+bad_orientation terminations: 0.2%
+```
 
 ---
 
-## 8. Training Workflow
+## 8. Training Workflow — All Tasks
 
-### Step 1: Install the package
+### Quick reference
 
-```bash
-# Activate Isaac Lab's virtual environment
-source ~/IsaacLab/.venv/bin/activate
-
-# Install rexmi_rl in editable mode
-cd ~/rexmi_rl
-pip install -e .
-
-# Verify it's installed
-python -c "import rexmi_rl; print('OK')"
-```
-
-### Step 2: Set the Isaac Lab path
+Run all commands with `conda activate env_isaacsim` active first.
+`scripts/train.py` and `scripts/play.py` self-register `rexmi_rl` environments
+so no extra PYTHONPATH setup is needed.
 
 ```bash
-# Option A: environment variable
-export ISAACLAB_DIR=~/IsaacLab
-
-# Option B: create .env file (used by run.sh)
-echo "ISAACLAB_DIR=/home/susan/IsaacLab" > .env
-```
-
-### Step 3: Train
-
-```bash
-# Full training (4096 envs, ~20-30 min on RTX 3080+)
+# Flat terrain (Phase 1-3 baseline, ~8 min, 1000 iters)
 python scripts/train.py --task RexmiRl-Go2w-Velocity-Flat-v0 --headless
 
-# Quick test (128 envs, check it runs without errors)
-python scripts/train.py --task RexmiRl-Go2w-Velocity-Flat-v0 --num_envs 128
+# Rough terrain (Phase 4, ~25-30 min, 3000 iters, from scratch)
+python scripts/train.py --task RexmiRl-Go2w-Velocity-Rough-v0 --headless
 
-# Watch TensorBoard
+# Resume a run from the latest checkpoint
+python scripts/train.py --task RexmiRl-Go2w-Velocity-Rough-v0 --headless --resume
+
+# Quick smoke test (128 envs — verifies config loads without errors)
+python scripts/train.py --task RexmiRl-Go2w-Velocity-Rough-v0 --num_envs 128
+
+# Visualise flat policy
+python scripts/play.py --task RexmiRl-Go2w-Velocity-Flat-Play-v0
+
+# Visualise rough policy
+python scripts/play.py --task RexmiRl-Go2w-Velocity-Rough-Play-v0
+
+# Watch TensorBoard (flat)
 tensorboard --logdir logs/rsl_rl/go2w_velocity_flat
+
+# Watch TensorBoard (rough)
+tensorboard --logdir logs/rsl_rl/go2w_velocity_rough
 ```
 
-### Step 4: Play
+> **Note on run.sh**: `run.sh` is a convenience wrapper but has historically had a
+> PYTHONPATH bug that shadowed the installed `rsl_rl` package.  Always prefer the
+> direct `python scripts/...` invocation above.
+
+### Setup (one-time)
 
 ```bash
-# Visualise the trained policy
-python scripts/play.py --task RexmiRl-Go2w-Velocity-Flat-Play-v0
+# 1. Create .env with Isaac Lab path
+echo "ISAACLAB_DIR=/home/susan/IsaacLab" > .env
+
+# 2. Activate conda env
+conda activate env_isaacsim
+
+# 3. Install package in editable mode
+pip install -e .
+
+# 4. Verify
+python -c "import rexmi_rl; print('OK')"
 ```
 
 ### GPU memory requirements
 
-| Num envs | Approx VRAM |
-|----------|-------------|
-| 128 | ~4 GB |
-| 1024 | ~6 GB |
-| 4096 | ~10 GB |
+| Num envs | Approx VRAM (flat) | Approx VRAM (rough + scanner) |
+|----------|--------------------|-------------------------------|
+| 128 | ~4 GB | ~5 GB |
+| 1024 | ~6 GB | ~8 GB |
+| 4096 | ~10 GB | ~12 GB |
+
+### Checkpoint locations
+
+```
+logs/rsl_rl/
+  go2w_velocity_flat/
+    <date>_<time>/
+      model_<iter>.pt     ← policy checkpoints
+      params/             ← hydra config snapshot
+  go2w_velocity_rough/
+    <date>_<time>/
+      model_<iter>.pt
+```
 
 ---
 
 ## 9. Reward Engineering Guide
 
-Tuning rewards is the most important (and most art-like) aspect of locomotion RL.
-Here are the key levers and what to change if training misbehaves:
+### Diagnosing misbehaviour
 
-### Robot spins in circles instead of going forward
-→ Reduce `track_ang_vel_z_exp.weight` or increase `track_lin_vel_xy_exp.weight`
+| Symptom | Likely cause | Fix |
+|---------|-------------|-----|
+| Robot tips immediately | `bad_orientation` too tight | Relax limit (e.g. 0.8→1.0 rad) |
+| Robot stands still | `is_alive` weight too high (reward gaming) | Reduce to 0.2 |
+| Robot moves wrong way | Velocity command range too large | Reduce to ±0.3 m/s first |
+| Robot spider-walks on legs | `undesired_contacts` missing | Add with weight=-1.0 on hip/thigh/calf bodies |
+| Legs splay extremely wide | `leg_deviation` missing | Add `joint_deviation_l1` weight=-0.2 |
+| Wheels spin but not driving | Wheel damping too high | Reduce damping 5.0→2.0 |
+| Jerky motion | `action_rate_l2` weight too small | Increase (more negative) |
+| Pitches forward driving | `ang_vel_xy_l2` weight too small | Increase -0.05→-0.5 |
+| Training plateaus early | Network too small or too few iters | Scale up [128]→[512,256,128] |
+| Height scan ignored | No empirical normalisation | Set `empirical_normalization=True` |
 
-### Robot tips over immediately
-→ Increase `flat_orientation_l2.weight` (make more negative)
-→ Check that `base_contact` termination body_names="base" is correct
+### The reward gaming problem
 
-### Robot learns but moves jerkily
-→ Increase `action_rate_l2.weight` (make more negative)
-→ Try `num_steps_per_env=48` (longer rollouts = smoother advantage estimates)
+The policy will exploit ANY loophole in the reward:
+1. **Phase 1 standing still** → `is_alive` weight 1.0 made standing more profitable
+   than moving. Fixed by reducing weight to 0.2.
+2. **Phase 3 spider-walking** → Policy walked on leg links while wheels spun in air.
+   Fixed by `undesired_contacts` penalty on hip/thigh/calf bodies.
+3. **Phase 3 leg spreading** → Policy splayed legs into extreme wide stance.
+   Fixed by `joint_deviation_l1` penalty on all leg joints.
 
-### Training plateaus early
-→ Increase `entropy_coef` (more exploration)
-→ Increase `max_iterations`
-→ Check reward scale — total per-step reward should be ~O(1), not O(0.001)
+### reward weight scaling
 
-### Wheels spin full speed regardless of command
-→ Decrease `scale` in `JointVelocityActionCfg` (reduces max speed)
-→ Increase `dof_torques_l2.weight` penalty
-
----
-
-## 10. Phase 2 Roadmap
-
-Once Phase 1 training converges (mean reward stable, good velocity tracking),
-the next steps are:
-
-### Phase 2a: Full 16-DOF control
-- Add a second action head for leg joints in `rough_env_cfg.py`
-- Reduce leg joint stiffness from 25 → 5 (allow leg movement)
-- Add `feet_air_time` reward back (encourage lifting legs over obstacles)
-- Increase network to `[512, 256, 128]`
-
-### Phase 2b: Rough terrain curriculum
-- Change terrain back to `ROUGH_TERRAINS_CFG`
-- Re-enable height scanner observation (adds ~160 dims)
-- Enable `terrain_levels` curriculum (starts on flat, progresses to rough)
-- Train for 1500 iterations
-
-### Phase 2c: Stair/slope climbing
-- Add custom terrain with stairs and slopes
-- Add reward for height gain (encourage climbing)
-- Use Phase 2b checkpoint as starting point (transfer learning)
-
-### Phase 3: Custom REXMI robot
-- Swap `GO2W_CFG` for `REXMI_CFG` (custom robot with modified wheel geometry)
-- All env/reward configs should transfer directly
-
-### Phase 4: Lunar terrain (Project Chrono)
-- Integrate lunar regolith deformation from Project Chrono
-- Train on simulated crater terrain
+Total per-step reward should be approximately O(1) — typically 1–5 for good behaviour,
+-1 to -3 for bad behaviour.  Check `mean_reward`; if it's O(0.001) or O(1000),
+rescale weights proportionally.
 
 ---
 
-*Generated: 2026 · REXMI Project*
+## 10. Phase History
+
+### Phase 1 — Wheels only (4 DOF, flat terrain)
+**Actions**: 4 wheel velocity targets  
+**Result**: Robot rolls stably. ~300 iterations.  
+**Key fix**: `bad_orientation` termination — without it, fallen robots wasted 20s
+  of episode time instead of resetting.  
+
+### Phase 2 — Thighs unlocked (8 DOF, flat terrain)
+**Actions**: + 4 thigh position offsets  
+**Result**: 99% timeout rate (robot runs full 1000 steps without falling).  
+**Key insight**: Thigh pitch shifts the centre of gravity forward, counteracting
+  the nose-down pitch torque from wheel driving — like a person leaning into a scooter.  
+**Key fix**: Wheel damping reduced 5.0→2.0 to prevent pitch torque overload.
+
+### Phase 3 — All legs unlocked (16 DOF, flat terrain)
+**Actions**: + 4 hip + 4 calf position offsets  
+**Result**: ~94% max velocity tracking, near-zero contact violations.  
+**Reward gaming observed**:
+  - Spider-walking: robot walked on calf/thigh links, wheels in air
+  - Leg spreading: wide-stance stability exploit
+**Fixes**: `undesired_contacts` on leg bodies (weight=-1.0) +
+  `joint_deviation_l1` on all leg joints (weight=-0.2).
+
+### Phase 4 — Rough terrain (16 DOF, procedural terrain + height scan)
+**New additions**:
+  - TerrainGeneratorCfg: pyramid stairs (up+down), boxes, random rough, slopes
+  - RayCasterCfg height scanner: 1.6m×1.0m grid, 10cm resolution, 160 dims
+  - Terrain difficulty curriculum: 10 levels, auto-advances with velocity tracking
+  - Larger network: [512, 256, 128] for ~220-dim observation
+  - Empirical observation normalisation for height scan values
+  - 3000 training iterations  
+**Training from scratch** (obs space changed — old flat policy weights incompatible).
+
+---
+
+## 11. Phase 5 Roadmap
+
+### Phase 5a: Energy efficiency (elegance pass)
+- Add `dof_torques_l2` on leg joints with higher weight to discourage unnecessary
+  leg movement when wheels alone are sufficient (energy-aware gait)
+- Optionally: reward that increases when legs are near default pose at high speed
+
+### Phase 5b: Custom REXMI robot
+- Swap `GO2W_CFG` for `REXMI_CFG` (custom wheel geometry, sensor suite)
+- All env/reward configs should transfer directly (same 16-DOF structure)
+
+### Phase 5c: Lunar terrain (Project Chrono integration)
+- Integrate lunar regolith deformation model from Project Chrono
+- Train on simulated crater terrain with soft soil contact
+- Height scanner may need to be replaced with depth camera for deformable surfaces
+
+### Phase 5d: Sim-to-real transfer
+- Domain randomisation: friction (0.3–1.2), mass (±20%), motor damping (±30%)
+- Deploy to real Go2W hardware using Isaac Lab's `--real_time` mode
+
+---
+
+*Last updated: 2026-06-13 · REXMI Project · Phase 4 in progress*

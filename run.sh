@@ -93,12 +93,23 @@ echo "[run.sh] Python: ${VENV_PYTHON}"
 
 # ---------------------------------------------------------------------------
 # 4. Set PYTHONPATH so both Isaac Lab modules and rexmi_rl are importable
+#
+# NOTE: isaaclab, isaaclab_assets, isaaclab_tasks, and isaaclab_rl are all
+# installed as editable pip packages, so they are importable via site-packages
+# without PYTHONPATH.
+#
+# We MUST NOT add source/isaaclab_rl/isaaclab_rl to PYTHONPATH — that
+# directory contains an rsl_rl/ subdirectory (the isaaclab_rl wrapper) which
+# would shadow the separately installed rsl_rl PyPI package.  The wrapper
+# itself does `from rsl_rl.env import VecEnv`, which would then fail with
+# ModuleNotFoundError because it resolves rsl_rl back to itself, not to the
+# real rsl_rl package from site-packages.
+#
+# The lines below are only needed for modules that are NOT installed as
+# editable packages (i.e. they live outside site-packages).  Currently, only
+# rexmi_rl (source/) falls into that category.
 # ---------------------------------------------------------------------------
-export PYTHONPATH="${ISAACLAB_DIR}/source/isaaclab/isaaclab:${PYTHONPATH:-}"
-export PYTHONPATH="${ISAACLAB_DIR}/source/isaaclab_assets/isaaclab_assets:${PYTHONPATH}"
-export PYTHONPATH="${ISAACLAB_DIR}/source/isaaclab_tasks/isaaclab_tasks:${PYTHONPATH}"
-export PYTHONPATH="${ISAACLAB_DIR}/source/isaaclab_rl/isaaclab_rl:${PYTHONPATH}"
-export PYTHONPATH="${SCRIPT_DIR}/source:${PYTHONPATH}"
+export PYTHONPATH="${SCRIPT_DIR}/source:${PYTHONPATH:-}"
 
 # ---------------------------------------------------------------------------
 # 5. Set logs directory (optional but keeps logs in the repo root)

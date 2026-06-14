@@ -11,7 +11,7 @@ how to instantiate it.  Once registered, any code can create the env with:
     gym.make("RexmiRl-Go2w-Velocity-Flat-v0")
 
 Isaac Lab's training scripts use the kwargs pattern:
-  env_cfg_entry_point   — Python dotted path to the env config class
+  env_cfg_entry_point    — Python dotted path to the env config class
   rsl_rl_cfg_entry_point — Python dotted path to the PPO runner config class
 
 The entry_point for the env itself is always "isaaclab.envs:ManagerBasedRLEnv"
@@ -20,6 +20,8 @@ reads whichever EnvCfg we give it and builds the scene/MDP accordingly.
 
 Registered environments
 -----------------------
+  Flat terrain (no height scanner, ~48-dim obs, [128,128,128] network)
+  -----------------------------------------------------------------------
   RexmiRl-Go2w-Velocity-Flat-v0
       → Training env: 4096 parallel environments, flat terrain, noise enabled.
       → Train with: python scripts/train.py --task RexmiRl-Go2w-Velocity-Flat-v0
@@ -27,6 +29,17 @@ Registered environments
   RexmiRl-Go2w-Velocity-Flat-Play-v0
       → Visualisation: 50 environments, no sensor noise, no random forces.
       → Play with: python scripts/play.py --task RexmiRl-Go2w-Velocity-Flat-Play-v0
+
+  Rough terrain (height scanner, ~208-dim obs, [512,256,128] network)
+  -----------------------------------------------------------------------
+  RexmiRl-Go2w-Velocity-Rough-v0
+      → Training env: 4096 envs, procedural terrain (stairs/slopes/boxes/rough).
+      → Train from scratch — obs space differs from flat policy.
+      → Train with: python scripts/train.py --task RexmiRl-Go2w-Velocity-Rough-v0
+
+  RexmiRl-Go2w-Velocity-Rough-Play-v0
+      → Visualisation: 50 environments, no noise, no pushes.
+      → Play with: python scripts/play.py --task RexmiRl-Go2w-Velocity-Rough-Play-v0
 """
 
 import gymnasium as gym
@@ -38,20 +51,18 @@ from rexmi_rl.tasks.locomotion.velocity.config.go2w import agents
 # Register Gym environments
 ##
 
+# ---------------------------------------------------------------------------
+# Flat terrain
+# ---------------------------------------------------------------------------
+
 gym.register(
     id="RexmiRl-Go2w-Velocity-Flat-v0",
-    # entry_point is the universal Isaac Lab environment class.
-    # It reads env_cfg_entry_point to know what scene/MDP to build.
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
-    # disable_env_checker=True skips Gym's default obs/action space sanity checks,
-    # which don't understand Isaac Lab's custom tensor-based spaces.
     disable_env_checker=True,
     kwargs={
-        # Dotted path to the env config class: "module.path:ClassName"
         "env_cfg_entry_point": (
             "rexmi_rl.tasks.locomotion.velocity.config.go2w.flat_env_cfg:Go2wFlatEnvCfg"
         ),
-        # Dotted path to the PPO runner config class
         "rsl_rl_cfg_entry_point": (
             f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wFlatPPORunnerCfg"
         ),
@@ -68,6 +79,38 @@ gym.register(
         ),
         "rsl_rl_cfg_entry_point": (
             f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wFlatPPORunnerCfg"
+        ),
+    },
+)
+
+# ---------------------------------------------------------------------------
+# Rough terrain (Phase 4 — full height scanner + terrain curriculum)
+# ---------------------------------------------------------------------------
+
+gym.register(
+    id="RexmiRl-Go2w-Velocity-Rough-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w.flat_env_cfg:Go2wRoughEnvCfg"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wRoughPPORunnerCfg"
+        ),
+    },
+)
+
+gym.register(
+    id="RexmiRl-Go2w-Velocity-Rough-Play-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w.flat_env_cfg:Go2wRoughEnvCfg_PLAY"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wRoughPPORunnerCfg"
         ),
     },
 )

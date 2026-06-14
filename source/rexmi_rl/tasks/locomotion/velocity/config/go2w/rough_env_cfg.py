@@ -386,6 +386,192 @@ class Go2wFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
         # (These values come from LocomotionVelocityRoughEnvCfg.__post_init__)
 
 
+# ==============================================================================
+# Phase 4 — Rough terrain with full height-scan perception
+# ==============================================================================
+
+@configclass
+class Go2wRoughEnvCfg(Go2wFlatEnvCfg):
+    """
+    Go2W velocity-tracking environment — rough terrain with height scanner.
+
+    Inherits all Go2W-specific overrides from Go2wFlatEnvCfg (robot, actions,
+    rewards, terminations) and then RE-ENABLES the components that were disabled
+    for flat terrain:
+      • terrain generator  — stairs, slopes, boxes, rough heightfields
+      • RayCaster height scanner — 1.6 m × 1.0 m grid at 10 cm resolution
+      • height_scan observation  — 160 dims added to the policy input
+      • terrain curriculum       — robot advances to harder tiles as speed improves
+
+    Train with:
+        ./run.sh scripts/train.py --task RexmiRl-Go2w-Velocity-Rough-v0 --headless
+
+    NOTE: The obs space is different from the flat policy (~208 vs ~48 dims) so
+    this must be trained from scratch with a larger network (see
+    Go2wRoughPPORunnerCfg in rsl_rl_ppo_cfg.py).
+    """
+
+    def __post_init__(self):
+        # Apply all Go2W-specific flat env overrides first (robot, actions, rewards…)
+        super().__post_init__()
+
+        # ==================================================================
+        # A. TERRAIN — switch from flat plane to procedural generator
+        # ==================================================================
+        # Re-enable the terrain generator that was disabled in Go2wFlatEnvCfg.
+        # We use the same 5 sub-terrain types as the Isaac Lab default rough env:
+        #   pyramid_stairs, pyramid_stairs_inv, boxes, random_rough, hf_pyramid_slope
+        # All have equal proportion (0.2 each = 20% of tiles each).
+        #
+        # TerrainGeneratorCfg builds a num_rows × num_cols grid of tiles:
+        #   num_rows = 10 curriculum difficulty levels (row 0 = easiest/flat)
+        #   num_cols = 20 tiles per difficulty level (parallelism)
+        #   size     = 8 m × 8 m per tile
+        from isaaclab.terrains import TerrainGeneratorCfg
+        from isaaclab.terrains.trimesh.mesh_terrains_cfg import (
+            MeshPyramidStairsTerrainCfg,
+            MeshInvertedPyramidStairsTerrainCfg,
+            MeshRandomGridTerrainCfg,
+        )
+        from isaaclab.terrains.height_field.hf_terrains_cfg import (
+            HfRandomUniformTerrainCfg,
+            HfPyramidSlopedTerrainCfg,
+        )
+
+        self.scene.terrain.terrain_type = "generator"
+        self.scene.terrain.terrain_generator = TerrainGeneratorCfg(
+            seed=0,
+            size=(8.0, 8.0),
+            border_width=20.0,
+            num_rows=10,    # 10 difficulty levels for curriculum
+            num_cols=20,    # 20 parallel tiles per level
+            horizontal_scale=0.1,
+            vertical_scale=0.005,
+            slope_threshold=0.75,
+            use_cache=False,
+            sub_terrains={
+                # Upward pyramid stairs — requires stepping up
+                "pyramid_stairs": MeshPyramidStairsTerrainCfg(
+                    proportion=0.2,
+                    step_height_range=(0.05, 0.23),
+                    step_width=0.3,
+                    platform_width=3.0,
+                    border_width=1.0,
+                    holes=False,
+                ),
+                # Inverted pyramid stairs — requires stepping down
+                "pyramid_stairs_inv": MeshInvertedPyramidStairsTerrainCfg(
+                    proportion=0.2,
+                    step_height_range=(0.05, 0.23),
+                    step_width=0.3,
+                    platform_width=3.0,
+                    border_width=1.0,
+                    holes=False,
+                ),
+                # Random height grid — uneven stepping stones / cobblestones
+                "boxes": MeshRandomGridTerrainCfg(
+                    proportion=0.2,
+                    grid_width=0.45,
+                    grid_height_range=(0.05, 0.2),
+                    platform_width=2.0,
+                ),
+                # Random rough heightfield — bumpy / gravel-like surface
+                "random_rough": HfRandomUniformTerrainCfg(
+                    proportion=0.2,
+                    noise_range=(0.02, 0.10),
+                    noise_step=0.02,
+                    border_width=0.25,
+                ),
+                # Pyramid slope — ramps requiring active balance
+                "hf_pyramid_slope": HfPyramidSlopedTerrainCfg(
+                    proportion=0.2,
+                    slope_range=(0.0, 0.4),
+                    platform_width=2.0,
+                    border_width=0.25,
+                ),
+            },
+        )
+
+        # ==================================================================
+        # B. HEIGHT SCANNER — RayCaster reading terrain elevation
+        # ==================================================================
+        # Restore the RayCasterCfg that Go2wFlatEnvCfg set to None.
+        # This casts 160 rays (1.6 m × 1.0 m grid at 0.1 m resolution) down
+        # from 20 m above the robot base and records the height of the terrain
+        # below each ray.  The result is a 160-element observation vector that
+        # lets the policy "see" upcoming obstacles before they hit the wheels.
+        #
+        # attach_yaw_only=True: the scan rotates with the robot's yaw but not
+        # pitch/roll — the grid stays level as the robot tilts.
+        # mesh_prim_paths=["/World/ground"]: only cast against the terrain mesh,
+        # not against the robot's own geometry.
+        from isaaclab.sensors import RayCasterCfg, patterns
+
+        self.scene.height_scanner = RayCasterCfg(
+            prim_path="{ENV_REGEX_NS}/Robot/base",
+            offset=RayCasterCfg.OffsetCfg(pos=(0.0, 0.0, 20.0)),
+            ray_alignment="yaw",   # attach_yaw_only=True is deprecated in this version
+            pattern_cfg=patterns.GridPatternCfg(resolution=0.1, size=[1.6, 1.0]),
+            debug_vis=False,
+            mesh_prim_paths=["/World/ground"],
+        )
+
+        # ==================================================================
+        # C. HEIGHT SCAN OBSERVATION — add 160 height values to policy input
+        # ==================================================================
+        # The base class already has height_scan defined; Go2wFlatEnvCfg set it
+        # to None.  We restore it here with the same spec as the base class:
+        #   func       — height_scan reads the RayCaster sensor buffer
+        #   noise      — ±0.1 m uniform noise for sim-to-real robustness
+        #   clip       — clamp to ±1 m (prevents outliers from skewing the net)
+        from isaaclab.managers import ObservationTermCfg as ObsTerm
+        from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
+        from isaaclab.managers import SceneEntityCfg as _SECfg
+
+        self.observations.policy.height_scan = ObsTerm(
+            func=mdp_utils.height_scan,
+            params={"sensor_cfg": _SECfg("height_scanner")},
+            noise=Unoise(n_min=-0.1, n_max=0.1),
+            clip=(-1.0, 1.0),
+        )
+
+        # ==================================================================
+        # D. TERRAIN CURRICULUM — advance robot to harder tiles as it improves
+        # ==================================================================
+        # terrain_levels_vel is defined in isaaclab_tasks (the velocity
+        # locomotion task MDP module), NOT in isaaclab.envs.mdp.
+        # It measures the robot's actual forward speed vs commanded speed and
+        # moves the robot to a harder terrain tile (higher row index) when it
+        # consistently achieves the commanded velocity, or to an easier tile
+        # when it fails.  This automatic curriculum is why rough terrain
+        # training converges — the robot starts on flat/easy tiles and
+        # gradually advances to stairs and steep slopes.
+        from isaaclab.managers import CurriculumTermCfg as CurrTerm
+        from isaaclab_tasks.manager_based.locomotion.velocity.mdp.curriculums import (
+            terrain_levels_vel as _terrain_levels_vel,
+        )
+
+        self.curriculum.terrain_levels = CurrTerm(
+            func=_terrain_levels_vel,
+        )
+
+
+@configclass
+class Go2wRoughEnvCfg_PLAY(Go2wRoughEnvCfg):
+    """
+    Play-mode variant for rough terrain: fewer envs, no noise, no pushes.
+    """
+
+    def __post_init__(self):
+        super().__post_init__()
+
+        self.scene.num_envs = 200
+        self.scene.env_spacing = 8.0   # match the 8 m × 8 m rough terrain tile size
+        self.observations.policy.enable_corruption = False
+        self.events.base_external_force_torque = None
+        self.events.push_robot = None
+
+
 @configclass
 class Go2wFlatEnvCfg_PLAY(Go2wFlatEnvCfg):
     """

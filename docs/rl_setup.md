@@ -1,8 +1,8 @@
 # REXMI RL — Complete Developer Reference
 
-> **Current status: Phase 4 — Rough Terrain / Stairs with Full Height-Scan Perception**
+> **Current status: Phase 4 complete — Terrain Capability Evaluation available**
 >
-> Phases 1–3 complete. Phase 4 training in progress.
+> Phases 1–4 complete. Use `scripts/eval.py` to characterise performance across 36 terrain variants.
 
 This document explains **every design decision** made across all four phases of
 the Go2W RL setup.  The goal is that after reading this you understand the full
@@ -21,9 +21,10 @@ prior knowledge.
 6. [The MDP in Detail (Phase 3+)](#6-the-mdp-in-detail)
 7. [PPO Algorithm Explained](#7-ppo-algorithm-explained)
 8. [Training Workflow — All Tasks](#8-training-workflow)
-9. [Reward Engineering Guide](#9-reward-engineering-guide)
-10. [Phase History & What We Learned](#10-phase-history)
-11. [Phase 5 Roadmap](#11-phase-5-roadmap)
+9. [Terrain Capability Evaluation](#9-terrain-capability-evaluation)
+10. [Reward Engineering Guide](#10-reward-engineering-guide)
+11. [Phase History & What We Learned](#11-phase-history)
+12. [Phase 5 Roadmap](#12-phase-5-roadmap)
 
 ---
 
@@ -496,7 +497,148 @@ logs/rsl_rl/
 
 ---
 
-## 9. Reward Engineering Guide
+## 9. Terrain Capability Evaluation
+
+`scripts/eval.py` loads a trained rough-terrain checkpoint and runs it on **36 individually
+parameterised terrain variants**, each at a single fixed difficulty.  The result is a table
+that tells you exactly where the policy succeeds and where it gives up.
+
+### Why not characterise the training terrain?
+
+The training terrain uses *ranges* (e.g. `step_height_range=(0.05, 0.23)` m), so every tile
+has a different difficulty.  You cannot say "it failed at 15 cm steps" because each tile
+mixes difficulties.  The eval environment fixes each parameter to a single value so the
+measurement is unambiguous.
+
+### How the eval config differs from training
+
+`eval_env_cfg.py` defines `Go2wEvalEnvCfg(Go2wRoughEnvCfg)` with these overrides:
+
+| Setting | Training | Eval |
+|---------|----------|------|
+| `lin_vel_x` command | random ∈ [-0.5, 0.5] | fixed = 0.5 m/s |
+| `lin_vel_y` command | random ∈ [-0.5, 0.5] | fixed = 0.0 |
+| `ang_vel_z` command | random ∈ [-1.0, 1.0] | fixed = 0.0 |
+| Terrain generator | mixed types, ranges | single type, fixed value |
+| Curriculum | `terrain_levels_vel` | disabled |
+| Sensor noise | enabled | disabled |
+| `push_robot` | enabled | disabled |
+| `num_envs` | 4096 | 50 |
+
+### Terrain variants (36 total)
+
+| Group | Variants | Parameter |
+|-------|---------|-----------|
+| `stairs_up` | 9 | step height: 3, 5, 8, 10, 12, 15, 18, 20, 23 cm |
+| `stairs_down` | 9 | step height: 3, 5, 8, 10, 12, 15, 18, 20, 23 cm |
+| `boxes` | 6 | box height: 3, 5, 8, 10, 15, 20 cm |
+| `slope` | 7 | slope angle: 2, 5, 8, 10, 15, 20, 23° |
+| `rough` | 5 | noise amplitude: 2, 4, 6, 8, 10 cm |
+
+### Metrics collected per variant
+
+| Metric | Meaning | Target |
+|--------|---------|--------|
+| `tracking_ratio` | mean(actual forward vel) / 0.5 m/s | 1.0 = perfect |
+| `survival_rate` | % episodes reaching timeout (not falling) | 100% |
+| `mean_ep_len` | mean steps per episode | 1000 (max) |
+| `mean_dist_m` | estimated distance per episode (m) | ~10 m |
+
+A `←` flag marks any variant where **tracking < 0.50 or survival < 50%**.
+
+### Commands
+
+> **Finding your checkpoint**
+>
+> Isaac Lab saves checkpoints under `logs/rsl_rl/go2w_velocity_rough/<run_folder>/`.
+> The run folder is named after the date+time training started (e.g. `2026-06-13_23-19-06`).
+> The final checkpoint for a 3000-iteration run is `model_2999.pt` (RSL-RL saves at the
+> end of the last completed iteration, so 3000 iters → `model_2999.pt`).
+>
+> To find your latest checkpoint:
+> ```bash
+> ls logs/rsl_rl/go2w_velocity_rough/
+> # shows: 2026-06-13_23-19-06/
+> ls logs/rsl_rl/go2w_velocity_rough/2026-06-13_23-19-06/ | grep "\.pt" | sort -V | tail -3
+> # shows: model_2800.pt  model_2900.pt  model_2999.pt  ← use the last one
+> ```
+
+```bash
+# Set your checkpoint path once (copy/paste this for your run)
+CKPT=logs/rsl_rl/go2w_velocity_rough/2026-06-13_23-19-06/model_2999.pt
+
+# Visual sanity check first — watch 50 robots on 10 cm stairs in GUI
+python scripts/eval.py --checkpoint $CKPT --visual --terrain stairs_up_10cm
+
+# Single variant headless (fast, ~1 min)
+python scripts/eval.py --checkpoint $CKPT --terrain stairs_up_15cm
+
+# One terrain group only (9 variants, ~3-5 min)
+python scripts/eval.py --checkpoint $CKPT --group stairs_up
+
+# Full sweep — all 36 variants (headless, ~10-20 min)
+python scripts/eval.py --checkpoint $CKPT
+
+# Visual mode without --terrain: defaults to stairs_up_10cm
+python scripts/eval.py --checkpoint $CKPT --visual
+
+# Override number of robots per variant (default 50)
+python scripts/eval.py --checkpoint $CKPT --group slope --num_envs 100
+
+# Override steps per variant (default 1000 ≈ 20 s at 50 Hz)
+# Use higher values for more reliable survival_rate statistics
+python scripts/eval.py --checkpoint $CKPT --terrain rough_10cm --steps 3000
+
+# Save CSV to a custom path
+python scripts/eval.py --checkpoint $CKPT --out results/my_eval.csv
+```
+
+### Example output
+
+```
+  Go2W Terrain Capability Evaluation Results
+──────────────────────────────────────────────────────────────────
+  STAIRS UP
+──────────────────────────────────────────────────────────────────
+  Variant                    Tracking  Survival  Ep.len  Dist(m)
+──────────────────────────────────────────────────────────────────
+  stairs_up_3cm                  0.93     100%     998      9.3
+  stairs_up_5cm                  0.91      99%     985      8.9
+  stairs_up_8cm                  0.84      97%     941      7.9
+  stairs_up_10cm                 0.76      88%     847      6.4
+  stairs_up_12cm                 0.61      74%     731      4.5
+  stairs_up_15cm                 0.45      63%     612      2.8  ←
+  stairs_up_18cm                 0.22      31%     290      1.0  ←
+  stairs_up_20cm                 0.11      18%     201      0.4  ←
+  stairs_up_23cm                 0.03       6%      87      0.0  ←
+  ← tracking < 0.50 or survival < 50%
+```
+
+Results are auto-saved to `logs/eval_results/eval_TIMESTAMP.csv`.
+
+### Files added
+
+| File | Purpose |
+|------|---------|
+| `source/rexmi_rl/tasks/locomotion/velocity/config/go2w/eval_env_cfg.py` | `Go2wEvalEnvCfg` base class + 5 factory functions + `EVAL_VARIANTS` list |
+| `scripts/eval.py` | Evaluation runner — headless sweep or visual single-variant |
+
+### Interpreting results for Phase 5
+
+The cliff in `tracking_ratio` and `survival_rate` as difficulty increases identifies the
+**training distribution boundary** — the terrain the policy was trained on vs. what it
+was never exposed to.  Use these numbers to:
+
+1. **Diagnose**: e.g., if `stairs_up` fails at 15 cm but training used 5–23 cm, the
+   curriculum never reached the hardest rows consistently.
+2. **Target retraining**: increase curriculum convergence by extending `max_iterations`,
+   or add harder sub-terrains to push the policy to explore high-difficulty rows.
+3. **Set safety limits**: for deployment, the `tracking > 0.7 AND survival > 80%` boundary
+   defines the terrain the robot can reliably navigate.
+
+---
+
+## 10. Reward Engineering Guide
 
 ### Diagnosing misbehaviour
 
@@ -531,7 +673,7 @@ rescale weights proportionally.
 
 ---
 
-## 10. Phase History
+## 11. Phase History
 
 ### Phase 1 — Wheels only (4 DOF, flat terrain)
 **Actions**: 4 wheel velocity targets  
@@ -567,7 +709,7 @@ rescale weights proportionally.
 
 ---
 
-## 11. Phase 5 Roadmap
+## 12. Phase 5 Roadmap
 
 ### Phase 5a: Energy efficiency (elegance pass)
 - Add `dof_torques_l2` on leg joints with higher weight to discourage unnecessary
@@ -589,4 +731,4 @@ rescale weights proportionally.
 
 ---
 
-*Last updated: 2026-06-13 · REXMI Project · Phase 4 in progress*
+*Last updated: 2026-06-14 · REXMI Project · Phase 4 complete, eval script added*

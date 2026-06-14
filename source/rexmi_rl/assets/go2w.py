@@ -143,44 +143,44 @@ GO2W_CFG = ArticulationCfg(
     # ------------------------------------------------------------------
     actuators={
         # ---------------------------------------------------------------
-        # Phase 2: leg joints split into two groups
+        # Phase 3: ALL leg joints unlocked — full 12-DOF leg control
         # ---------------------------------------------------------------
         #
-        # hip_calf_joints: LOCKED — held rigidly at default stance.
-        # The hip joints determine lateral leg spread; the calf joints
-        # control foot height.  We keep both rigid for now so the only
-        # active leg DOF is the thigh (pitch direction).
-        "hip_calf_joints": ImplicitActuatorCfg(
-            joint_names_expr=[".*_hip_joint", ".*_calf_joint"],
+        # hip_joints: SOFT PD — RL policy controls lateral leg spread.
+        # Stiffness=5 lets the policy shift leg width for balance and
+        # lateral manoeuvring while the PD still provides a gentle
+        # restoring force toward the default stance (±0.1 rad).
+        "hip_joints": ImplicitActuatorCfg(
+            joint_names_expr=[".*_hip_joint"],
             effort_limit=23.5,
             velocity_limit=30.0,
-            stiffness=25.0,   # Kp: stiff PD — locks at default position
-            damping=0.5,
+            stiffness=5.0,    # Kp: soft PD — RL can override default pose
+            damping=0.5,      # Kd: velocity damping to avoid oscillations
             friction=0.0,
         ),
 
-        # thigh_joints: SOFT PD — RL policy can move these.
-        #
-        # WHY stiffness=5 (not 25)?
-        # With stiffness=5, the PD still provides a gentle pull back toward
-        # the default stance (restoring force), but the RL policy can easily
-        # override it.  The JointPositionActionCfg will output a position
-        # offset Δθ; PhysX computes:
-        #   τ = stiffness × (θ_default + Δθ − θ_actual) + damping × (0 − ω_actual)
-        # At stiffness=5, a 0.3 rad offset costs only 1.5 N·m — well within
-        # the 23.5 N·m effort limit.  At stiffness=25, the same offset would
-        # cost 7.5 N·m and the legs wouldn't move much.
-        #
-        # WHY thighs specifically?
-        # The thigh pitch is the CG-shifting joint.  Tilting the thighs back
-        # moves the robot's CG forward, counteracting the nose-down pitch torque
-        # from wheel driving — exactly what a person does when leaning into a scooter.
+        # thigh_joints: SOFT PD — RL policy controls fore-aft leg pitch.
+        # Same stiffness as hips; thigh is the primary CG-shifting joint.
         "thigh_joints": ImplicitActuatorCfg(
             joint_names_expr=[".*_thigh_joint"],
             effort_limit=23.5,
             velocity_limit=30.0,
             stiffness=5.0,    # Kp: soft PD — RL can override default pose
             damping=0.5,      # Kd: velocity damping to avoid oscillations
+            friction=0.0,
+        ),
+
+        # calf_joints: SOFT PD — RL policy controls knee extension/flex.
+        # This joint determines foot height.  Unlocking it lets the policy
+        # extend legs for support, flex for clearance, or drive step height.
+        # Slightly higher damping (0.8) than hip/thigh because the calf
+        # has a long moment arm and can oscillate more easily.
+        "calf_joints": ImplicitActuatorCfg(
+            joint_names_expr=[".*_calf_joint"],
+            effort_limit=23.5,
+            velocity_limit=30.0,
+            stiffness=5.0,    # Kp: soft PD — RL can override default pose
+            damping=0.8,      # slightly higher: calf has longer moment arm
             friction=0.0,
         ),
 

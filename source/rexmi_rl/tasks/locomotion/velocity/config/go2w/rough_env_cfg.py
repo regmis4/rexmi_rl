@@ -8,7 +8,7 @@ This file defines the FULL MDP (Markov Decision Process) for the Go2W:
   - Scene      : terrain, robot, sensors, lighting
   - Commands   : what velocity the robot is asked to achieve
   - Observations: what the policy "sees" every timestep
-  - Actions    : what the policy outputs (wheel velocities)
+  - Actions    : what the policy outputs (wheel velocities + all leg joints)
   - Rewards    : how good/bad each action was
   - Terminations: when to end an episode early
   - Events     : randomisation at startup/reset/interval
@@ -21,13 +21,14 @@ LocomotionVelocityRoughEnvCfg   ← imported from Isaac Lab (the general templat
 
 You NEVER edit the base class — only the overrides in this file and flat_env_cfg.py.
 
-Phase 1 key choices
+Phase 3 key choices
 -------------------
-* Actions    → JointVelocityActionCfg on ONLY the 4 wheel joints
-* Leg joints → held by the PD controller defined in GO2W_CFG (no policy output)
-* Height scan → disabled (flat terrain, saves computation)
-* feet_air_time reward → disabled (not relevant for wheels)
-* base_contact termination → triggers if the body hits the ground
+* Actions    → 4 wheel velocity DOFs + 12 leg position DOFs (hip/thigh/calf)
+* All leg joints → soft PD (stiffness=5) in GO2W_CFG, fully RL-controllable
+* Height scan → still disabled (flat terrain)
+* feet_air_time → still disabled (wheels ARE the feet; we don't reward bouncing)
+* base_contact termination → triggers if the base body hits the ground
+* bad_orientation → relaxed to 1.0 rad (56°) — full legs can recover more
 """
 
 import math
@@ -90,46 +91,65 @@ class Go2wFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.observations.policy.height_scan = None  # remove from observation vector
 
         # ==================================================================
-        # 4. ACTIONS — wheels only (Phase 1)
+        # 4. ACTIONS — full 16-DOF control (Phase 3)
         # ==================================================================
-        # Replace the base class's JointPositionActionCfg (which targets ALL
-        # joints) with a JointVelocityActionCfg that ONLY targets the 4 wheel
-        # joints.  The leg joints are not in this expression, so they remain
-        # under PD control at their default stance positions.
+        # The policy now controls ALL joints:
+        #   4 × wheel velocity   (continuous, stiffness=0)
+        #   4 × thigh position   (revolute, stiffness=5)
+        #   4 × hip position     (revolute, stiffness=5)
+        #   4 × calf position    (revolute, stiffness=5)
         #
-        # JointVelocityActionCfg parameters:
-        #   asset_name   — must match the key in the scene ("robot")
-        #   joint_names  — regex matched against joint names in the USD
-        #   scale        — output multiplier: action ∈ [-1,1] × scale = target vel
-        #                  scale=10 → max wheel speed ±10 rad/s ≈ ±0.5 m/s for
-        #                  a wheel of radius ~0.05 m (typical Go2W wheel)
-        #   use_default_offset — if True, action is RELATIVE to the default vel
-        #                        (which is 0 for wheels, so this has no effect)
+        # JointVelocityActionCfg: wheel target velocities (rad/s)
+        # JointPositionActionCfg: joint position OFFSETS from default (rad),
+        #   use_default_offset=True means action=0 → hold default stance.
         from isaaclab.envs.mdp.actions import JointVelocityActionCfg  # lazy import
-        from isaaclab.envs.mdp.actions import JointPositionActionCfg   # for thighs
+        from isaaclab.envs.mdp.actions import JointPositionActionCfg   # leg joints
 
-        # Wheel velocity actions (4 DOF) — unchanged from Phase 1
+        # Wheel velocity actions (4 DOF) — unchanged
         self.actions.joint_pos = JointVelocityActionCfg(
             asset_name="robot",
-            joint_names=[".*_foot_joint"],  # only the 4 continuous wheel joints
+            joint_names=[".*_foot_joint"],  # 4 continuous wheel joints
             scale=10.0,                      # rad/s per unit action
             use_default_offset=False,
         )
 
-        # Thigh position actions (4 DOF) — Phase 2 addition
-        #
-        # The policy can now pitch the thighs ±0.3 rad (≈±17°) from default.
-        # use_default_offset=True means action=0 → no change from default stance.
-        # action=+0.3 → thighs tilt 0.3 rad from default (shifts CG forward).
-        #
-        # Scale=0.3 rad is intentionally small:
-        #   - Large thigh movements destabilise the robot (feet leave the ground)
-        #   - 0.3 rad is enough to noticeably shift the CG without collapse
-        #   - In Phase 3 we can expand this range once the policy is stable
+        # Thigh position actions (4 DOF) — scale bumped 0.3 → 0.5 rad
+        # With hips and calves now active, the policy has more ways to
+        # stabilise, so thighs can pitch further for greater CG range.
         self.actions.thigh_pos = JointPositionActionCfg(
             asset_name="robot",
             joint_names=[".*_thigh_joint"],  # 4 thigh joints (FL/FR/RL/RR)
-            scale=0.3,                        # ±0.3 rad offset from default pose
+            scale=0.5,                        # ±0.5 rad offset from default pose
+            use_default_offset=True,          # relative to default stance
+        )
+
+        # Hip position actions (4 DOF) — Phase 3 addition
+        #
+        # Hips control lateral leg spread (abduction/adduction).
+        # scale=0.3 rad lets the policy widen/narrow the stance for balance,
+        # lean into turns, and assist lateral velocity commands.
+        # Default hip pose is ±0.1 rad (slight outward splay), so a 0.3 rad
+        # offset keeps the legs well within their abduction limits.
+        self.actions.hip_pos = JointPositionActionCfg(
+            asset_name="robot",
+            joint_names=[".*_hip_joint"],    # 4 hip joints (FL/FR/RL/RR)
+            scale=0.3,                        # ±0.3 rad lateral spread offset
+            use_default_offset=True,          # relative to default stance
+        )
+
+        # Calf position actions (4 DOF) — Phase 3 addition
+        #
+        # Calves control knee extension and foot height.  Unlocking them
+        # lets the policy:
+        #   • extend legs to brace against impacts
+        #   • flex knees to lower the body (lower CG = more stable)
+        #   • lift feet off the ground for stepping gaits
+        # scale=0.5 rad: larger than hips because the calf default (-1.5 rad)
+        # is far from zero and has more useful range to exploit.
+        self.actions.calf_pos = JointPositionActionCfg(
+            asset_name="robot",
+            joint_names=[".*_calf_joint"],   # 4 calf joints (FL/FR/RL/RR)
+            scale=0.5,                        # ±0.5 rad offset from default pose
             use_default_offset=True,          # relative to default stance
         )
 
@@ -192,13 +212,62 @@ class Go2wFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
         # resolution error at startup.  Setting = None skips resolution completely.
         self.rewards.feet_air_time = None
 
-        # Undesired contacts: remove entirely.
-        # Base class penalises ".*THIGH" contacts; also uses uppercase pattern.
-        self.rewards.undesired_contacts = None
+        # Undesired contacts: re-enabled for Phase 3 with correct body names.
+        #
+        # The robot was discovered to "spider-walk" — land on its calf/thigh/hip
+        # links and walk with legs while wheels spin freely in the air.
+        # This penalty fires whenever a leg body exerts force > threshold N on the
+        # ground, making leg-based locomotion cost -1.0/step per contact.
+        # The policy will learn to keep leg links off the ground and use wheels.
+        #
+        # Note: base class uses ".*THIGH" (uppercase) — our robot has lowercase
+        # names (FL_thigh, FR_calf, etc.) so we must override with the correct regex.
+        # SceneEntityCfg("contact_forces", ...) references the ContactSensorCfg
+        # that the base class already sets up for all rigid bodies.
+        from isaaclab.managers import SceneEntityCfg
+        self.rewards.undesired_contacts = RewTerm(
+            func=mdp_utils.undesired_contacts,
+            weight=-1.0,
+            params={
+                "sensor_cfg": SceneEntityCfg(
+                    "contact_forces",
+                    body_names=[".*_hip", ".*_thigh", ".*_calf"],
+                ),
+                "threshold": 1.0,  # N — ignore micro-forces from brush contacts
+            },
+        )
 
-        # Joint position limits penalty: remove entirely for Phase 1.
-        # (Legs are held by PD; wheels are continuous with no hard limits.)
-        self.rewards.dof_pos_limits = None
+        # Joint position limits penalty: re-enabled for Phase 3.
+        # All 12 leg joints are now RL-controllable, so we need a soft barrier
+        # to prevent the policy from driving joints into hard URDF limits.
+        # Weight -0.1 is mild — enough to signal "don't slam into the limit"
+        # without dominating the velocity tracking reward.
+        # (wheels are continuous with no limits, so this only fires on leg joints)
+        self.rewards.dof_pos_limits = RewTerm(
+            func=mdp_utils.joint_pos_limits,
+            weight=-0.1,
+        )
+
+        # Leg joint deviation penalty: prevent excessive leg spreading / loophole gaits.
+        #
+        # The policy was observed to splay hips and extend calves into extreme
+        # positions to find wide-stance stable configurations that satisfy the
+        # velocity reward without clean locomotion.
+        # joint_deviation_l1 computes the L1 norm of (joint_pos - joint_default)
+        # for the specified joints, penalising any deviation from the default stance.
+        # Weight -0.2 is strong enough to deter extreme spreads but mild enough
+        # that the policy can still use small leg adjustments for balance.
+        from isaaclab.managers import SceneEntityCfg as _SECfg  # already imported above
+        self.rewards.leg_deviation = RewTerm(
+            func=mdp_utils.joint_deviation_l1,
+            weight=-0.2,
+            params={
+                "asset_cfg": _SECfg(
+                    "robot",
+                    joint_names=[".*_hip_joint", ".*_thigh_joint", ".*_calf_joint"],
+                )
+            },
+        )
 
         # is_alive: positive reward every step the robot is NOT terminated.
         #
@@ -252,9 +321,13 @@ class Go2wFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
         # Disable centre-of-mass randomisation for now.
         self.events.base_com = None
 
-        # push_robot: randomly shove the robot during training.
-        # Disabled in Phase 1 for simplicity; re-enable in Phase 2.
-        self.events.push_robot = None
+        # push_robot: re-enabled for Phase 3.
+        # With all leg DOFs unlocked the robot has enough actuation authority
+        # to resist external perturbations, so we add random shoves during
+        # training to build robustness.  The base class default applies a
+        # random impulse every ~10 s.
+        # (self.events.push_robot is already configured in the base class;
+        # we just un-None it by not overriding it here)
 
         # ==================================================================
         # 8. VELOCITY COMMANDS — restrict to what our wheels can achieve
@@ -266,16 +339,15 @@ class Go2wFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
         #
         # Restrict commands to ±0.5 m/s so perfect tracking is achievable and
         # the reward signal is informative from the first iteration.
-        # Command speed reduced ±0.5 → ±0.3 m/s:
-        # At 0.5 m/s (max wheel speed), steady-state wheel torque is high enough
-        # to pitch the robot forward even with lower damping.  At 0.3 m/s the
-        # wheel only needs 60% of the torque, keeping pitch well within limits.
-        self.commands.base_velocity.ranges.lin_vel_x = (-0.3, 0.3)
-        self.commands.base_velocity.ranges.lin_vel_y = (-0.3, 0.3)
-        # Yaw also reduced: differential wheel speed for turning is tricky and
-        # competes with forward motion.  Restrict to ±0.5 rad/s so the policy
-        # can focus on straight-line tracking first.
-        self.commands.base_velocity.ranges.ang_vel_z = (-0.5, 0.5)
+        # Phase 3: increased to ±0.5 m/s — with all leg DOFs unlocked the
+        # policy can dynamically shift the CG to stay balanced at higher speed.
+        # Lateral velocity (lin_vel_y) also increased: hip abduction + calf
+        # extension let the robot lean and step sideways.
+        self.commands.base_velocity.ranges.lin_vel_x = (-0.5, 0.5)
+        self.commands.base_velocity.ranges.lin_vel_y = (-0.5, 0.5)
+        # Yaw expanded to ±1.0 rad/s: full leg DOFs mean the robot can use
+        # differential leg loading (not just differential wheel speed) for turning.
+        self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
 
         # ==================================================================
         # 9. TERMINATIONS
@@ -287,30 +359,15 @@ class Go2wFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
 
         # bad_orientation: terminate if the robot tips past limit_angle radians.
         #
-        # WHY THIS IS THE MOST CRITICAL FIX
-        # The base_contact termination only fires if the base mesh physically
-        # hits the ground.  For the Go2W, the legs/hips make contact first,
-        # so base_contact NEVER fires (confirmed: 0.0 in training metrics).
-        # The robot lies tilted for the full 1000-step episode = wasted time.
-        #
-        # bad_orientation terminates as soon as the gravity-projection angle
-        # exceeds limit_angle.  0.5 rad ≈ 28° is tight enough to catch early
-        # tipping but loose enough not to terminate on normal stance wobble.
-        #
-        # With this fix:
-        #   - Fallen episodes reset in <0.5 s instead of running 20 s to timeout
-        #   - The policy collects ~40× more "upright" transitions per wall-clock time
-        #   - is_alive reward gives clear gradient: stay up = +1/step
-        # Relaxed 0.5 → 0.8 rad (46°):
-        # A wheeled robot with locked legs physically pitches forward slightly
-        # when driving (like a person leaning on a scooter).  0.5 rad was too
-        # tight — even at low speed the robot's steady-state forward pitch
-        # (~33°) hit the limit.  0.8 rad gives enough headroom for the robot
-        # to maintain forward motion without immediately terminating, while
-        # still catching catastrophic falls (>46° = clearly tipped over).
+        # Relaxed 0.8 → 1.0 rad (57°) for Phase 3:
+        # With all leg DOFs active the robot can actively recover from larger
+        # tilts (e.g., by widening its stance or pushing off with a calf).
+        # 1.0 rad gives enough headroom for dynamic recovery attempts before
+        # we declare the episode lost, while still catching genuine falls
+        # (>57° from vertical = robot is going down regardless of leg action).
         self.terminations.bad_orientation = DoneTerm(
             func=mdp_utils.bad_orientation,
-            params={"limit_angle": 0.8},  # 0.8 rad ≈ 46° from vertical
+            params={"limit_angle": 1.0},  # 1.0 rad ≈ 57° from vertical
         )
 
         # ==================================================================

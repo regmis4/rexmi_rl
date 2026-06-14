@@ -536,6 +536,37 @@ class Go2wRoughEnvCfg(Go2wFlatEnvCfg):
         )
 
         # ==================================================================
+        # E. STAGNATION PENALTY — teach the robot to escape when stuck
+        # ==================================================================
+        # stagnation_penalty fires on every step where:
+        #   • the commanded forward velocity is > 0.1 m/s  (asked to move)
+        #   • the actual forward velocity is < 0.05 m/s    (barely moving)
+        #
+        # Why this matters for rough terrain:
+        #   On flat ground the robot never gets stuck so this never fires.
+        #   On discrete steps / box edges a wheel can catch on a face and
+        #   spin uselessly with zero forward progress.  Without any gradient
+        #   signal the policy has no incentive to try something different.
+        #   With this penalty, staying stuck for 30 steps costs -15 reward —
+        #   comparable to failing velocity tracking for the same period.
+        #
+        # The policy can resolve stagnation by: briefly reversing (backing
+        # off the obstacle), shifting leg loading (thigh/calf reposition),
+        # or yawing to approach at a different angle.  All of these are
+        # already in the action space — this reward just provides the gradient.
+        #
+        # Weight = -0.5: moderate enough not to dominate velocity tracking
+        # (weight 2.0) but strong enough to accumulate meaningful pressure
+        # after ~10 stuck steps.
+        from rexmi_rl.tasks.locomotion.velocity.mdp import stagnation_penalty as _stagnation_penalty
+
+        self.rewards.stagnation = RewTerm(
+            func=_stagnation_penalty,
+            weight=-0.5,
+            params={"threshold": 0.05},
+        )
+
+        # ==================================================================
         # D. TERRAIN CURRICULUM — advance robot to harder tiles as it improves
         # ==================================================================
         # terrain_levels_vel is defined in isaaclab_tasks (the velocity

@@ -1,8 +1,10 @@
 # REXMI RL — Complete Developer Reference
 
-> **Current status: Phase 4 complete — Terrain Capability Evaluation available**
+> **Current status: Phase 5 in progress — Stagnation-escape training**
 >
-> Phases 1–4 complete. Use `scripts/eval.py` to characterise performance across 36 terrain variants.
+> Phases 1–4 complete. Phase 5 adds `stagnation_penalty` to teach the robot to
+> escape stuck states on discrete steps and box edges.
+> Use `scripts/eval.py` to characterise performance across 36 terrain variants.
 
 This document explains **every design decision** made across all four phases of
 the Go2W RL setup.  The goal is that after reading this you understand the full
@@ -705,7 +707,64 @@ rescale weights proportionally.
   - Larger network: [512, 256, 128] for ~220-dim observation
   - Empirical observation normalisation for height scan values
   - 3000 training iterations  
-**Training from scratch** (obs space changed — old flat policy weights incompatible).
+**Training from scratch** (obs space changed — old flat policy weights incompatible).  
+**Eval results** (36-variant sweep, `model_2999.pt`, 50 envs, 1000 steps each):
+
+| Terrain | Best | Cliff | Fails at |
+|---------|------|-------|----------|
+| stairs_up | 0.91 tracking | 12 cm | 15+ cm (tracking drops <0.75) |
+| stairs_down | 0.87 tracking | **10 cm** | 12+ cm (frozen, ~14% moving) |
+| boxes | 0.90 tracking | 10 cm | 15+ cm (tracking drops <0.45) |
+| slope | 0.89–0.93 | none | Excellent all the way to 23° |
+| rough | 0.85–0.88 | none | Excellent all the way to 10 cm |
+
+**Root cause of failures**: wheels catch on discrete step faces; robot freezes with
+wheels spinning but no forward progress.  No gradient signal to try a different
+approach.  Fixed in Phase 5 with `stagnation_penalty`.
+
+### Phase 5 — Stagnation-escape training (in progress)
+
+**Diagnosis**: Eval sweep showed the robot freezes on `stairs_down ≥12 cm` and
+`boxes ≥15 cm`, achieving near-zero forward velocity despite wheels spinning.  The
+existing reward function had no signal to escape this state.
+
+**Change made** (conservative — one term only):
+
+```python
+# source/rexmi_rl/tasks/locomotion/velocity/mdp/rewards.py
+def stagnation_penalty(env, threshold=0.05):
+    """Returns 1.0 when commanded forward but barely moving; else 0.0."""
+    fwd_vel = env.scene["robot"].data.root_lin_vel_b[:, 0]
+    cmd_vel = env.command_manager.get_command("base_velocity")[:, 0]
+    return ((cmd_vel > 0.1) & (fwd_vel.abs() < threshold)).float()
+```
+
+```python
+# Go2wRoughEnvCfg rewards — added to rough terrain only
+self.rewards.stagnation = RewTerm(
+    func=stagnation_penalty, weight=-0.5, params={"threshold": 0.05}
+)
+```
+
+**Why only this term**: Changing orientation constraints (`flat_orientation_l2`)
+or leg deviation would destabilise the current policy's excellent slope/rough
+performance.  Stagnation penalty only activates when the robot is already failing
+— it adds a new gradient without modifying any existing stable reward signals.
+
+**Mechanism**: With weight=-0.5, a robot frozen for 30 steps accumulates -15
+reward, comparable to 30 steps of failed velocity tracking (-30 from
+`track_lin_vel_xy_exp`).  The policy has full authority to escape via: reversing
+wheels, yaw-reorienting, or repositioning thigh/calf.  All these were possible
+in Phase 4 but provided zero gradient when stuck.
+
+**Next step**: Train for 3000 iterations from Phase 4 checkpoint (same obs space
+— no architecture change needed).  Then re-run `scripts/eval.py` to measure
+improvement on `stairs_down` and `boxes` cliffs.
+
+```bash
+# Train Phase 5 (resume from Phase 4 checkpoint)
+python scripts/train.py --task RexmiRl-Go2w-Velocity-Rough-v0 --headless --resume
+```
 
 ---
 
@@ -731,4 +790,4 @@ rescale weights proportionally.
 
 ---
 
-*Last updated: 2026-06-14 · REXMI Project · Phase 4 complete, eval script added*
+*Last updated: 2026-06-14 · REXMI Project · Phase 5 in progress — stagnation_penalty added*

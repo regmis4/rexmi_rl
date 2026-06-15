@@ -17,6 +17,52 @@ import torch
 from isaaclab.envs import ManagerBasedRLEnv
 
 
+def climb_progress(
+    env: ManagerBasedRLEnv,
+) -> torch.Tensor:
+    """
+    Reward upward base movement while a forward command is active.
+
+    The robot can only physically surmount discrete steps (height > wheel radius)
+    by pitching its body and lifting its legs — both of which produce positive
+    world-frame vertical velocity (vz > 0) during the crossing.  The existing
+    ``lin_vel_z_l2`` term penalises ALL vertical velocity, including the upward
+    motion needed to climb.  This term provides a targeted counter-incentive:
+
+    • When the robot has a forward command AND vz > 0 (climbing), this returns
+      a positive reward proportional to the vertical speed (capped at 0.5 m/s).
+    • On flat ground vz ≈ 0, so this term contributes nothing.
+    • On downward stairs vz < 0, so this term is also silent — the robot is
+      NOT rewarded for controlled descents.
+
+    With weight=+1.5, a robot climbing at 0.3 m/s vertical earns +0.45/step —
+    approximately equal to the ``flat_orientation_l2`` penalty incurred during
+    the necessary body pitch, making climbing a neutral-to-positive action.
+
+    Design notes
+    ------------
+    We deliberately cap vz at 0.5 m/s (wheel tangential speed at full throttle)
+    to prevent the reward from saturating on fast falls/bounces.
+
+    Returns
+    -------
+    Tensor shape (num_envs,), value ∈ [0, 0.5].  Multiply by a positive weight.
+    """
+    robot = env.scene["robot"]
+
+    # World-frame vertical velocity of the base link
+    vz: torch.Tensor = robot.data.root_lin_vel_w[:, 2]  # (num_envs,)
+
+    # Only active when there is a meaningful forward command
+    cmd_fwd: torch.Tensor = env.command_manager.get_command("base_velocity")[:, 0]
+    has_cmd: torch.Tensor = cmd_fwd > 0.1  # bool (num_envs,)
+
+    # Reward only upward motion, capped at 0.5 m/s
+    climb: torch.Tensor = torch.clamp(vz, min=0.0, max=0.5)
+
+    return has_cmd.float() * climb
+
+
 def stagnation_penalty(
     env: ManagerBasedRLEnv,
     threshold: float = 0.05,

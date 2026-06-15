@@ -176,8 +176,12 @@ class Go2wFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
 
         # Stability penalties
         # -------------------
-        # lin_vel_z_l2: penalise vertical bouncing (robot should glide, not hop)
-        self.rewards.lin_vel_z_l2.weight = -2.0
+        # lin_vel_z_l2: penalise vertical bouncing (robot should glide, not hop).
+        # Phase 6: reduced -2.0 → -0.3.  The climb_progress term in Go2wRoughEnvCfg
+        # provides a positive counter-incentive for upward velocity during obstacle
+        # crossing; keeping this too strong here would fight that signal even on
+        # flat terrain.  -0.3 is still enough to damp erratic bouncing.
+        self.rewards.lin_vel_z_l2.weight = -0.3
 
         # ang_vel_xy_l2: penalise rolling/pitching of the base.
         # Increased -0.05 → -0.5: the robot's only degree of freedom is wheel
@@ -187,8 +191,12 @@ class Go2wFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.rewards.ang_vel_xy_l2.weight = -0.5
 
         # flat_orientation_l2: penalise deviation from level base orientation.
-        # Weight 2.5 ensures the robot keeps its belly parallel to the ground.
-        self.rewards.flat_orientation_l2.weight = -2.5
+        # Phase 6: reduced -2.5 → -0.8.  Surmounting a step taller than the wheel
+        # radius (~5 cm) REQUIRES the body to pitch 20-30° — the old weight of -2.5
+        # made that pitch more costly per step than the stagnation penalty, so the
+        # policy always chose to stay stuck rather than attempt to climb.  -0.8 still
+        # penalises sloppy flat-ground driving while permitting climbing pitches.
+        self.rewards.flat_orientation_l2.weight = -0.8
 
         # Energy / smoothness penalties
         # ------------------------------
@@ -255,12 +263,15 @@ class Go2wFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
         # velocity reward without clean locomotion.
         # joint_deviation_l1 computes the L1 norm of (joint_pos - joint_default)
         # for the specified joints, penalising any deviation from the default stance.
-        # Weight -0.2 is strong enough to deter extreme spreads but mild enough
-        # that the policy can still use small leg adjustments for balance.
+        # Phase 6: reduced -0.2 → -0.05.  Climbing a step requires the front calves
+        # to extend significantly to lift the wheel above the step face.  The old
+        # weight (-0.2) made that extension 4× more costly than stagnation, suppressing
+        # the very leg motion needed for climbing.  -0.05 retains a soft bias toward
+        # the default stance while permitting large calf deflections during climbing.
         from isaaclab.managers import SceneEntityCfg as _SECfg  # already imported above
         self.rewards.leg_deviation = RewTerm(
             func=mdp_utils.joint_deviation_l1,
-            weight=-0.2,
+            weight=-0.05,
             params={
                 "asset_cfg": _SECfg(
                     "robot",
@@ -547,23 +558,54 @@ class Go2wRoughEnvCfg(Go2wFlatEnvCfg):
         #   On discrete steps / box edges a wheel can catch on a face and
         #   spin uselessly with zero forward progress.  Without any gradient
         #   signal the policy has no incentive to try something different.
-        #   With this penalty, staying stuck for 30 steps costs -15 reward —
-        #   comparable to failing velocity tracking for the same period.
+        #   With this penalty, staying stuck for 30 steps costs -45 reward —
+        #   comparable to ~22 steps of failed velocity tracking.
         #
-        # The policy can resolve stagnation by: briefly reversing (backing
-        # off the obstacle), shifting leg loading (thigh/calf reposition),
-        # or yawing to approach at a different angle.  All of these are
-        # already in the action space — this reward just provides the gradient.
-        #
-        # Weight = -0.5: moderate enough not to dominate velocity tracking
-        # (weight 2.0) but strong enough to accumulate meaningful pressure
-        # after ~10 stuck steps.
-        from rexmi_rl.tasks.locomotion.velocity.mdp import stagnation_penalty as _stagnation_penalty
+        # Phase 6: weight increased -0.5 → -1.5.  Phase 5 eval showed that
+        # -0.5 was sufficient to solve the 12 cm cliff (from 0.45 → 0.82
+        # tracking) but not enough to incentivise recovery at 15-23 cm.
+        # With -1.5, 10 stuck steps = -15 reward, making "try anything else"
+        # (yaw, reverse, leg reposition) strictly better than staying stuck.
+        from rexmi_rl.tasks.locomotion.velocity.mdp import (
+            stagnation_penalty as _stagnation_penalty,
+            climb_progress as _climb_progress,
+        )
 
         self.rewards.stagnation = RewTerm(
             func=_stagnation_penalty,
-            weight=-0.5,
+            weight=-1.5,
             params={"threshold": 0.05},
+        )
+
+        # ==================================================================
+        # F. CLIMB PROGRESS — reward upward velocity during forward command
+        # ==================================================================
+        # climb_progress fires whenever:
+        #   • the commanded forward velocity is > 0.1 m/s  (asked to move)
+        #   • the world-frame vertical velocity vz > 0      (body is rising)
+        #
+        # Why this is needed:
+        #   Any step taller than the wheel radius (5 cm) cannot be surmounted
+        #   by rolling alone — the wheel face contacts the step's vertical wall.
+        #   The ONLY physical paths over such a wall are:
+        #     1. Pitch the body forward + extend front calves to place the wheel
+        #        ABOVE the step edge, then drive forward onto the step surface.
+        #     2. Build enough momentum that contact geometry carries the wheel up.
+        #   Both paths produce positive vz during the crossing.
+        #
+        #   The existing lin_vel_z_l2 (-0.3) still penalises ALL vertical velocity,
+        #   but with weight 1.5 here the net reward for climbing at 0.3 m/s is:
+        #     +1.5 × 0.3  (climb_progress)  = +0.45/step
+        #     -0.3 × 0.09 (lin_vel_z_l2)    = -0.027/step
+        #     net: +0.42/step — climbing is now profitable
+        #
+        # Weight = +1.5: strong enough to counteract flat_orientation_l2
+        # (-0.8 × pitch²) during a 30° climbing pitch, giving a near-zero
+        # net penalty for the orientation cost of climbing.  Zero on flat
+        # ground (vz ≈ 0) so it doesn't distort flat driving behaviour.
+        self.rewards.climb_progress = RewTerm(
+            func=_climb_progress,
+            weight=1.5,
         )
 
         # ==================================================================

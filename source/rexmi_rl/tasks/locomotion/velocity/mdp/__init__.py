@@ -3,4 +3,4 @@
 
 """Custom MDP terms for REXMI velocity-tracking environments."""
 
-from .rewards import stagnation_penalty  # noqa: F401
+from .rewards import climb_progress, stagnation_penalty  # noqa: F401

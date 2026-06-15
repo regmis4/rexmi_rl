@@ -1,9 +1,10 @@
 # REXMI RL — Complete Developer Reference
 
-> **Current status: Phase 5 in progress — Stagnation-escape training**
+> **Current status: Phase 6 in progress — Obstacle climbing**
 >
-> Phases 1–4 complete. Phase 5 adds `stagnation_penalty` to teach the robot to
-> escape stuck states on discrete steps and box edges.
+> Phases 1–5 complete. Phase 6 relaxes the orientation/deviation penalties that
+> prevented climbing, triples the stagnation pressure, and adds a `climb_progress`
+> reward to directly incentivise upward motion over discrete steps.
 > Use `scripts/eval.py` to characterise performance across 36 terrain variants.
 
 This document explains **every design decision** made across all four phases of
@@ -26,7 +27,7 @@ prior knowledge.
 9. [Terrain Capability Evaluation](#9-terrain-capability-evaluation)
 10. [Reward Engineering Guide](#10-reward-engineering-guide)
 11. [Phase History & What We Learned](#11-phase-history)
-12. [Phase 5 Roadmap](#12-phase-5-roadmap)
+12. [Phase 6 Roadmap](#12-phase-6-roadmap)
 
 ---
 
@@ -52,7 +53,7 @@ At the highest level:
 - **Reward**: Velocity tracking + stability penalties + contact/deviation penalties
 - **Environment**: Isaac Sim running 4096 robot copies on GPU simultaneously
 
-The project has progressed through 4 phases, each unlocking more capability:
+The project has progressed through 5 complete phases:
 
 | Phase | Terrain | Action DOF | Key addition |
 |-------|---------|-----------|--------------|
@@ -60,6 +61,7 @@ The project has progressed through 4 phases, each unlocking more capability:
 | 2 | Flat | 8 (wheels + thighs) | CG shifting — 99% success rate |
 | 3 | Flat | 16 (all joints) | Full leg control, spider-walk fix |
 | 4 | **Rough** | 16 | Height scanner, terrain curriculum |
+| 5 | **Rough** | 16 | `stagnation_penalty` — solved 12 cm cliff |
 
 ---
 
@@ -315,22 +317,33 @@ output ∈ [-1, 1]¹⁶  split into:
 
 `use_default_offset=True` means action=0 → hold the default stance.
 
-### Reward function (Phase 3+)
+### Reward function (Phase 6, all terrain)
+
+Terms marked *(rough only)* are added only in `Go2wRoughEnvCfg.__post_init__()`.
 
 | Term | Weight | Formula | Purpose |
 |------|--------|---------|---------|
 | `track_lin_vel_xy_exp` | +2.0 | exp(-‖vxy - cmd‖² / 0.25) | Match forward/lateral speed |
 | `track_ang_vel_z_exp` | +0.75 | exp(-(ωz - ωz_cmd)² / 0.25) | Match turning rate |
 | `is_alive` | +0.2 | 1 while running, 0 at termination | Stay upright |
-| `flat_orientation_l2` | -2.5 | ‖gravity_projected_xy‖² | Keep base level |
-| `lin_vel_z_l2` | -2.0 | vz² | No bouncing |
+| `climb_progress` *(rough only)* | **+1.5** | max(0, vz) capped at 0.5 m/s, when fwd commanded | Reward climbing upward |
+| `flat_orientation_l2` | **-0.8** | ‖gravity_projected_xy‖² | Keep base level (relaxed for climbing) |
+| `lin_vel_z_l2` | **-0.3** | vz² | Damp bouncing (relaxed for climbing) |
 | `ang_vel_xy_l2` | -0.5 | ωx² + ωy² | No pitch/roll wobble |
 | `dof_torques_l2` | -1e-5 | ‖τ‖² | Minimise energy |
 | `dof_acc_l2` | -2.5e-7 | ‖q̈‖² | Smooth accelerations |
 | `action_rate_l2` | -0.01 | ‖a_t - a_{t-1}‖² | Smooth commands |
 | `undesired_contacts` | -1.0 | contact force on hip/thigh/calf > 1N | No spider-walking |
 | `dof_pos_limits` | -0.1 | joints beyond soft limit | Stay within URDF range |
-| `leg_deviation` | -0.2 | Σ\|joint - default\| (leg joints) | No excessive leg spread |
+| `leg_deviation` | **-0.05** | Σ\|joint - default\| (leg joints) | Soft bias to default stance (relaxed for climbing) |
+| `stagnation` *(rough only)* | **-1.5** | 1 when fwd commanded but \|vx\| < 0.05 m/s | Escape stuck states |
+
+**Phase 6 weight changes vs. Phase 5** (bold above):
+- `flat_orientation_l2`: -2.5 → **-0.8** — pitching 30° to climb was more costly than stagnation
+- `lin_vel_z_l2`: -2.0 → **-0.3** — upward velocity (climbing) was being penalised
+- `leg_deviation`: -0.2 → **-0.05** — calf extension needed to lift wheels was suppressed
+- `stagnation` weight: -0.5 → **-1.5** — tripled pressure to escape stuck states
+- `climb_progress`: new term, **+1.5** — directly rewards rising above obstacle level
 
 **`undesired_contacts`** and **`leg_deviation`** were added after Phase 3 revealed
 two reward-gaming behaviours: spider-walking (legs touching ground) and extreme
@@ -722,13 +735,12 @@ rescale weights proportionally.
 wheels spinning but no forward progress.  No gradient signal to try a different
 approach.  Fixed in Phase 5 with `stagnation_penalty`.
 
-### Phase 5 — Stagnation-escape training (in progress)
+### Phase 5 — Stagnation-escape training ✅ COMPLETE
 
-**Diagnosis**: Eval sweep showed the robot freezes on `stairs_down ≥12 cm` and
-`boxes ≥15 cm`, achieving near-zero forward velocity despite wheels spinning.  The
-existing reward function had no signal to escape this state.
+**Diagnosis**: Phase 4 eval sweep revealed the robot freezes on `stairs_down ≥12 cm`
+and `boxes ≥15 cm`, spinning wheels in place with near-zero forward progress.
 
-**Change made** (conservative — one term only):
+**Change made** (conservative — one term added to rough env only):
 
 ```python
 # source/rexmi_rl/tasks/locomotion/velocity/mdp/rewards.py
@@ -739,55 +751,142 @@ def stagnation_penalty(env, threshold=0.05):
     return ((cmd_vel > 0.1) & (fwd_vel.abs() < threshold)).float()
 ```
 
+Wired into `Go2wRoughEnvCfg` with `weight=-0.5, threshold=0.05`.  
+Trained 3000 iterations from Phase 4 checkpoint (`--resume`, same obs space).
+
+**Phase 5 eval results** (`eval_2026-06-14_16-00-15.csv`):
+
+| Terrain | Phase 4 tracking | Phase 5 tracking | Δ | Phase 4 moving | Phase 5 moving | Δ |
+|---------|------------------|------------------|---|----------------|----------------|---|
+| stairs_down_10cm | 0.743 | 0.866 | **+0.123** | 95.4% | 98.6% | +3.2pp |
+| **stairs_down_12cm** | **0.450** | **0.820** | **+0.370 🏆** | 63.6% | 97.2% | **+33.6pp** |
+| stairs_down_15cm | 0.138 | 0.337 | +0.199 | 18.5% | 49.8% | +31.3pp |
+| stairs_down_18cm | 0.126 | 0.205 | +0.079 | 16.1% | 32.3% | +16.2pp |
+| stairs_down_23cm | 0.118 | 0.134 | +0.016 | 14.7% | 18.2% | +3.5pp |
+| **boxes_15cm** | **0.452** | **0.759** | **+0.307 🏆** | 57.4% | 93.1% | **+35.7pp** |
+| boxes_20cm | 0.348 | 0.548 | +0.200 | 45.9% | 71.3% | +25.4pp |
+| stairs_up (all) | 0.675–0.909 | 0.732–0.923 | +0.02–0.06 | improved | improved | |
+| slope / rough (all) | 0.85–0.93 | 0.90–0.94 | ~+0.03 | ✅ stable | ✅ stable | |
+
+**Key insight from Phase 5**: The 12 cm cliff (= 120% of wheel radius) was solved
+completely.  The stagnation penalty gave enough gradient for the policy to discover
+"try harder" strategies near the wheel-diameter boundary.  However, at 15–23 cm
+(>150% wheel radius), the wheel physically contacts the step's vertical wall face —
+no amount of wheel torque can roll over it.  The ONLY path is leg-assisted climbing,
+which requires:
+1. Pitching the body forward (~30°) — blocked by `flat_orientation_l2 = -2.5`
+2. Extending front calves to lift wheels above step edge — suppressed by `leg_deviation = -0.2`
+3. Generating positive vz while climbing — penalised by `lin_vel_z_l2 = -2.0`
+
+These three reward contradictions are the root cause of the residual cliff.  Phase 6
+resolves them.
+
+**Physical limit discovered**: The Go2W wheel radius is **5 cm** (confirmed in URDF:
+`cylinder radius="0.05"`).  Steps > 5 cm always present a flat wall to the wheel.
+Steps > ~10 cm (2× radius) are not surmountable by rolling physics alone.
+The "gives up" behaviour is not a policy failure — it is the reward function
+preventing the policy from using the climbing motion it is physically capable of.
+
+### Phase 6 — Obstacle climbing (in progress)
+
+**Goal**: Teach the robot to pitch its body and use leg extension to climb discrete
+steps taller than its wheel radius (5 cm), targeting recovery at `stairs_down ≥15 cm`
+and `boxes ≥20 cm`.
+
+**Changes made** (resume from Phase 5 checkpoint — same obs space, no architecture change):
+
+**1. Relax three penalty contradictions:**
+
+| Term | Before | After | Reason |
+|------|--------|-------|--------|
+| `flat_orientation_l2` | -2.5 | **-0.8** | Body MUST pitch 20-30° to mount a step; -2.5 made that costlier than stagnation |
+| `lin_vel_z_l2` | -2.0 | **-0.3** | Climbing produces positive vz; penalising it suppressed the needed motion |
+| `leg_deviation` | -0.2 | **-0.05** | Calf extension lifts wheel above step edge; -0.2 suppressed this 4× |
+| `stagnation` weight | -0.5 | **-1.5** | Triple pressure: 10 stuck steps = -15 reward, making any escape attempt better than waiting |
+
+**2. Add `climb_progress` reward (new MDP function, rough env only):**
+
 ```python
-# Go2wRoughEnvCfg rewards — added to rough terrain only
-self.rewards.stagnation = RewTerm(
-    func=stagnation_penalty, weight=-0.5, params={"threshold": 0.05}
-)
+# source/rexmi_rl/tasks/locomotion/velocity/mdp/rewards.py
+def climb_progress(env: ManagerBasedRLEnv) -> torch.Tensor:
+    """Reward upward base velocity (vz > 0) when a forward command is active."""
+    vz = env.scene["robot"].data.root_lin_vel_w[:, 2]
+    cmd_fwd = env.command_manager.get_command("base_velocity")[:, 0]
+    has_cmd = cmd_fwd > 0.1
+    climb = torch.clamp(vz, min=0.0, max=0.5)   # cap at 0.5 m/s
+    return has_cmd.float() * climb
 ```
 
-**Why only this term**: Changing orientation constraints (`flat_orientation_l2`)
-or leg deviation would destabilise the current policy's excellent slope/rough
-performance.  Stagnation penalty only activates when the robot is already failing
-— it adds a new gradient without modifying any existing stable reward signals.
+Wired into `Go2wRoughEnvCfg` with `weight=+1.5`.
 
-**Mechanism**: With weight=-0.5, a robot frozen for 30 steps accumulates -15
-reward, comparable to 30 steps of failed velocity tracking (-30 from
-`track_lin_vel_xy_exp`).  The policy has full authority to escape via: reversing
-wheels, yaw-reorienting, or repositioning thigh/calf.  All these were possible
-in Phase 4 but provided zero gradient when stuck.
+**Reward balance analysis at a 30° climbing pitch:**
+```
+climb_progress:        +1.5 × 0.3 m/s vz    = +0.45/step
+flat_orientation_l2:   -0.8 × (0.52 rad)²   = -0.22/step
+lin_vel_z_l2:          -0.3 × (0.09)        = -0.027/step
+net:                                          ≈ +0.20/step  ← climbing is PROFITABLE
+```
 
-**Next step**: Train for 3000 iterations from Phase 4 checkpoint (same obs space
-— no architecture change needed).  Then re-run `scripts/eval.py` to measure
-improvement on `stairs_down` and `boxes` cliffs.
+vs. Phase 5 where the same pitch cost:
+```
+flat_orientation_l2:   -2.5 × (0.52 rad)²   = -0.68/step  ← worse than stagnation (-0.5)
+lin_vel_z_l2:          -2.0 × (0.09)        = -0.18/step
+```
+
+**Why backtracking is structurally hard**: The MDP uses fixed velocity commands
+(forward = 0.5 m/s).  Going backward gives velocity tracking reward ≈ 0 (same as stuck),
+with no positive signal.  PPO's credit assignment window (~24 steps × γ=0.99) is too
+short to bridge the "back up 2s → successful crossing" causal chain.  Climbing is
+the reliable engineering path; backtracking would require a hierarchical policy
+or waypoint-based reward shaping.
+
+**TensorBoard signals to watch for Phase 6:**
+```
+stagnation:          should trend toward 0 (robot escapes faster)
+climb_progress:      should become non-zero on hard terrain rows
+flat_orientation_l2: will go more negative (robot pitching more) — this is expected
+track_lin_vel_xy_exp: should stay ≥ Phase 5 baseline (~1.90)
+```
 
 ```bash
-# Train Phase 5 (resume from Phase 4 checkpoint)
+# Train Phase 6 (resume from Phase 5 checkpoint)
 python scripts/train.py --task RexmiRl-Go2w-Velocity-Rough-v0 --headless --resume
 ```
 
 ---
 
-## 12. Phase 5 Roadmap
+## 12. Phase 6 Roadmap
 
-### Phase 5a: Energy efficiency (elegance pass)
-- Add `dof_torques_l2` on leg joints with higher weight to discourage unnecessary
-  leg movement when wheels alone are sufficient (energy-aware gait)
-- Optionally: reward that increases when legs are near default pose at high speed
+### Phase 6 (current): Obstacle climbing
+- **Done**: `climb_progress` reward, relaxed orientation/deviation penalties,
+  tripled stagnation penalty weight
+- **Target**: Recover `stairs_down_15cm` to ≥0.7 tracking (was 0.34 after Phase 5)
+- **Monitor**: `flat_orientation_l2` will go more negative (pitching) — expected.
+  If it exceeds -0.5/step mean, robot may be pitching on flat terrain → reduce
+  `flat_orientation_l2` to -0.8 or add a separate flat-terrain orientation penalty
 
-### Phase 5b: Custom REXMI robot
+### Phase 7 (planned): Energy efficiency and gait elegance
+- Increase `dof_torques_l2` weight for leg joints specifically to discourage
+  unnecessary leg movement when wheels alone are sufficient (energy-aware gait)
+- Add reward for "legs near default when speed is high" — let the robot sprint with
+  locked legs and only activate leg repositioning for obstacle crossings
+- Potential: asymmetric leg deviation penalty (cheap to extend calves, expensive to
+  splay hips)
+
+### Phase 8 (planned): Custom REXMI robot
 - Swap `GO2W_CFG` for `REXMI_CFG` (custom wheel geometry, sensor suite)
-- All env/reward configs should transfer directly (same 16-DOF structure)
+- All env/reward configs should transfer directly (same 16-DOF structure assumed)
+- Re-run full 36-variant eval sweep on the new geometry to identify new cliffs
 
-### Phase 5c: Lunar terrain (Project Chrono integration)
+### Phase 9 (planned): Lunar terrain
 - Integrate lunar regolith deformation model from Project Chrono
 - Train on simulated crater terrain with soft soil contact
 - Height scanner may need to be replaced with depth camera for deformable surfaces
 
-### Phase 5d: Sim-to-real transfer
+### Phase 10 (planned): Sim-to-real transfer
 - Domain randomisation: friction (0.3–1.2), mass (±20%), motor damping (±30%)
 - Deploy to real Go2W hardware using Isaac Lab's `--real_time` mode
 
 ---
 
-*Last updated: 2026-06-14 · REXMI Project · Phase 5 in progress — stagnation_penalty added*
+*Last updated: 2026-06-14 · REXMI Project · Phase 6 in progress — obstacle climbing*

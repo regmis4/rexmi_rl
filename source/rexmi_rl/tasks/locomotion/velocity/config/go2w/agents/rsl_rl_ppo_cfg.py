@@ -193,10 +193,15 @@ class Go2wRoughPPORunnerCfg(Go2wFlatPPORunnerCfg):
         activation="elu",
     )
 
-    # 3000 iterations to allow curriculum to progress all 10 difficulty levels.
-    # Rough terrain convergence is slower — stair climbing requires discovering
-    # that legs must be actively used to step over obstacles.
-    max_iterations = 3000
+    # Phase 6 validation run: 1500 iterations (~1.5–2 hrs, half the usual budget).
+    # Phase 6 is reward fine-tuning on a pre-trained Phase 5 policy, not training
+    # from scratch.  Early TensorBoard signals tell us within ~800 iterations if
+    # the approach is working:
+    #   • climb_progress reward becomes non-zero on hard terrain rows → working
+    #   • stagnation penalty trending toward 0  → robot escaping more often
+    # If neither signal moves by iteration 800, more iterations won't help.
+    # If both move in the right direction, run a full 3000-iter follow-up.
+    max_iterations = 1500
 
     # Save more frequently so we can inspect intermediate policies
     save_interval = 100

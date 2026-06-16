@@ -40,6 +40,43 @@ Registered environments
   RexmiRl-Go2w-Velocity-Rough-Play-v0
       → Visualisation: 50 environments, no noise, no pushes.
       → Play with: python scripts/play.py --task RexmiRl-Go2w-Velocity-Rough-Play-v0
+
+  Lunar crater traversal demo (uses rough-terrain policy, 32 m × 32 m tiles)
+  -----------------------------------------------------------------------
+  These environments load the Phase 6-Optimized rough-terrain checkpoint onto
+  LOLA-calibrated procedural crater wall terrains.  No re-training required.
+  See source/rexmi_rl/tasks/locomotion/velocity/config/go2w/crater_env_cfg.py
+  and docs/lunar_crater_terrain_research.md for full morphometry details.
+
+  Upslope (floor → rim)  — default direction, yaw=0
+  ---------------------------------------------------------
+  RexmiRl-Go2w-Crater-Type1-Play-v0
+      → 10 robots on Haworth-archetype wall (7.5–14°). ✅ All zones traversable.
+  RexmiRl-Go2w-Crater-Type1-Record-v0
+      → Single-robot upslope recording variant.
+  RexmiRl-Go2w-Crater-Type2-Play-v0
+      → 10 robots on Faustini-archetype wall (11.5–17.5°). ✅ PRIMARY DEMO.
+  RexmiRl-Go2w-Crater-Type2-Record-v0
+      → Single-robot upslope recording variant (use for investor video).
+  RexmiRl-Go2w-Crater-Type3-Play-v0
+      → 10 robots on Shackleton-archetype wall (22.5–35°). ⚠️ Phase 8 required.
+  RexmiRl-Go2w-Crater-Type3-Record-v0
+      → Single-robot upslope recording variant.
+
+  Downslope (rim → floor)  — yaw=π, spawn near rim
+  ---------------------------------------------------------
+  RexmiRl-Go2w-Crater-Type1-Down-Play-v0
+      → 10 robots descending Haworth wall from rim to floor.
+  RexmiRl-Go2w-Crater-Type1-Down-Record-v0
+      → Single-robot downslope recording.
+  RexmiRl-Go2w-Crater-Type2-Down-Play-v0
+      → 10 robots descending Faustini wall. ✅ PRIMARY DOWNSLOPE DEMO.
+  RexmiRl-Go2w-Crater-Type2-Down-Record-v0
+      → Single-robot downslope recording (investor video).
+  RexmiRl-Go2w-Crater-Type3-Down-Play-v0
+      → 10 robots descending Shackleton — hits 35° wall immediately.
+  RexmiRl-Go2w-Crater-Type3-Down-Record-v0
+      → Single-robot downslope recording.
 """
 
 import gymnasium as gym
@@ -108,6 +145,203 @@ gym.register(
     kwargs={
         "env_cfg_entry_point": (
             "rexmi_rl.tasks.locomotion.velocity.config.go2w.flat_env_cfg:Go2wRoughEnvCfg_PLAY"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wRoughPPORunnerCfg"
+        ),
+    },
+)
+
+# ---------------------------------------------------------------------------
+# Lunar crater traversal demo environments (investor showcase)
+# ---------------------------------------------------------------------------
+# All crater envs use the Go2wRoughPPORunnerCfg because the obs/action space
+# is identical to the rough-terrain training config (height scanner + 16 DOF).
+# The policy checkpoint from go2w_velocity_rough is loaded unchanged.
+
+# -- Type 1: Ancient/degraded crater (Haworth-archetype, 7.5–14°) -----------
+
+gym.register(
+    id="RexmiRl-Go2w-Crater-Type1-Play-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w.crater_env_cfg"
+            ":LunarCraterType1EnvCfg"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wRoughPPORunnerCfg"
+        ),
+    },
+)
+
+gym.register(
+    id="RexmiRl-Go2w-Crater-Type1-Record-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w.crater_env_cfg"
+            ":LunarCraterType1EnvCfg_PLAY"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wRoughPPORunnerCfg"
+        ),
+    },
+)
+
+# -- Type 2: Faustini-archetype (11.5–17.5°) — PRIMARY DEMO -----------------
+
+gym.register(
+    id="RexmiRl-Go2w-Crater-Type2-Play-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w.crater_env_cfg"
+            ":LunarCraterType2EnvCfg"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wRoughPPORunnerCfg"
+        ),
+    },
+)
+
+gym.register(
+    id="RexmiRl-Go2w-Crater-Type2-Record-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w.crater_env_cfg"
+            ":LunarCraterType2EnvCfg_PLAY"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wRoughPPORunnerCfg"
+        ),
+    },
+)
+
+# -- Type 3: Shackleton-archetype (22.5–35°) — Phase 8 target ---------------
+
+gym.register(
+    id="RexmiRl-Go2w-Crater-Type3-Play-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w.crater_env_cfg"
+            ":LunarCraterType3EnvCfg"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wRoughPPORunnerCfg"
+        ),
+    },
+)
+
+gym.register(
+    id="RexmiRl-Go2w-Crater-Type3-Record-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w.crater_env_cfg"
+            ":LunarCraterType3EnvCfg_PLAY"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wRoughPPORunnerCfg"
+        ),
+    },
+)
+
+# ---------------------------------------------------------------------------
+# Downslope variants (rim → floor)
+# ---------------------------------------------------------------------------
+
+gym.register(
+    id="RexmiRl-Go2w-Crater-Type1-Down-Play-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w.crater_env_cfg"
+            ":LunarCraterType1DownEnvCfg"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wRoughPPORunnerCfg"
+        ),
+    },
+)
+
+gym.register(
+    id="RexmiRl-Go2w-Crater-Type1-Down-Record-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w.crater_env_cfg"
+            ":LunarCraterType1DownEnvCfg_PLAY"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wRoughPPORunnerCfg"
+        ),
+    },
+)
+
+gym.register(
+    id="RexmiRl-Go2w-Crater-Type2-Down-Play-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w.crater_env_cfg"
+            ":LunarCraterType2DownEnvCfg"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wRoughPPORunnerCfg"
+        ),
+    },
+)
+
+gym.register(
+    id="RexmiRl-Go2w-Crater-Type2-Down-Record-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w.crater_env_cfg"
+            ":LunarCraterType2DownEnvCfg_PLAY"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wRoughPPORunnerCfg"
+        ),
+    },
+)
+
+gym.register(
+    id="RexmiRl-Go2w-Crater-Type3-Down-Play-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w.crater_env_cfg"
+            ":LunarCraterType3DownEnvCfg"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wRoughPPORunnerCfg"
+        ),
+    },
+)
+
+gym.register(
+    id="RexmiRl-Go2w-Crater-Type3-Down-Record-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w.crater_env_cfg"
+            ":LunarCraterType3DownEnvCfg_PLAY"
         ),
         "rsl_rl_cfg_entry_point": (
             f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wRoughPPORunnerCfg"

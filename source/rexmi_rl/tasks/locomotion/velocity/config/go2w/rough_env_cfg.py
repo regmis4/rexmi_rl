@@ -177,11 +177,17 @@ class Go2wFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
         # Stability penalties
         # -------------------
         # lin_vel_z_l2: penalise vertical bouncing (robot should glide, not hop).
-        # Phase 6: reduced -2.0 → -0.3.  The climb_progress term in Go2wRoughEnvCfg
-        # provides a positive counter-incentive for upward velocity during obstacle
-        # crossing; keeping this too strong here would fight that signal even on
-        # flat terrain.  -0.3 is still enough to damp erratic bouncing.
-        self.rewards.lin_vel_z_l2.weight = -0.3
+        # Phase 7: restored -0.3 → -1.5.  Phase 6 weakened this to -0.3 so that
+        # climb_progress (+1.5) could outweigh it during obstacle climbing.  That
+        # worked, but the terrain-blind weight=+1.5 also made flat-terrain bouncing
+        # profitable (+0.22/step), causing a -0.10 to -0.16 regression on slopes
+        # and rough terrain.  With the Phase 7 hybrid climb_progress (base_weight=0.4,
+        # obstacle_weight=1.5), the floor-level climb reward drops to +0.4×vz.
+        # At -1.5 here, bouncing at 0.15 m/s now costs:
+        #   +0.4×0.15 − 1.5×0.15² = +0.060 − 0.034 = +0.026/step (not worth it)
+        # but near a real obstacle climb_progress switches to +1.5 automatically,
+        # so the climbing gradient is fully preserved.
+        self.rewards.lin_vel_z_l2.weight = -1.5
 
         # ang_vel_xy_l2: penalise rolling/pitching of the base.
         # Increased -0.05 → -0.5: the robot's only degree of freedom is wheel
@@ -584,28 +590,33 @@ class Go2wRoughEnvCfg(Go2wFlatEnvCfg):
         #   • the commanded forward velocity is > 0.1 m/s  (asked to move)
         #   • the world-frame vertical velocity vz > 0      (body is rising)
         #
-        # Why this is needed:
-        #   Any step taller than the wheel radius (5 cm) cannot be surmounted
-        #   by rolling alone — the wheel face contacts the step's vertical wall.
-        #   The ONLY physical paths over such a wall are:
-        #     1. Pitch the body forward + extend front calves to place the wheel
-        #        ABOVE the step edge, then drive forward onto the step surface.
-        #     2. Build enough momentum that contact geometry carries the wheel up.
-        #   Both paths produce positive vz during the crossing.
+        # PHASE 7 HYBRID DESIGN (Option A + B):
+        #   The function now reads the height scanner and returns a value
+        #   already scaled by the effective weight internally:
         #
-        #   The existing lin_vel_z_l2 (-0.3) still penalises ALL vertical velocity,
-        #   but with weight 1.5 here the net reward for climbing at 0.3 m/s is:
-        #     +1.5 × 0.3  (climb_progress)  = +0.45/step
-        #     -0.3 × 0.09 (lin_vel_z_l2)    = -0.027/step
-        #     net: +0.42/step — climbing is now profitable
+        #   • Flat / gentle terrain (no obstacle in height scan):
+        #       effective_weight = base_weight = 0.4
+        #       Bouncing at 0.15 m/s now costs:
+        #         +0.4×0.15 − 1.5×0.15² = +0.060 − 0.034 = +0.026/step
+        #       Marginal — bouncing is no longer worth destabilising flat driving.
         #
-        # Weight = +1.5: strong enough to counteract flat_orientation_l2
-        # (-0.8 × pitch²) during a 30° climbing pitch, giving a near-zero
-        # net penalty for the orientation cost of climbing.  Zero on flat
-        # ground (vz ≈ 0) so it doesn't distort flat driving behaviour.
+        #   • Near an obstacle (stair/box ≥ 10 cm detected in height scan):
+        #       effective_weight = obstacle_weight = 1.5
+        #       Climbing at 0.3 m/s earns +0.45/step, outweighing the
+        #       flat_orientation_l2 penalty during the climbing pitch.
+        #       Same gradient as Phase 6 at steps — no climbing regression.
+        #
+        # Obstacle detection uses the MEDIAN FLOOR method (see rewards.py docstring):
+        #   current_floor = median(ray_hits_z)  — robust to partial stair coverage
+        #   near_obstacle = max(ray_hits_z − current_floor) > 0.10 m
+        #
+        # IMPORTANT: RewardTermCfg weight is set to 1.0 here because the
+        # effective weight is returned directly from climb_progress() itself.
+        # Do NOT change the weight below — change base_weight / obstacle_weight
+        # in rewards.py instead.
         self.rewards.climb_progress = RewTerm(
             func=_climb_progress,
-            weight=1.5,
+            weight=1.0,  # effective weight is baked into the function (see rewards.py)
         )
 
         # ==================================================================

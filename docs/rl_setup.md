@@ -1,11 +1,12 @@
 # REXMI RL — Complete Developer Reference
 
-> **Current status: Phase 6 in progress — Obstacle climbing**
+> **Current status: Phase 7 in progress — Bouncing fix (hybrid climb_progress)**
 >
-> Phases 1–5 complete. Phase 6 relaxes the orientation/deviation penalties that
-> prevented climbing, triples the stagnation pressure, and adds a `climb_progress`
-> reward to directly incentivise upward motion over discrete steps.
-> Use `scripts/eval.py` to characterise performance across 36 terrain variants.
+> Phases 1–6 complete. Phase 6 broke the stair-climbing cliff (stairs_down_15-23cm:
+> 0.13→0.80) but introduced flat-terrain bouncing (uniform −0.10 to −0.16 regression
+> on slopes/rough). Phase 7 fixes this with a hybrid `climb_progress` reward that
+> dynamically scales its weight based on height-scanner obstacle detection:
+> base_weight=0.4 on flat terrain, obstacle_weight=1.5 near real obstacles.
 
 This document explains **every design decision** made across all four phases of
 the Go2W RL setup.  The goal is that after reading this you understand the full
@@ -317,7 +318,7 @@ output ∈ [-1, 1]¹⁶  split into:
 
 `use_default_offset=True` means action=0 → hold the default stance.
 
-### Reward function (Phase 6, all terrain)
+### Reward function (Phase 7, current)
 
 Terms marked *(rough only)* are added only in `Go2wRoughEnvCfg.__post_init__()`.
 
@@ -326,24 +327,30 @@ Terms marked *(rough only)* are added only in `Go2wRoughEnvCfg.__post_init__()`.
 | `track_lin_vel_xy_exp` | +2.0 | exp(-‖vxy - cmd‖² / 0.25) | Match forward/lateral speed |
 | `track_ang_vel_z_exp` | +0.75 | exp(-(ωz - ωz_cmd)² / 0.25) | Match turning rate |
 | `is_alive` | +0.2 | 1 while running, 0 at termination | Stay upright |
-| `climb_progress` *(rough only)* | **+1.5** | max(0, vz) capped at 0.5 m/s, when fwd commanded | Reward climbing upward |
-| `flat_orientation_l2` | **-0.8** | ‖gravity_projected_xy‖² | Keep base level (relaxed for climbing) |
-| `lin_vel_z_l2` | **-0.3** | vz² | Damp bouncing (relaxed for climbing) |
+| `climb_progress` *(rough only)* | **1.0** *(weight baked in)* | **0.4×** max(0,vz) flat terrain; **1.5×** max(0,vz) near obstacle (height scan gated) | Reward climbing; reduced on flat to prevent bouncing exploit |
+| `flat_orientation_l2` | -0.8 | ‖gravity_projected_xy‖² | Keep base level (relaxed for climbing) |
+| `lin_vel_z_l2` | **-1.5** | vz² | Damp bouncing (restored from -0.3 to kill bouncing exploit) |
 | `ang_vel_xy_l2` | -0.5 | ωx² + ωy² | No pitch/roll wobble |
 | `dof_torques_l2` | -1e-5 | ‖τ‖² | Minimise energy |
 | `dof_acc_l2` | -2.5e-7 | ‖q̈‖² | Smooth accelerations |
 | `action_rate_l2` | -0.01 | ‖a_t - a_{t-1}‖² | Smooth commands |
 | `undesired_contacts` | -1.0 | contact force on hip/thigh/calf > 1N | No spider-walking |
 | `dof_pos_limits` | -0.1 | joints beyond soft limit | Stay within URDF range |
-| `leg_deviation` | **-0.05** | Σ\|joint - default\| (leg joints) | Soft bias to default stance (relaxed for climbing) |
-| `stagnation` *(rough only)* | **-1.5** | 1 when fwd commanded but \|vx\| < 0.05 m/s | Escape stuck states |
+| `leg_deviation` | -0.05 | Σ\|joint - default\| (leg joints) | Soft bias to default stance (relaxed for climbing) |
+| `stagnation` *(rough only)* | -1.5 | 1 when fwd commanded but \|vx\| < 0.05 m/s | Escape stuck states |
 
-**Phase 6 weight changes vs. Phase 5** (bold above):
+**Phase 6 weight changes vs. Phase 5:**
 - `flat_orientation_l2`: -2.5 → **-0.8** — pitching 30° to climb was more costly than stagnation
 - `lin_vel_z_l2`: -2.0 → **-0.3** — upward velocity (climbing) was being penalised
 - `leg_deviation`: -0.2 → **-0.05** — calf extension needed to lift wheels was suppressed
 - `stagnation` weight: -0.5 → **-1.5** — tripled pressure to escape stuck states
-- `climb_progress`: new term, **+1.5** — directly rewards rising above obstacle level
+- `climb_progress`: new term, **+1.5** terrain-blind — directly rewards rising above obstacle level
+
+**Phase 7 weight changes vs. Phase 6** (fix for flat-terrain bouncing regression):
+- `lin_vel_z_l2`: -0.3 → **-1.5** — restored; makes flat-terrain bouncing unprofitable
+- `climb_progress`: terrain-blind weight +1.5 → **hybrid** (0.4 on flat, 1.5 near obstacle)
+  - Obstacle gated by height scanner: `max(ray_hits_z − median(ray_hits_z)) > 0.10 m`
+  - RewardTermCfg `weight=1.0`; effective weight returned from function itself
 
 **`undesired_contacts`** and **`leg_deviation`** were added after Phase 3 revealed
 two reward-gaming behaviours: spider-walking (legs touching ground) and extreme
@@ -787,13 +794,40 @@ Steps > ~10 cm (2× radius) are not surmountable by rolling physics alone.
 The "gives up" behaviour is not a policy failure — it is the reward function
 preventing the policy from using the climbing motion it is physically capable of.
 
-### Phase 6 — Obstacle climbing (in progress)
+### Phase 6 — Obstacle climbing ✅ COMPLETE
+
+**Phase 6 eval results** (`eval_2026-06-14_18-56-15.csv`, 1500 iters from Phase 5 checkpoint):
+
+Stair climbing — **massive improvement** across the board:
+
+| Terrain | Phase 5 tracking | Phase 6 tracking | Δ |
+|---------|------------------|------------------|---|
+| **stairs_down_15cm** | 0.337 | **0.795** | **+0.458 🏆** |
+| **stairs_down_18cm** | 0.205 | **0.761** | **+0.556 🏆** |
+| **stairs_down_20cm** | 0.180 | **0.720** | **+0.540 🏆** |
+| **stairs_down_23cm** | 0.134 | **0.585** | **+0.451 🏆** |
+| boxes_20cm | 0.548 | **0.738** | **+0.190 ✅** |
+
+Flat/slope/rough — **regression due to bouncing exploit:**
+
+| Terrain | Phase 5 tracking | Phase 6 tracking | Δ |
+|---------|------------------|------------------|---|
+| slope_2deg | 0.934 | 0.776 | **-0.158 ⬇️** |
+| slope_20deg | 0.941 | 0.824 | **-0.117 ⬇️** |
+| rough_all (avg) | 0.90–0.92 | 0.80–0.82 | **~-0.10 ⬇️** |
+
+**Root cause of regression (bouncing exploit)**:
+- `lin_vel_z_l2` was weakened to -0.3 to allow climbing vz
+- `climb_progress` weight was +1.5 with no terrain awareness
+- On flat ground, bouncing at 0.15 m/s earned: +1.5×0.15 − 0.3×0.0225 = **+0.218/step** profit
+- Policy learned to bounce on flat terrain to farm the climb reward
+- Fixed in Phase 7 with sensor-gated dynamic weighting
 
 **Goal**: Teach the robot to pitch its body and use leg extension to climb discrete
 steps taller than its wheel radius (5 cm), targeting recovery at `stairs_down ≥15 cm`
 and `boxes ≥20 cm`.
 
-**Changes made** (resume from Phase 5 checkpoint — same obs space, no architecture change):
+**Changes made** (1500 iters resumed from Phase 5 checkpoint — same obs space, no architecture change):
 
 **1. Relax three penalty contradictions:**
 
@@ -855,38 +889,61 @@ python scripts/train.py --task RexmiRl-Go2w-Velocity-Rough-v0 --headless --resum
 
 ---
 
-## 12. Phase 6 Roadmap
+## 12. Roadmap
 
-### Phase 6 (current): Obstacle climbing
-- **Done**: `climb_progress` reward, relaxed orientation/deviation penalties,
-  tripled stagnation penalty weight
-- **Target**: Recover `stairs_down_15cm` to ≥0.7 tracking (was 0.34 after Phase 5)
-- **Monitor**: `flat_orientation_l2` will go more negative (pitching) — expected.
-  If it exceeds -0.5/step mean, robot may be pitching on flat terrain → reduce
-  `flat_orientation_l2` to -0.8 or add a separate flat-terrain orientation penalty
+### Phase 6 ✅ COMPLETE: Obstacle climbing
+- **Done**: `climb_progress` (+1.5, terrain-blind), relaxed orientation/deviation penalties,
+  tripled stagnation penalty weight; 1500 iters from Phase 5 checkpoint
+- **Achieved**: stairs_down_15-23cm: 0.13–0.34 → **0.59–0.80** 🏆
+- **Side-effect**: flat-terrain bouncing exploit caused -0.10 to -0.16 regression on
+  slopes/rough → fixed in Phase 7
 
-### Phase 7 (planned): Energy efficiency and gait elegance
-- Increase `dof_torques_l2` weight for leg joints specifically to discourage
-  unnecessary leg movement when wheels alone are sufficient (energy-aware gait)
-- Add reward for "legs near default when speed is high" — let the robot sprint with
-  locked legs and only activate leg repositioning for obstacle crossings
-- Potential: asymmetric leg deviation penalty (cheap to extend calves, expensive to
-  splay hips)
+### Phase 7 (current): Bouncing fix — hybrid sensor-gated climb_progress
+- **Problem**: `lin_vel_z_l2=-0.3` + terrain-blind `climb_progress=+1.5` made bouncing
+  on flat terrain worth **+0.218/step**, causing uniform slope/rough regression
+- **Fix implemented** (resume from Phase 6 checkpoint):
+  - `lin_vel_z_l2`: -0.3 → **-1.5** — restored; flat bouncing now costs only +0.026/step
+  - `climb_progress`: terrain-blind → **hybrid** using height scanner median-floor detection:
+    - `base_weight = 0.4` when no obstacle detected (`max_elev ≤ 0.10 m`)
+    - `obstacle_weight = 1.5` when obstacle detected (`max_elev > 0.10 m`)
+    - `RewardTermCfg weight = 1.0`; effective weight baked into function return value
+- **Expected outcome**: slope/rough recovery to Phase 5 levels (0.90–0.94) while
+  maintaining Phase 6 stair-climbing gains (0.59–0.80)
 
-### Phase 8 (planned): Custom REXMI robot
+```bash
+# Train Phase 7 (resume from Phase 6 checkpoint)
+python scripts/train.py --task RexmiRl-Go2w-Velocity-Rough-v0 --headless --resume
+```
+
+**TensorBoard signals to watch:**
+```
+lin_vel_z_l2:        should become less negative (bouncing damped)
+climb_progress:      should stay non-zero near stair terrain rows, near-zero on easy rows
+track_lin_vel_xy_exp: should recover toward Phase 5 baseline (~1.90+)
+flat_orientation_l2: should become less negative (less random pitching on flat)
+```
+
+### Phase 8 (planned): Energy efficiency and gait elegance
+- Increase `dof_torques_l2` weight for leg joints to discourage unnecessary leg movement
+  when wheels alone are sufficient (energy-aware gait)
+- Add reward for "legs near default when speed is high" — sprint with locked legs,
+  only activate leg repositioning for obstacle crossings
+- Potential: asymmetric leg deviation penalty (cheap to extend calves, expensive to splay hips)
+
+### Phase 9 (planned): Custom REXMI robot
 - Swap `GO2W_CFG` for `REXMI_CFG` (custom wheel geometry, sensor suite)
 - All env/reward configs should transfer directly (same 16-DOF structure assumed)
 - Re-run full 36-variant eval sweep on the new geometry to identify new cliffs
 
-### Phase 9 (planned): Lunar terrain
+### Phase 10 (planned): Lunar terrain
 - Integrate lunar regolith deformation model from Project Chrono
 - Train on simulated crater terrain with soft soil contact
 - Height scanner may need to be replaced with depth camera for deformable surfaces
 
-### Phase 10 (planned): Sim-to-real transfer
+### Phase 11 (planned): Sim-to-real transfer
 - Domain randomisation: friction (0.3–1.2), mass (±20%), motor damping (±30%)
 - Deploy to real Go2W hardware using Isaac Lab's `--real_time` mode
 
 ---
 
-*Last updated: 2026-06-14 · REXMI Project · Phase 6 in progress — obstacle climbing*
+*Last updated: 2026-06-14 · REXMI Project · Phase 7 in progress — bouncing fix (hybrid climb_progress)*

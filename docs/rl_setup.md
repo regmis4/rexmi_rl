@@ -1,12 +1,14 @@
 # REXMI RL — Complete Developer Reference
 
-> **Current status: Phase 7 in progress — Bouncing fix (hybrid climb_progress)**
+> **Current status: Phase 8 in progress — Steep slopes (23°–45°)**
 >
-> Phases 1–6 complete. Phase 6 broke the stair-climbing cliff (stairs_down_15-23cm:
-> 0.13→0.80) but introduced flat-terrain bouncing (uniform −0.10 to −0.16 regression
-> on slopes/rough). Phase 7 fixes this with a hybrid `climb_progress` reward that
-> dynamically scales its weight based on height-scanner obstacle detection:
-> base_weight=0.4 on flat terrain, obstacle_weight=1.5 near real obstacles.
+> Phases 1–7 complete. Phase 7 fixed the flat-terrain bouncing exploit introduced by
+> Phase 6 using a hybrid `climb_progress` reward (base_weight=0.4 on flat terrain,
+> obstacle_weight=1.5 near obstacles) and restored `lin_vel_z_l2 = -1.5`.
+> Phase 8 adds steep-slope terrain (23°–45°) to the rough env, relaxes the orientation
+> penalty in the rough env (`flat_orientation_l2 = -0.3`, down from -0.8 in the flat env)
+> and raises the `bad_orientation` termination limit to 1.35 rad (77°) for the rough env
+> to allow legitimate body tilt during steep-slope traversal.
 
 This document explains **every design decision** made across all four phases of
 the Go2W RL setup.  The goal is that after reading this you understand the full
@@ -130,7 +132,9 @@ t=1..N: Policy observes state, outputs 16 actions, physics steps forward
         Reward computed each step
 t=T: Episode ends when:
      (a) base touches ground (fell over) → terminated
-     (b) tilt > 1.0 rad (57°) from vertical → terminated (bad_orientation)
+     (b) tilt > limit_angle from vertical → terminated (bad_orientation)
+         flat env: 1.0 rad (57°)
+         rough env (Phase 8): 1.35 rad (77°) — headroom for steep-slope body tilt
      (c) 20 seconds elapsed (1000 steps at 50Hz) → timeout
      Then robot is reset to terrain tile matching current curriculum level
 ```
@@ -328,7 +332,7 @@ Terms marked *(rough only)* are added only in `Go2wRoughEnvCfg.__post_init__()`.
 | `track_ang_vel_z_exp` | +0.75 | exp(-(ωz - ωz_cmd)² / 0.25) | Match turning rate |
 | `is_alive` | +0.2 | 1 while running, 0 at termination | Stay upright |
 | `climb_progress` *(rough only)* | **1.0** *(weight baked in)* | **0.4×** max(0,vz) flat terrain; **1.5×** max(0,vz) near obstacle (height scan gated) | Reward climbing; reduced on flat to prevent bouncing exploit |
-| `flat_orientation_l2` | -0.8 | ‖gravity_projected_xy‖² | Keep base level (relaxed for climbing) |
+| `flat_orientation_l2` | **-0.8 (flat env) / -0.3 (rough env, Phase 8)** | ‖gravity_projected_xy‖² | Keep base level; rough env further relaxed so body can align with steep slopes |
 | `lin_vel_z_l2` | **-1.5** | vz² | Damp bouncing (restored from -0.3 to kill bouncing exploit) |
 | `ang_vel_xy_l2` | -0.5 | ωx² + ωy² | No pitch/roll wobble |
 | `dof_torques_l2` | -1e-5 | ‖τ‖² | Minimise energy |
@@ -361,7 +365,7 @@ hip spreading.
 | Condition | Type | Note |
 |-----------|------|------|
 | `base_contact` (base link touches ground) | failure | Legs/wheels contact is normal |
-| `bad_orientation` (tilt > 1.0 rad = 57°) | failure | Catches falls before base hits |
+| `bad_orientation` — flat env: tilt > 1.0 rad (57°); rough env (Phase 8): tilt > 1.35 rad (77°) | failure | Rough env relaxed to allow legitimate steep-slope body tilt |
 | 20 seconds elapsed (1000 steps) | timeout | Success — episode ran to completion |
 
 ### Velocity commands
@@ -547,7 +551,7 @@ measurement is unambiguous.
 | `push_robot` | enabled | disabled |
 | `num_envs` | 4096 | 50 |
 
-### Terrain variants (36 total)
+### Terrain variants (41 total — Phase 8)
 
 | Group | Variants | Parameter |
 |-------|---------|-----------|
@@ -556,6 +560,7 @@ measurement is unambiguous.
 | `boxes` | 6 | box height: 3, 5, 8, 10, 15, 20 cm |
 | `slope` | 7 | slope angle: 2, 5, 8, 10, 15, 20, 23° |
 | `rough` | 5 | noise amplitude: 2, 4, 6, 8, 10 cm |
+| **`steep_slope`** *(Phase 8 new)* | **5** | **slope angle: 25, 30, 35, 40, 45° (35° = Shackleton crater target)** |
 
 ### Metrics collected per variant
 
@@ -898,52 +903,74 @@ python scripts/train.py --task RexmiRl-Go2w-Velocity-Rough-v0 --headless --resum
 - **Side-effect**: flat-terrain bouncing exploit caused -0.10 to -0.16 regression on
   slopes/rough → fixed in Phase 7
 
-### Phase 7 (current): Bouncing fix — hybrid sensor-gated climb_progress
+### Phase 7 ✅ COMPLETE: Bouncing fix — hybrid sensor-gated climb_progress
 - **Problem**: `lin_vel_z_l2=-0.3` + terrain-blind `climb_progress=+1.5` made bouncing
   on flat terrain worth **+0.218/step**, causing uniform slope/rough regression
-- **Fix implemented** (resume from Phase 6 checkpoint):
-  - `lin_vel_z_l2`: -0.3 → **-1.5** — restored; flat bouncing now costs only +0.026/step
-  - `climb_progress`: terrain-blind → **hybrid** using height scanner median-floor detection:
-    - `base_weight = 0.4` when no obstacle detected (`max_elev ≤ 0.10 m`)
-    - `obstacle_weight = 1.5` when obstacle detected (`max_elev > 0.10 m`)
-    - `RewardTermCfg weight = 1.0`; effective weight baked into function return value
-- **Expected outcome**: slope/rough recovery to Phase 5 levels (0.90–0.94) while
-  maintaining Phase 6 stair-climbing gains (0.59–0.80)
+- **Fix**: `lin_vel_z_l2` → -1.5 (restored); `climb_progress` → hybrid median-floor gated
+  (`base_weight=0.4` flat, `obstacle_weight=1.5` near obstacle); checkpoint `model_8996.pt`
+- **Achieved**: slope/rough tracking recovered to Phase 5 levels; stair-climbing gains preserved
+
+### Phase 8 (current): Steep slopes (23°–45°)
+
+**Goal**: Enable the robot to traverse steep slopes up to 45° — including Shackleton crater
+(~35°) — using the same unified rough terrain policy (no separate extreme-terrain policy).
+
+**Changes made** (resume from `model_8996.pt` — same obs space, no architecture change):
+
+| Change | Value | Reason |
+|--------|-------|--------|
+| `steep_slope` sub-terrain added | proportion=0.15, 23°–45° | New training distribution covering crater slopes |
+| Existing terrain proportions | 0.20 → 0.17 each | Rebalanced to sum to 1.0 with new terrain |
+| `num_rows` | 10 → 12 | More curriculum levels for wider difficulty range |
+| `flat_orientation_l2` (rough env only) | -0.8 → **-0.3** | Body must align with 35°–45° slope; flat env unchanged at -0.8 |
+| `bad_orientation` limit (rough env only) | 1.0 rad → **1.35 rad** | 77° gives 32° headroom above 45° slope; flat env unchanged at 1.0 rad |
+
+**New eval variants** (41 total):
 
 ```bash
-# Train Phase 7 (resume from Phase 6 checkpoint)
-python scripts/train.py --task RexmiRl-Go2w-Velocity-Rough-v0 --headless --resume
+# Phase 8 steep-slope group (5 variants, ~2-3 min)
+python scripts/eval.py --checkpoint $CKPT --group steep_slope
+
+# Full 41-variant sweep
+python scripts/eval.py --checkpoint $CKPT
 ```
 
 **TensorBoard signals to watch:**
 ```
-lin_vel_z_l2:        should become less negative (bouncing damped)
-climb_progress:      should stay non-zero near stair terrain rows, near-zero on easy rows
-track_lin_vel_xy_exp: should recover toward Phase 5 baseline (~1.90+)
-flat_orientation_l2: should become less negative (less random pitching on flat)
+flat_orientation_l2:  will become less negative (body tilting to align with slopes) — expected
+bad_orientation:      termination rate should drop (1.35 rad limit catches fewer recoveries)
+climb_progress:       should stay active — steep slopes trigger obstacle_weight=1.5
+track_lin_vel_xy_exp: should not regress significantly vs Phase 7 baseline (~1.90+)
 ```
 
-### Phase 8 (planned): Energy efficiency and gait elegance
+**Training command:**
+```bash
+conda activate env_isaacsim
+python scripts/train.py --task RexmiRl-Go2w-Velocity-Rough-v0 --headless \
+    --load_run go2w_velocity_rough/2026-06-14_20-03-41 --checkpoint model_8996.pt
+```
+
+### Phase 9 (planned): Energy efficiency and gait elegance
 - Increase `dof_torques_l2` weight for leg joints to discourage unnecessary leg movement
   when wheels alone are sufficient (energy-aware gait)
 - Add reward for "legs near default when speed is high" — sprint with locked legs,
   only activate leg repositioning for obstacle crossings
 - Potential: asymmetric leg deviation penalty (cheap to extend calves, expensive to splay hips)
 
-### Phase 9 (planned): Custom REXMI robot
+### Phase 10 (planned): Custom REXMI robot
 - Swap `GO2W_CFG` for `REXMI_CFG` (custom wheel geometry, sensor suite)
 - All env/reward configs should transfer directly (same 16-DOF structure assumed)
-- Re-run full 36-variant eval sweep on the new geometry to identify new cliffs
+- Re-run full 41-variant eval sweep on the new geometry to identify new cliffs
 
-### Phase 10 (planned): Lunar terrain
+### Phase 11 (planned): Lunar terrain
 - Integrate lunar regolith deformation model from Project Chrono
 - Train on simulated crater terrain with soft soil contact
 - Height scanner may need to be replaced with depth camera for deformable surfaces
 
-### Phase 11 (planned): Sim-to-real transfer
+### Phase 12 (planned): Sim-to-real transfer
 - Domain randomisation: friction (0.3–1.2), mass (±20%), motor damping (±30%)
 - Deploy to real Go2W hardware using Isaac Lab's `--real_time` mode
 
 ---
 
-*Last updated: 2026-06-14 · REXMI Project · Phase 7 in progress — bouncing fix (hybrid climb_progress)*
+*Last updated: 2026-06-17 · REXMI Project · Phase 8 in progress — steep slopes (23°–45°)*

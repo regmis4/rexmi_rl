@@ -460,7 +460,7 @@ class Go2wRoughEnvCfg(Go2wFlatEnvCfg):
             seed=0,
             size=(8.0, 8.0),
             border_width=20.0,
-            num_rows=10,    # 10 difficulty levels for curriculum
+            num_rows=12,    # Phase 8: 12 difficulty levels (was 10) for wider range up to 45°
             num_cols=20,    # 20 parallel tiles per level
             horizontal_scale=0.1,
             vertical_scale=0.005,
@@ -468,8 +468,9 @@ class Go2wRoughEnvCfg(Go2wFlatEnvCfg):
             use_cache=False,
             sub_terrains={
                 # Upward pyramid stairs — requires stepping up
+                # Phase 8: proportion 0.2 → 0.17 to accommodate steep_slope at 0.15
                 "pyramid_stairs": MeshPyramidStairsTerrainCfg(
-                    proportion=0.2,
+                    proportion=0.17,
                     step_height_range=(0.05, 0.23),
                     step_width=0.3,
                     platform_width=3.0,
@@ -478,7 +479,7 @@ class Go2wRoughEnvCfg(Go2wFlatEnvCfg):
                 ),
                 # Inverted pyramid stairs — requires stepping down
                 "pyramid_stairs_inv": MeshInvertedPyramidStairsTerrainCfg(
-                    proportion=0.2,
+                    proportion=0.17,
                     step_height_range=(0.05, 0.23),
                     step_width=0.3,
                     platform_width=3.0,
@@ -487,22 +488,37 @@ class Go2wRoughEnvCfg(Go2wFlatEnvCfg):
                 ),
                 # Random height grid — uneven stepping stones / cobblestones
                 "boxes": MeshRandomGridTerrainCfg(
-                    proportion=0.2,
+                    proportion=0.17,
                     grid_width=0.45,
                     grid_height_range=(0.05, 0.2),
                     platform_width=2.0,
                 ),
                 # Random rough heightfield — bumpy / gravel-like surface
                 "random_rough": HfRandomUniformTerrainCfg(
-                    proportion=0.2,
+                    proportion=0.17,
                     noise_range=(0.02, 0.10),
                     noise_step=0.02,
                     border_width=0.25,
                 ),
-                # Pyramid slope — ramps requiring active balance
+                # Pyramid slope — moderate ramps (0°–23°)
                 "hf_pyramid_slope": HfPyramidSlopedTerrainCfg(
-                    proportion=0.2,
+                    proportion=0.17,
                     slope_range=(0.0, 0.4),
+                    platform_width=2.0,
+                    border_width=0.25,
+                ),
+                # Steep pyramid slope — Phase 8 new (23°–45°)
+                #
+                # 0.401 rad ≈ 23°, 0.785 rad ≈ 45°
+                # 35° (0.611 rad) is the Shackleton crater target slope.
+                # At 45° the body must tilt ~45° with the terrain — the orientation
+                # relaxations below (flat_orientation_l2=-0.3, bad_orientation=1.35 rad)
+                # are required to make these slopes traversable.
+                # proportion=0.15 so existing terrain types lose 0.03 each (0.2→0.17),
+                # keeping the total at 1.00.
+                "steep_slope": HfPyramidSlopedTerrainCfg(
+                    proportion=0.15,
+                    slope_range=(0.401, 0.785),   # 23° – 45°
                     platform_width=2.0,
                     border_width=0.25,
                 ),
@@ -637,6 +653,48 @@ class Go2wRoughEnvCfg(Go2wFlatEnvCfg):
 
         self.curriculum.terrain_levels = CurrTerm(
             func=_terrain_levels_vel,
+        )
+
+        # ==================================================================
+        # G. PHASE 8 — ORIENTATION RELAXATIONS FOR STEEP SLOPES
+        # ==================================================================
+        # The flat env (Go2wFlatEnvCfg) sets flat_orientation_l2=-0.8 and
+        # bad_orientation limit=1.0 rad (57°).  Those values are appropriate
+        # for flat ground and moderate obstacles, but steep slopes (23°–45°)
+        # require the body to align with the terrain surface — at 45° the body
+        # MUST tilt ~45° to maintain wheel contact.  With the flat env values:
+        #
+        #   • bad_orientation at 1.0 rad (57°) terminates an episode on a 45°
+        #     slope the moment the robot pitches into the terrain — no learning
+        #     possible.  1.35 rad (77°) gives 32° headroom above 45°.
+        #
+        #   • flat_orientation_l2=-0.8 makes sustained slope-following tilt
+        #     cost -0.8 × (45°_in_rad)² ≈ -0.49/step continuously.  On a
+        #     35° slope at 0.5 m/s (earning +1.88/step tracking) this is
+        #     manageable, but it competes with velocity tracking throughout
+        #     the entire traverse rather than just during transitions.
+        #     -0.3 still penalises unnecessary sway while permitting aligned tilt.
+        #
+        # IMPORTANT: These overrides are ROUGH ENV ONLY.
+        #   • Go2wFlatEnvCfg keeps -0.8 and 1.0 rad — flat terrain needs tighter
+        #     control and a lower fall threshold (flat robots don't need 77°).
+        #   • The eval base class (Go2wEvalEnvCfg) inherits from Go2wRoughEnvCfg
+        #     so it automatically gets these relaxations for steep_slope eval.
+
+        # Relax orientation penalty: -0.8 (flat env) → -0.3 (rough env, Phase 8)
+        # Reward balance on 35° slope at stable traversal:
+        #   flat_orientation_l2: -0.3 × (0.611 rad)² ≈ -0.11/step  (was -0.30/step)
+        #   This 3× reduction prevents the orientation penalty from suppressing
+        #   the slope-following posture the policy needs to develop.
+        self.rewards.flat_orientation_l2.weight = -0.3
+
+        # Relax termination limit: 1.0 rad (57°, flat env) → 1.35 rad (77°, rough env)
+        # 1.35 rad gives 32° headroom above the maximum training slope (45°),
+        # which is enough for body roll and pitch oscillations during traversal
+        # without immediately terminating on any legitimate steep-slope episode.
+        self.terminations.bad_orientation = DoneTerm(
+            func=mdp_utils.bad_orientation,
+            params={"limit_angle": 1.35},  # 1.35 rad ≈ 77° from vertical
         )
 
 

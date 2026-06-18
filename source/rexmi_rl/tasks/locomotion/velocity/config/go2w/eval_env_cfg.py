@@ -247,19 +247,47 @@ def rough_cfg(noise_cm: int) -> Go2wEvalEnvCfg:
     return cfg
 
 
+def steep_slope_cfg(slope_deg: int) -> Go2wEvalEnvCfg:
+    """
+    Steep pyramid slope — robot must traverse a steep ramp (Phase 8 new).
+
+    slope_deg : slope angle in degrees (e.g. 35 → 35° ramp = Shackleton crater target)
+
+    Training range was (0.401, 0.785) rad ≈ 23°–45°.
+    We sweep 25–45° in 5° increments to characterise the steep-slope capability cliff.
+    35° = Shackleton crater target; 45° = physical upper limit of the training range.
+
+    Note: Go2wEvalEnvCfg inherits from Go2wRoughEnvCfg which has the Phase 8
+    orientation relaxations (flat_orientation_l2=-0.3, bad_orientation=1.35 rad),
+    so steep-slope eval correctly matches the training reward/termination setup.
+    """
+    slope_rad = math.radians(slope_deg)
+    cfg = Go2wEvalEnvCfg()
+    cfg.scene.terrain.terrain_generator = _single_terrain_gen(
+        HfPyramidSlopedTerrainCfg(
+            proportion=1.0,
+            slope_range=(slope_rad, slope_rad),   # fixed slope — not a range
+            platform_width=2.0,
+            border_width=0.25,
+        )
+    )
+    return cfg
+
+
 # ============================================================================
 # Master evaluation variant list
 # ============================================================================
 # Format: list of (variant_name: str, factory_fn: Callable[[], Go2wEvalEnvCfg])
 #
 # variant_name conventions:
-#   "stairs_up_Xcm"   — ascending pyramid stairs, X cm step height
-#   "stairs_down_Xcm" — descending inverted stairs, X cm step height
-#   "boxes_Xcm"       — random grid boxes, X cm height
-#   "slope_Xdeg"      — pyramid slope, X degrees
-#   "rough_Xcm"       — random rough heightfield, X cm amplitude
+#   "stairs_up_Xcm"    — ascending pyramid stairs, X cm step height
+#   "stairs_down_Xcm"  — descending inverted stairs, X cm step height
+#   "boxes_Xcm"        — random grid boxes, X cm height
+#   "slope_Xdeg"       — pyramid slope, X degrees (0°–23°)
+#   "steep_slope_Xdeg" — steep pyramid slope, X degrees (23°–45°) [Phase 8]
+#   "rough_Xcm"        — random rough heightfield, X cm amplitude
 #
-# Total: 9 + 9 + 6 + 7 + 5 = 36 variants
+# Total: 9 + 9 + 6 + 7 + 5 + 5 = 41 variants
 
 EVAL_VARIANTS: list[tuple[str, callable]] = []
 
@@ -286,3 +314,9 @@ for _d in [2, 5, 8, 10, 15, 20, 23]:
 # Training range was (0.02, 0.10) m.
 for _n in [2, 4, 6, 8, 10]:
     EVAL_VARIANTS.append((f"rough_{_n}cm", lambda n=_n: rough_cfg(n)))
+
+# -- Steep pyramid slopes (5 variants) --  Phase 8 new
+# Training range was (0.401, 0.785) rad ≈ 23°–45°.
+# 35° is the Shackleton crater target; sweep 25–45° in 5° steps.
+for _d in [25, 30, 35, 40, 45]:
+    EVAL_VARIANTS.append((f"steep_slope_{_d}deg", lambda d=_d: steep_slope_cfg(d)))

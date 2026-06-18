@@ -151,6 +151,36 @@ class Go2wFlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
 
 
 # ==============================================================================
+# Fast flat-terrain PPO config — high-speed forward locomotion (up to 2 m/s)
+# ==============================================================================
+
+@configclass
+class Go2wFastFlatPPORunnerCfg(Go2wFlatPPORunnerCfg):
+    """
+    PPO runner configuration for the Go2W fast flat-terrain task.
+
+    Key differences from Go2wFlatPPORunnerCfg:
+      1. More iterations (1500 vs 1000) — the policy must learn the full 0–2 m/s
+         forward command range, which takes more exploration than 0–0.5 m/s.
+      2. Separate experiment_name — logs go to logs/rsl_rl/go2w_velocity_fast_flat/
+         so fast-flat and standard-flat runs don't overwrite each other.
+
+    Everything else (network architecture [128,128,128], obs dims ~60, algorithm
+    hyperparameters) is inherited unchanged.  No height scan → same obs space as
+    the standard flat env, so the small [128,128,128] network is still sufficient.
+    """
+
+    # More iterations: wider command range needs more experience across all speeds.
+    max_iterations = 1500
+
+    # Checkpoint every 100 iters (vs 50 for flat) — fewer saves for longer run.
+    save_interval = 100
+
+    # Separate log directory from standard flat runs.
+    experiment_name = "go2w_velocity_fast_flat"
+
+
+# ==============================================================================
 # Phase 4 — Rough terrain PPO config
 # ==============================================================================
 

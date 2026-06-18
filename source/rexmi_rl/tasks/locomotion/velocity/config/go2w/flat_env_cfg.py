@@ -41,6 +41,13 @@ from rexmi_rl.tasks.locomotion.velocity.config.go2w.rough_env_cfg import (
     Go2wRoughEnvCfg_PLAY,
 )
 
+# Fast flat policy — separate config to avoid touching the rough-env inheritance chain.
+# See fast_flat_env_cfg.py for design rationale.
+from rexmi_rl.tasks.locomotion.velocity.config.go2w.fast_flat_env_cfg import (
+    Go2wFastFlatEnvCfg,
+    Go2wFastFlatEnvCfg_PLAY,
+)
+
 # Crater demo configs — re-exported here so __init__.py entry_point strings resolve
 from rexmi_rl.tasks.locomotion.velocity.config.go2w.crater_env_cfg import (
     # Upslope (floor → rim)
@@ -64,6 +71,8 @@ __all__ = [
     # Velocity-tracking training / play
     "Go2wFlatEnvCfg",
     "Go2wFlatEnvCfg_PLAY",
+    "Go2wFastFlatEnvCfg",
+    "Go2wFastFlatEnvCfg_PLAY",
     "Go2wRoughEnvCfg",
     "Go2wRoughEnvCfg_PLAY",
     # Lunar crater demo — upslope

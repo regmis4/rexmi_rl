@@ -121,6 +121,40 @@ gym.register(
 )
 
 # ---------------------------------------------------------------------------
+# Fast flat terrain — high-speed forward locomotion (up to 2 m/s)
+# Wheel action scale=40 rad/s; forward command range (-0.5, 2.0) m/s.
+# Train from scratch — incompatible with standard flat checkpoints.
+# ---------------------------------------------------------------------------
+
+gym.register(
+    id="RexmiRl-Go2w-Velocity-FastFlat-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w.fast_flat_env_cfg:Go2wFastFlatEnvCfg"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wFastFlatPPORunnerCfg"
+        ),
+    },
+)
+
+gym.register(
+    id="RexmiRl-Go2w-Velocity-FastFlat-Play-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w.fast_flat_env_cfg:Go2wFastFlatEnvCfg_PLAY"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wFastFlatPPORunnerCfg"
+        ),
+    },
+)
+
+# ---------------------------------------------------------------------------
 # Rough terrain (Phase 4 — full height scanner + terrain curriculum)
 # ---------------------------------------------------------------------------
 

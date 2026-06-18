@@ -229,7 +229,7 @@ class Go2wRoughPPORunnerCfg(Go2wFlatPPORunnerCfg):
     # At ~0.4 curriculum levels per 1500 iters (Phase 8 run 2 rate), reaching
     # level 6 from 1.7 takes ~3000–4500 more iterations.  3000 per run is a
     # good checkpoint interval — eval with --group steep_slope between runs.
-    max_iterations = 6000
+    max_iterations = 3000
 
     # Save more frequently so we can inspect intermediate policies
     save_interval = 100

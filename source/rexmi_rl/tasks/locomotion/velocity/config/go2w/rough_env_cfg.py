@@ -259,29 +259,42 @@ class Go2wFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
         # (wheels are continuous with no limits, so this only fires on leg joints)
         self.rewards.dof_pos_limits = RewTerm(
             func=mdp_utils.joint_pos_limits,
-            weight=-0.1,
+            weight=-0.2,
         )
 
-        # Leg joint deviation penalty: prevent excessive leg spreading / loophole gaits.
+        # Leg joint deviation penalties — split into two terms (Phase 8 fix).
         #
-        # The policy was observed to splay hips and extend calves into extreme
-        # positions to find wide-stance stable configurations that satisfy the
-        # velocity reward without clean locomotion.
-        # joint_deviation_l1 computes the L1 norm of (joint_pos - joint_default)
-        # for the specified joints, penalising any deviation from the default stance.
-        # Phase 6: reduced -0.2 → -0.05.  Climbing a step requires the front calves
-        # to extend significantly to lift the wheel above the step face.  The old
-        # weight (-0.2) made that extension 4× more costly than stagnation, suppressing
-        # the very leg motion needed for climbing.  -0.05 retains a soft bias toward
-        # the default stance while permitting large calf deflections during climbing.
+        # Background: Phase 6 reduced the unified penalty from -0.2 → -0.05 to allow
+        # calf extension during climbing.  Phase 8 revealed that applying this weak
+        # penalty to all joints including hips was too cheap: crossing the hip costs
+        # only -0.05 × 0.3 rad = -0.015/step, making the exploit essentially free.
+        # The fix is to separate hip and calf penalties:
+        #
+        # hip_deviation: strong penalty (-0.2) — hips must stay near ±0.1 rad default.
+        #   Crossing one hip past the other costs -0.2 × 0.3 rad = -0.06/step, which
+        #   now competes meaningfully against velocity tracking reward and stops the
+        #   leg-crossing exploit observed in Phase 8.
+        #
+        # leg_deviation: weak penalty (-0.05, thigh + calf only) — preserves climbing
+        #   freedom.  Calf extension to lift wheels above step faces is still cheap.
         from isaaclab.managers import SceneEntityCfg as _SECfg  # already imported above
+        self.rewards.hip_deviation = RewTerm(
+            func=mdp_utils.joint_deviation_l1,
+            weight=-0.2,
+            params={
+                "asset_cfg": _SECfg(
+                    "robot",
+                    joint_names=[".*_hip_joint"],
+                )
+            },
+        )
         self.rewards.leg_deviation = RewTerm(
             func=mdp_utils.joint_deviation_l1,
             weight=-0.05,
             params={
                 "asset_cfg": _SECfg(
                     "robot",
-                    joint_names=[".*_hip_joint", ".*_thigh_joint", ".*_calf_joint"],
+                    joint_names=[".*_thigh_joint", ".*_calf_joint"],
                 )
             },
         )

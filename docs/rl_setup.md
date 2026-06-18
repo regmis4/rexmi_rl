@@ -228,14 +228,34 @@ GO2W_CFG = ArticulationCfg(
 
 ### Base environment: `rough_env_cfg.py`
 
-This file hosts ALL environment config classes:
+This file hosts the core config classes:
 
 ```
-Go2wFlatEnvCfg(LocomotionVelocityRoughEnvCfg)   — Phase 1-3 foundation
+Go2wFlatEnvCfg(LocomotionVelocityRoughEnvCfg)   — Phase 1-3 foundation (scale=10, ±0.5 m/s)
     └── Go2wFlatEnvCfg_PLAY                      — visualization variant
     └── Go2wRoughEnvCfg(Go2wFlatEnvCfg)          — Phase 4: adds terrain+scanner
             └── Go2wRoughEnvCfg_PLAY             — visualization variant
 ```
+
+### Fast flat config: `fast_flat_env_cfg.py`
+
+Sibling to the rough env — inherits from `Go2wFlatEnvCfg` without touching the
+`Go2wRoughEnvCfg` inheritance chain:
+
+```
+Go2wFlatEnvCfg                     — base (scale=10, ±0.5 m/s forward)
+    └── Go2wFastFlatEnvCfg         — scale=40, forward up to 2.0 m/s
+            └── Go2wFastFlatEnvCfg_PLAY
+```
+
+Overrides vs. `Go2wFlatEnvCfg`:
+
+| Setting | Standard flat | Fast flat |
+|---------|--------------|-----------|
+| Wheel action `scale` | 10 rad/s | **40 rad/s** (2.0 m/s max) |
+| `lin_vel_x` command | (-0.5, 0.5) m/s | **(-0.5, 2.0) m/s** |
+| `action_rate_l2` | -0.01 | **-0.02** |
+| `ang_vel_xy_l2` | -0.5 | **-0.8** |
 
 `Go2wFlatEnvCfg.__post_init__()` overrides:
 1. Robot → `GO2W_CFG`
@@ -266,23 +286,29 @@ A thin re-export of all 4 config classes from `rough_env_cfg.py`.
 
 | Config class | Task | Network | Iterations | Obs dims |
 |---|---|---|---|---|
-| `Go2wFlatPPORunnerCfg` | Flat | [128,128,128] | 1000 | ~48 |
-| `Go2wRoughPPORunnerCfg` | Rough | [512,256,128] | 3000 | ~208 |
+| `Go2wFlatPPORunnerCfg` | Flat (standard) | [128,128,128] | 1000 | ~60 |
+| `Go2wFastFlatPPORunnerCfg` | Fast flat (2 m/s) | [128,128,128] | **1500** | ~60 |
+| `Go2wRoughPPORunnerCfg` | Rough | [512,256,128] | 1500 | ~220 |
 
-Key difference: `empirical_normalization=True` for rough terrain — height scan
+Key differences: `empirical_normalization=True` for rough terrain — height scan
 values span ±0.5 m, which would dominate the network input without normalisation.
+Fast flat uses the same small network as standard flat (no height scan, same obs dims)
+but more iterations to cover the wider 0–2 m/s command range.
 
 ---
 
 ### Gym registration: `config/go2w/__init__.py`
 
 ```python
-# Flat terrain
-gym.register("RexmiRl-Go2w-Velocity-Flat-v0",      env=Go2wFlatEnvCfg,      ppo=Go2wFlatPPORunnerCfg)
-gym.register("RexmiRl-Go2w-Velocity-Flat-Play-v0", env=Go2wFlatEnvCfg_PLAY, ppo=Go2wFlatPPORunnerCfg)
-# Rough terrain
-gym.register("RexmiRl-Go2w-Velocity-Rough-v0",      env=Go2wRoughEnvCfg,      ppo=Go2wRoughPPORunnerCfg)
-gym.register("RexmiRl-Go2w-Velocity-Rough-Play-v0", env=Go2wRoughEnvCfg_PLAY, ppo=Go2wRoughPPORunnerCfg)
+# Flat terrain — standard (±0.5 m/s)
+gym.register("RexmiRl-Go2w-Velocity-Flat-v0",          env=Go2wFlatEnvCfg,          ppo=Go2wFlatPPORunnerCfg)
+gym.register("RexmiRl-Go2w-Velocity-Flat-Play-v0",     env=Go2wFlatEnvCfg_PLAY,     ppo=Go2wFlatPPORunnerCfg)
+# Fast flat terrain — high-speed forward up to 2.0 m/s (wheel scale=40, train from scratch)
+gym.register("RexmiRl-Go2w-Velocity-FastFlat-v0",      env=Go2wFastFlatEnvCfg,      ppo=Go2wFastFlatPPORunnerCfg)
+gym.register("RexmiRl-Go2w-Velocity-FastFlat-Play-v0", env=Go2wFastFlatEnvCfg_PLAY, ppo=Go2wFastFlatPPORunnerCfg)
+# Rough terrain — height scanner + curriculum
+gym.register("RexmiRl-Go2w-Velocity-Rough-v0",         env=Go2wRoughEnvCfg,         ppo=Go2wRoughPPORunnerCfg)
+gym.register("RexmiRl-Go2w-Velocity-Rough-Play-v0",    env=Go2wRoughEnvCfg_PLAY,    ppo=Go2wRoughPPORunnerCfg)
 ```
 
 ---
@@ -455,26 +481,41 @@ Run all commands with `conda activate env_isaacsim` active first.
 so no extra PYTHONPATH setup is needed.
 
 ```bash
-# Flat terrain (Phase 1-3 baseline, ~8 min, 1000 iters)
+# ── Flat terrain (Phase 1-3 baseline, ~8 min, 1000 iters) ─────────────────
 python scripts/train.py --task RexmiRl-Go2w-Velocity-Flat-v0 --headless
 
-# Rough terrain (Phase 4, ~25-30 min, 3000 iters, from scratch)
+# Visualise flat policy (standard speed, ±0.5 m/s)
+python scripts/play.py --task RexmiRl-Go2w-Velocity-Flat-Play-v0
+
+# Watch TensorBoard (flat)
+tensorboard --logdir logs/rsl_rl/go2w_velocity_flat
+
+# ── Fast flat terrain (high-speed, ~12 min, 1500 iters, from scratch) ──────
+# Forward up to 2.0 m/s; backward/lateral/yaw unchanged.
+# IMPORTANT: wheel scale changed (10→40 rad/s) — old flat checkpoints incompatible.
+python scripts/train.py --task RexmiRl-Go2w-Velocity-FastFlat-v0 --headless
+
+# Visualise fast flat policy (up to 2 m/s forward)
+python scripts/play.py --task RexmiRl-Go2w-Velocity-FastFlat-Play-v0
+
+# Watch TensorBoard (fast flat)
+tensorboard --logdir logs/rsl_rl/go2w_velocity_fast_flat
+
+# ── Rough terrain (Phase 4+, ~25-30 min, 1500 iters resume) ───────────────
 python scripts/train.py --task RexmiRl-Go2w-Velocity-Rough-v0 --headless
 
 # Resume a run from the latest checkpoint
 python scripts/train.py --task RexmiRl-Go2w-Velocity-Rough-v0 --headless --resume
 
+# Phase 8 resume from best Phase 7 checkpoint
+python scripts/train.py --task RexmiRl-Go2w-Velocity-Rough-v0 --headless \
+    --load_run go2w_velocity_rough/2026-06-14_20-03-41 --checkpoint model_8996.pt
+
 # Quick smoke test (128 envs — verifies config loads without errors)
 python scripts/train.py --task RexmiRl-Go2w-Velocity-Rough-v0 --num_envs 128
 
-# Visualise flat policy
-python scripts/play.py --task RexmiRl-Go2w-Velocity-Flat-Play-v0
-
 # Visualise rough policy
 python scripts/play.py --task RexmiRl-Go2w-Velocity-Rough-Play-v0
-
-# Watch TensorBoard (flat)
-tensorboard --logdir logs/rsl_rl/go2w_velocity_flat
 
 # Watch TensorBoard (rough)
 tensorboard --logdir logs/rsl_rl/go2w_velocity_rough
@@ -512,11 +553,14 @@ python -c "import rexmi_rl; print('OK')"
 
 ```
 logs/rsl_rl/
-  go2w_velocity_flat/
+  go2w_velocity_flat/          ← standard flat policy (±0.5 m/s)
     <date>_<time>/
-      model_<iter>.pt     ← policy checkpoints
+      model_<iter>.pt     ← policy checkpoints (save every 50 iters)
       params/             ← hydra config snapshot
-  go2w_velocity_rough/
+  go2w_velocity_fast_flat/     ← high-speed flat policy (up to 2.0 m/s fwd)
+    <date>_<time>/
+      model_<iter>.pt     ← policy checkpoints (save every 100 iters)
+  go2w_velocity_rough/         ← rough terrain policy (height scan + curriculum)
     <date>_<time>/
       model_<iter>.pt
 ```
@@ -592,7 +636,7 @@ A `←` flag marks any variant where **tracking < 0.50 or survival < 50%**.
 
 ```bash
 # Set your checkpoint path once (copy/paste this for your run)
-CKPT=logs/rsl_rl/go2w_velocity_rough/2026-06-13_23-19-06/model_2999.pt
+CKPT=logs/rsl_rl/go2w_velocity_rough/2026-06-14_20-03-41/model_8996.pt
 
 # Visual sanity check first — watch 50 robots on 10 cm stairs in GUI
 python scripts/eval.py --checkpoint $CKPT --visual --terrain stairs_up_10cm

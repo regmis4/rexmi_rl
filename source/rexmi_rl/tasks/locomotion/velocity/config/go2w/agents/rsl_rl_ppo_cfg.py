@@ -223,15 +223,13 @@ class Go2wRoughPPORunnerCfg(Go2wFlatPPORunnerCfg):
         activation="elu",
     )
 
-    # Phase 6 validation run: 1500 iterations (~1.5–2 hrs, half the usual budget).
-    # Phase 6 is reward fine-tuning on a pre-trained Phase 5 policy, not training
-    # from scratch.  Early TensorBoard signals tell us within ~800 iterations if
-    # the approach is working:
-    #   • climb_progress reward becomes non-zero on hard terrain rows → working
-    #   • stagnation penalty trending toward 0  → robot escaping more often
-    # If neither signal moves by iteration 800, more iterations won't help.
-    # If both move in the right direction, run a full 3000-iter follow-up.
-    max_iterations = 1500
+    # Phase 8: 3000 iterations per resumed run.
+    # The curriculum must advance from terrain_level ~1.7 up to ~6–8 (where
+    # steep-slope rows get assigned) before the policy can learn 45° traversal.
+    # At ~0.4 curriculum levels per 1500 iters (Phase 8 run 2 rate), reaching
+    # level 6 from 1.7 takes ~3000–4500 more iterations.  3000 per run is a
+    # good checkpoint interval — eval with --group steep_slope between runs.
+    max_iterations = 3000
 
     # Save more frequently so we can inspect intermediate policies
     save_interval = 100

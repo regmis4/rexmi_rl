@@ -133,7 +133,7 @@ class Go2wFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.actions.hip_pos = JointPositionActionCfg(
             asset_name="robot",
             joint_names=[".*_hip_joint"],    # 4 hip joints (FL/FR/RL/RR)
-            scale=0.3,                        # ±0.3 rad lateral spread offset
+            scale=0.15,                       # ±0.15 rad — halved (Phase 8 fix)
             use_default_offset=True,          # relative to default stance
         )
 
@@ -280,7 +280,7 @@ class Go2wFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
         from isaaclab.managers import SceneEntityCfg as _SECfg  # already imported above
         self.rewards.hip_deviation = RewTerm(
             func=mdp_utils.joint_deviation_l1,
-            weight=-0.2,
+            weight=-0.5,
             params={
                 "asset_cfg": _SECfg(
                     "robot",

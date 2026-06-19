@@ -242,3 +242,50 @@ class Go2wRoughPPORunnerCfg(Go2wFlatPPORunnerCfg):
     # while proprioceptive obs are typically in [-1, 1].  Normalising with
     # empirical stats prevents height values from dominating the network input.
     empirical_normalization = True
+
+
+# ==============================================================================
+# Phase 8 — Dedicated steep-slope PPO config (23°–45°)
+# ==============================================================================
+
+@configclass
+class Go2wSteepSlopePPORunnerCfg(Go2wRoughPPORunnerCfg):
+    """
+    PPO runner configuration for the Go2W dedicated steep-slope policy.
+
+    Inherits everything from Go2wRoughPPORunnerCfg (same network [512,256,128],
+    same obs space ~220 dims with height scanner, same algorithm hyperparameters).
+
+    Key differences:
+      1. experiment_name → "go2w_velocity_steep_slope"
+         Logs go to logs/rsl_rl/go2w_velocity_steep_slope/ so steep-slope runs
+         are completely separate from rough-terrain runs.  This is critical:
+         train.py's --resume picks the latest run in the experiment folder, so
+         separate folders prevent accidentally mixing checkpoints.
+
+      2. max_iterations = 2000
+         The curriculum only needs to advance through 10 slope rows (23°→45°).
+         Rough terrain needed 3000+ iters because it had to master 5 different
+         terrain types simultaneously.  With a single terrain type the policy
+         can advance rows much faster — 2000 iters ≈ 196M transitions is
+         sufficient to reach row 9 (45°) if the policy loaded from model_8996
+         already has the basic slope-following skills from moderate slopes.
+
+      3. save_interval = 50
+         More frequent saves so we can track curriculum progress precisely.
+         At 50 iters per checkpoint we get 40 snapshots over 2000 iters, giving
+         fine-grained visibility into when the policy crosses each degree barrier.
+
+    Obs space: identical to Go2wRoughPPORunnerCfg (~220 dims) — the steep-slope
+    env uses the same height scanner and action space, so model_8996.pt loads
+    directly without any architecture change.
+    """
+
+    # Separate log directory from rough runs — avoids --resume cross-contamination.
+    experiment_name = "go2w_velocity_steep_slope"
+
+    # 2000 iterations is sufficient for slope-only curriculum (10 rows × ~200 iters/row).
+    max_iterations = 2000
+
+    # More frequent saves than rough (100 iters) for finer curriculum tracking.
+    save_interval = 50

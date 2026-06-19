@@ -288,13 +288,30 @@ class Go2wFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
                 )
             },
         )
+        # thigh_deviation: moderate penalty (-0.15, thighs only).
+        #   Raising one thigh costs -0.15 × 0.4 rad = -0.06/step — same order
+        #   as hip_deviation, preventing the "salute" exploit (one thigh lifted
+        #   for CoM shift) observed at Phase 8 iter ~900.
+        #   Max cost = 0.15 × 0.5 rad action scale = 0.075/step, matching hips.
+        self.rewards.thigh_deviation = RewTerm(
+            func=mdp_utils.joint_deviation_l1,
+            weight=-0.15,
+            params={
+                "asset_cfg": _SECfg(
+                    "robot",
+                    joint_names=[".*_thigh_joint"],
+                )
+            },
+        )
+        # calf_deviation (formerly leg_deviation): weak penalty (-0.05, calves only).
+        #   Calves still need freedom to extend and lift wheels above step faces.
         self.rewards.leg_deviation = RewTerm(
             func=mdp_utils.joint_deviation_l1,
             weight=-0.05,
             params={
                 "asset_cfg": _SECfg(
                     "robot",
-                    joint_names=[".*_thigh_joint", ".*_calf_joint"],
+                    joint_names=[".*_calf_joint"],
                 )
             },
         )

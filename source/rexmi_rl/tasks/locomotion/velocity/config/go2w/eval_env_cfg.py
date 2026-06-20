@@ -257,12 +257,24 @@ def steep_slope_cfg(slope_deg: int) -> Go2wEvalEnvCfg:
     We sweep 25–45° in 5° increments to characterise the steep-slope capability cliff.
     35° = Shackleton crater target; 45° = physical upper limit of the training range.
 
-    Note: Go2wEvalEnvCfg inherits from Go2wRoughEnvCfg which has the Phase 8
-    orientation relaxations (flat_orientation_l2=-0.3, bad_orientation=1.35 rad),
-    so steep-slope eval correctly matches the training reward/termination setup.
+    Note: Go2wEvalEnvCfg inherits from Go2wRoughEnvCfg (Phase 7 baseline).
+    Go2wRoughEnvCfg has bad_orientation=1.0 rad (57°).  The steep-slope policy
+    was trained with bad_orientation=1.4 rad (80°) in Go2wSteepSlopeEnvCfg.
+    We override it here so the eval termination condition matches training.
+    Without this, spurious terminations on 40°–45° slopes could undercount survival.
     """
+    import isaaclab.envs.mdp as _mdp
+    from isaaclab.managers import TerminationTermCfg as _DoneTerm
+
     slope_rad = math.radians(slope_deg)
     cfg = Go2wEvalEnvCfg()
+
+    # Match the training termination limit used in Go2wSteepSlopeEnvCfg.
+    cfg.terminations.bad_orientation = _DoneTerm(
+        func=_mdp.bad_orientation,
+        params={"limit_angle": 1.4},   # 80° — same as steep-slope training env
+    )
+
     cfg.scene.terrain.terrain_generator = _single_terrain_gen(
         HfPyramidSlopedTerrainCfg(
             proportion=1.0,

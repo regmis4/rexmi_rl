@@ -172,17 +172,19 @@ if args._single is None and not args.visual:
     # at module level which requires omni.log (only available inside Isaac Sim).
     _ALL_VARIANT_NAMES: list[str] = (
         # stairs_up (9)
-        [f"stairs_up_{s}cm"   for s in [3, 5, 8, 10, 12, 15, 18, 20, 23]] +
+        [f"stairs_up_{s}cm"      for s in [3, 5, 8, 10, 12, 15, 18, 20, 23]] +
         # stairs_down (9)
-        [f"stairs_down_{s}cm" for s in [3, 5, 8, 10, 12, 15, 18, 20, 23]] +
+        [f"stairs_down_{s}cm"    for s in [3, 5, 8, 10, 12, 15, 18, 20, 23]] +
         # boxes (6)
-        [f"boxes_{h}cm"       for h in [3, 5, 8, 10, 15, 20]] +
+        [f"boxes_{h}cm"          for h in [3, 5, 8, 10, 15, 20]] +
         # slope (7)
-        [f"slope_{d}deg"      for d in [2, 5, 8, 10, 15, 20, 23]] +
+        [f"slope_{d}deg"         for d in [2, 5, 8, 10, 15, 20, 23]] +
         # rough (5)
-        [f"rough_{n}cm"       for n in [2, 4, 6, 8, 10]]
+        [f"rough_{n}cm"          for n in [2, 4, 6, 8, 10]] +
+        # steep_slope (5) — Phase 8; 35° = Shackleton crater target
+        [f"steep_slope_{d}deg"   for d in [25, 30, 35, 40, 45]]
     )
-    _VALID_GROUPS = ["stairs_up", "stairs_down", "boxes", "slope", "rough"]
+    _VALID_GROUPS = ["stairs_up", "stairs_down", "boxes", "slope", "rough", "steep_slope"]
 
     if not os.path.isfile(args.checkpoint):
         print(f"[eval] ERROR: checkpoint not found: {args.checkpoint}")
@@ -309,7 +311,7 @@ if args._single is None and not args.visual:
     # -----------------------------------------------------------------------
     # Print results table
     # -----------------------------------------------------------------------
-    GROUPS = ["stairs_up", "stairs_down", "boxes", "slope", "rough"]
+    GROUPS = ["stairs_up", "stairs_down", "boxes", "slope", "rough", "steep_slope"]
     sep = "─" * 80
 
     print("=" * 80)

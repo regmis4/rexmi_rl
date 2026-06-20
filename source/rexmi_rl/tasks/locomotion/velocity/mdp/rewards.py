@@ -283,3 +283,87 @@ def hip_crossing_penalty(
 
     # Sum excess across all 4 hip joints (FL, FR, RL, RR)
     return excess.sum(dim=-1)  # (num_envs,)
+
+
+def joint_deviation_threshold(
+    env: ManagerBasedRLEnv,
+    threshold_rad: float = 0.40,
+    asset_cfg=None,
+) -> torch.Tensor:
+    """
+    Generalised threshold-based joint deviation penalty.
+
+    Identical logic to ``hip_crossing_penalty`` but applicable to any joint group
+    (thighs, calves, or any other set of joints).  Returns ZERO cost within
+    ± threshold_rad of each joint's default position, and the excess deviation
+    beyond that threshold otherwise.
+
+    This is the correct tool for defining "normal behaviour boundaries" for each
+    joint group separately, without over-constraining the action space globally.
+
+    WHY SEPARATE THRESHOLDS PER JOINT GROUP MATTER:
+    ------------------------------------------------
+    On steep slopes the legs are ALREADY displaced from their defaults just to
+    maintain wheel contact with the tilted surface.  On a 35° slope:
+      • Thighs: ~0.20 rad used for slope adaptation
+      • Calves: ~0.30 rad used for wheel reach on tilted ground
+
+    This "slope budget" is consumed before any lateral (vy) or forward motion
+    begins.  If the threshold is too tight, the remaining free range inside the
+    dead zone shrinks, and the policy may find that lateral stepping costs
+    something and give up vy tracking in favour of wheel-only steering.
+
+    Each joint group has a different threshold sized to its natural range:
+      - Hips  (implemented via hip_crossing_penalty): threshold=0.25 rad
+            Lateral lean needs ~0.15 rad; crossing exploit starts at ~0.50 rad.
+      - Thighs (this function, recommended threshold=0.40 rad):
+            CG shift + slope adapt needs ~0.25-0.30 rad; salute starts ~0.55 rad.
+            0.40 rad leaves ~0.15-0.20 rad free above the slope budget.
+      - Calves (NOT recommended unless specific exploit observed):
+            Full wheel reach on 45° slope needs ~0.40-0.50 rad.
+            Any threshold risks blocking terrain adaptation.
+
+    WEIGHT CALIBRATION:
+    -------------------
+    Use lower weights here than for hip_crossing_penalty because thigh/calf
+    exploits are less severe than lateral rolling (hip crossing puts one wheel
+    fully in the air — the most destabilising configuration):
+      - Hips:   weight=-2.0  (one wheel off ground — severe)
+      - Thighs: weight=-1.0  (body pitches oddly but all wheels still on ground)
+      - Calves: weight=-0.5  (if ever needed — very mild)
+
+    Parameters
+    ----------
+    env           : the running ManagerBasedRLEnv
+    threshold_rad : dead zone radius around each joint's default position (rad).
+    asset_cfg     : SceneEntityCfg with joint_ids resolved to target joint indices.
+
+    Returns
+    -------
+    Tensor shape (num_envs,).
+    Sum of excess deviations beyond threshold across all specified joints.
+    Multiply by a negative weight in RewardTermCfg.
+
+    Example (thigh salute penalty in steep_slope_env_cfg.py)::
+
+        self.rewards.thigh_salute = RewTerm(
+            func=joint_deviation_threshold,
+            weight=-1.0,
+            params={
+                "threshold_rad": 0.40,
+                "asset_cfg": SceneEntityCfg("robot", joint_names=[".*_thigh_joint"]),
+            },
+        )
+    """
+    if asset_cfg is None:
+        raise ValueError("joint_deviation_threshold requires asset_cfg with joint_names specified")
+
+    robot = env.scene[asset_cfg.name]
+
+    joint_pos: torch.Tensor = robot.data.joint_pos[:, asset_cfg.joint_ids]
+    default_pos: torch.Tensor = robot.data.default_joint_pos[:, asset_cfg.joint_ids]
+
+    dev: torch.Tensor = (joint_pos - default_pos).abs()
+    excess: torch.Tensor = (dev - threshold_rad).clamp(min=0.0)
+
+    return excess.sum(dim=-1)

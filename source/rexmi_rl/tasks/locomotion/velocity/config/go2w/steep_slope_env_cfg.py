@@ -183,6 +183,28 @@ class Go2wSteepSlopeEnvCfg(Go2wRoughEnvCfg):
             },
         )
 
+        # Thigh salute penalty — same threshold pattern, generous dead zone.
+        # On 35° slope: thigh uses ~0.20 rad for contact → 0.20 rad budget left.
+        # 0.40 rad threshold leaves 0.20 rad free for vy/CG shifts.
+        # Salute at 0.65 rad: excess=0.25, cost=-1.0×0.25=-0.25/step per group.
+        # Weight -1.0 (softer than hip -2.0): all wheels stay on ground in salute,
+        # it's less destabilising than lateral roll — reflects severity difference.
+        # CALF penalty intentionally NOT added: calves need the most freedom for
+        # terrain adaptation on varying slopes. Only add if a calf exploit appears.
+        from rexmi_rl.tasks.locomotion.velocity.mdp import (
+            joint_deviation_threshold as _jdt,
+        )
+        from isaaclab.managers import SceneEntityCfg as _SECfg3
+
+        self.rewards.thigh_salute = RewTerm(
+            func=_jdt,
+            weight=-1.0,
+            params={
+                "threshold_rad": 0.40,
+                "asset_cfg": _SECfg3("robot", joint_names=[".*_thigh_joint"]),
+            },
+        )
+
         # ==================================================================
         # 3. ORIENTATION — relax for steep slopes
         # ==================================================================

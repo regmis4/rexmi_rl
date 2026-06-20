@@ -8,4 +8,5 @@ from .rewards import (  # noqa: F401
     stagnation_penalty,
     hip_crossing_penalty,
     joint_deviation_threshold,
+    joint_group_symmetry_penalty,
 )

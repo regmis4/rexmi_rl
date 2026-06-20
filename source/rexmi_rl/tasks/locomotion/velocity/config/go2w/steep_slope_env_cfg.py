@@ -205,6 +205,49 @@ class Go2wSteepSlopeEnvCfg(Go2wRoughEnvCfg):
             },
         )
 
+        # Calf symmetry penalty — catches tripod / tail-leg exploit.
+        # Penalises any single calf that deviates significantly from the group mean.
+        # Does NOT restrict total calf range (needed for slope adaptation).
+        #
+        # Analysis for raised rear-right leg (0.80 rad, others at 0.35 rad):
+        #   mean = 0.4625 rad
+        #   raised calf spread from mean: 0.3375 rad >> 0.15 threshold
+        #   excess: 0.1875 rad → cost = -2.0 × 0.1875 = -0.375/step → unprofitable ✗
+        #
+        # Normal terrain adaptation (all calves shift symmetrically):
+        #   spread from mean ≈ 0 → zero cost ✓
+        # Hard turn (asymmetric terrain):
+        #   spread from mean ≈ 0.05 rad < 0.15 threshold → zero cost ✓
+        from rexmi_rl.tasks.locomotion.velocity.mdp import (
+            joint_group_symmetry_penalty as _jgsp,
+        )
+        from isaaclab.managers import SceneEntityCfg as _SECfg4
+
+        self.rewards.calf_symmetry = RewTerm(
+            func=_jgsp,
+            weight=-2.0,
+            params={
+                "threshold_from_mean": 0.15,
+                "asset_cfg": _SECfg4("robot", joint_names=[".*_calf_joint"]),
+            },
+        )
+
+        # Hip symmetry — secondary catch for per-leg raise.
+        # Complements hip_crossing_penalty (absolute ±0.25 threshold) by also
+        # catching the case where one hip is at a very different angle from the
+        # others (as happens when one leg is lifted for the tripod stance).
+        # Threshold 0.10 rad: normal balance spread ≤ 0.05 rad → zero cost.
+        from isaaclab.managers import SceneEntityCfg as _SECfg5
+
+        self.rewards.hip_symmetry = RewTerm(
+            func=_jgsp,
+            weight=-1.0,
+            params={
+                "threshold_from_mean": 0.10,
+                "asset_cfg": _SECfg5("robot", joint_names=[".*_hip_joint"]),
+            },
+        )
+
         # ==================================================================
         # 3. ORIENTATION — relax for steep slopes
         # ==================================================================

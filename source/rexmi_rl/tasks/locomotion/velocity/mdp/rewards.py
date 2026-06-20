@@ -367,3 +367,95 @@ def joint_deviation_threshold(
     excess: torch.Tensor = (dev - threshold_rad).clamp(min=0.0)
 
     return excess.sum(dim=-1)
+
+
+def joint_group_symmetry_penalty(
+    env: ManagerBasedRLEnv,
+    threshold_from_mean: float = 0.15,
+    asset_cfg=None,
+) -> torch.Tensor:
+    """
+    Penalise any single joint that deviates significantly from the GROUP MEAN
+    of all joints in the same group.
+
+    This is the correct tool for the "tripod / tail-leg" exploit where the policy
+    lifts ONE rear wheel off the ground for a triangular stance, gaining slope
+    stability while spinning the raised wheel fast to fake velocity tracking.
+
+    WHY GROUP-MEAN (NOT ABSOLUTE THRESHOLD) FOR THE RAISED-LEG EXPLOIT:
+    --------------------------------------------------------------------
+    An absolute calf threshold (e.g. ±0.55 rad from default) also fires on ALL
+    four calves during steep-slope traversal, where calves already use 0.40-0.50 rad
+    just to reach tilted ground — effectively limiting terrain adaptation range.
+
+    A group-mean deviation threshold fires ONLY when ONE joint differs significantly
+    from its peers.  On symmetric slopes all four calves move together (near-zero
+    spread → zero cost).  A hard left turn creates ~0.05-0.10 rad spread
+    (still below threshold → zero cost).  Only the raised leg (~0.30-0.40 rad
+    from the mean) triggers the penalty.
+
+    DEAD-ZONE CALIBRATION  (threshold_from_mean):
+    ----------------------------------------------
+    Recommended 0.15 rad for calves:
+      • Symmetric slope traversal:   spread ≈ 0.00 rad  <  0.15  → 0 cost  ✓
+      • Hard left/right turn:        spread ≈ 0.05 rad  <  0.15  → 0 cost  ✓
+      • Raised rear leg at 0.80 rad  (others at 0.35):
+            mean   = (0.35×3 + 0.80)/4 = 0.4625 rad
+            raised  spread: |0.80 − 0.4625| = 0.3375 rad  >> threshold
+            normal  spread: |0.35 − 0.4625| = 0.1125 rad  < threshold → 0 cost
+            excess (raised leg only): 0.3375 − 0.15 = 0.1875 rad
+            cost at w=-2.0: −2.0 × 0.1875 = −0.375/step  → exploit unprofitable  ✓
+
+    Recommended 0.10 rad for hips:
+      • Normal slope balance: hip spread ≤ 0.05 rad  <  0.10  → 0 cost  ✓
+      • One leg raised: hip shifts out by ~0.15-0.20 rad  >  0.10  → cost fires  ✓
+      • Complements hip_crossing_penalty (absolute threshold) for per-leg case.
+
+    WEIGHT CALIBRATION:
+    -------------------
+      Calves:  weight = -2.0  (raised leg is ~0.34 from mean → -0.37/step)
+      Hips:    weight = -1.0  (secondary signal; hip_crossing_penalty is primary)
+
+    Parameters
+    ----------
+    env                 : the running ManagerBasedRLEnv
+    threshold_from_mean : dead-zone radius around the per-step group mean (rad).
+    asset_cfg           : SceneEntityCfg with joint_ids resolved to the joint group.
+
+    Returns
+    -------
+    Tensor shape (num_envs,).
+    Sum of excess deviations beyond threshold_from_mean, across all joints.
+    Multiply by a negative weight in RewardTermCfg.
+
+    Example (calf symmetry — catches tripod gait)::
+
+        self.rewards.calf_symmetry = RewTerm(
+            func=joint_group_symmetry_penalty,
+            weight=-2.0,
+            params={
+                "threshold_from_mean": 0.15,
+                "asset_cfg": SceneEntityCfg("robot", joint_names=[".*_calf_joint"]),
+            },
+        )
+    """
+    if asset_cfg is None:
+        raise ValueError(
+            "joint_group_symmetry_penalty requires asset_cfg with joint_names specified"
+        )
+
+    robot = env.scene[asset_cfg.name]
+
+    joint_pos: torch.Tensor = robot.data.joint_pos[:, asset_cfg.joint_ids]  # (N, num_joints)
+
+    # Per-step group mean — moves with terrain adaptation, does not penalise
+    # symmetric slope changes (all joints shift together).
+    group_mean: torch.Tensor = joint_pos.mean(dim=-1, keepdim=True)  # (N, 1)
+
+    # Absolute deviation of each joint from the group mean.
+    dev_from_mean: torch.Tensor = (joint_pos - group_mean).abs()  # (N, num_joints)
+
+    # Dead zone: no cost when all joints are within threshold_from_mean of the mean.
+    excess: torch.Tensor = (dev_from_mean - threshold_from_mean).clamp(min=0.0)
+
+    return excess.sum(dim=-1)

@@ -1,14 +1,15 @@
 # REXMI RL — Complete Developer Reference
 
-> **Current status: Phase 8 in progress — Steep slopes (23°–45°)**
+> **Current status: Phase 8 in progress — Steep slopes (23°–45°) via two-policy split**
 >
-> Phases 1–7 complete. Phase 7 fixed the flat-terrain bouncing exploit introduced by
-> Phase 6 using a hybrid `climb_progress` reward (base_weight=0.4 on flat terrain,
-> obstacle_weight=1.5 near obstacles) and restored `lin_vel_z_l2 = -1.5`.
-> Phase 8 adds steep-slope terrain (23°–45°) to the rough env, relaxes the orientation
-> penalty in the rough env (`flat_orientation_l2 = -0.3`, down from -0.8 in the flat env)
-> and raises the `bad_orientation` termination limit to 1.35 rad (77°) for the rough env
-> to allow legitimate body tilt during steep-slope traversal.
+> Phases 1–7 complete. `model_8996.pt` (Phase 7 best checkpoint) is the production
+> rough-terrain policy — it handles stairs (up/down to 23 cm), boxes (20 cm), rough, and
+> moderate slopes (0°–23°) and is **frozen** (no further training).
+> Phase 8 trains a SEPARATE dedicated steep-slope policy (`RexmiRl-Go2w-Velocity-SteepSlope-v0`)
+> starting from model_8996 weights. The steep-slope env trains exclusively on 23°–45° slopes
+> with a very light orientation penalty (`flat_orientation_l2=-0.1`) and a 80° termination
+> limit — settings that would cause exploits in the unified rough policy but are safe in
+> an isolated slope-only training distribution.
 
 This document explains **every design decision** made across all four phases of
 the Go2W RL setup.  The goal is that after reading this you understand the full
@@ -133,8 +134,9 @@ t=1..N: Policy observes state, outputs 16 actions, physics steps forward
 t=T: Episode ends when:
      (a) base touches ground (fell over) → terminated
      (b) tilt > limit_angle from vertical → terminated (bad_orientation)
-         flat env: 1.0 rad (57°)
-         rough env (Phase 8): 1.35 rad (77°) — headroom for steep-slope body tilt
+         flat env:              1.0 rad (57°)
+         rough env (Phase 7):   1.0 rad (57°) — **frozen at model_8996 state**
+         steep-slope env (Ph8): 1.4 rad (80°) — 35° headroom above 45° max slope
      (c) 20 seconds elapsed (1000 steps at 50Hz) → timeout
      Then robot is reset to terrain tile matching current curriculum level
 ```
@@ -288,12 +290,14 @@ A thin re-export of all 4 config classes from `rough_env_cfg.py`.
 |---|---|---|---|---|
 | `Go2wFlatPPORunnerCfg` | Flat (standard) | [128,128,128] | 1000 | ~60 |
 | `Go2wFastFlatPPORunnerCfg` | Fast flat (2 m/s) | [128,128,128] | **1500** | ~60 |
-| `Go2wRoughPPORunnerCfg` | Rough | [512,256,128] | 1500 | ~220 |
+| `Go2wRoughPPORunnerCfg` | Rough (Phase 7 frozen) | [512,256,128] | 3000 | ~220 |
+| `Go2wSteepSlopePPORunnerCfg` | **Steep-slope (Phase 8)** | [512,256,128] | **2000** | **~220** |
 
-Key differences: `empirical_normalization=True` for rough terrain — height scan
+Key differences: `empirical_normalization=True` for rough/steep-slope terrain — height scan
 values span ±0.5 m, which would dominate the network input without normalisation.
-Fast flat uses the same small network as standard flat (no height scan, same obs dims)
-but more iterations to cover the wider 0–2 m/s command range.
+`Go2wSteepSlopePPORunnerCfg` inherits the rough network identically (same obs/action space,
+same architecture) and only differs in `experiment_name="go2w_velocity_steep_slope"`,
+`max_iterations=2000`, and `save_interval=50`.  model_8996 weights load directly.
 
 ---
 
@@ -301,14 +305,17 @@ but more iterations to cover the wider 0–2 m/s command range.
 
 ```python
 # Flat terrain — standard (±0.5 m/s)
-gym.register("RexmiRl-Go2w-Velocity-Flat-v0",          env=Go2wFlatEnvCfg,          ppo=Go2wFlatPPORunnerCfg)
-gym.register("RexmiRl-Go2w-Velocity-Flat-Play-v0",     env=Go2wFlatEnvCfg_PLAY,     ppo=Go2wFlatPPORunnerCfg)
+gym.register("RexmiRl-Go2w-Velocity-Flat-v0",              env=Go2wFlatEnvCfg,              ppo=Go2wFlatPPORunnerCfg)
+gym.register("RexmiRl-Go2w-Velocity-Flat-Play-v0",         env=Go2wFlatEnvCfg_PLAY,         ppo=Go2wFlatPPORunnerCfg)
 # Fast flat terrain — high-speed forward up to 2.0 m/s (wheel scale=40, train from scratch)
-gym.register("RexmiRl-Go2w-Velocity-FastFlat-v0",      env=Go2wFastFlatEnvCfg,      ppo=Go2wFastFlatPPORunnerCfg)
-gym.register("RexmiRl-Go2w-Velocity-FastFlat-Play-v0", env=Go2wFastFlatEnvCfg_PLAY, ppo=Go2wFastFlatPPORunnerCfg)
-# Rough terrain — height scanner + curriculum
-gym.register("RexmiRl-Go2w-Velocity-Rough-v0",         env=Go2wRoughEnvCfg,         ppo=Go2wRoughPPORunnerCfg)
-gym.register("RexmiRl-Go2w-Velocity-Rough-Play-v0",    env=Go2wRoughEnvCfg_PLAY,    ppo=Go2wRoughPPORunnerCfg)
+gym.register("RexmiRl-Go2w-Velocity-FastFlat-v0",          env=Go2wFastFlatEnvCfg,          ppo=Go2wFastFlatPPORunnerCfg)
+gym.register("RexmiRl-Go2w-Velocity-FastFlat-Play-v0",     env=Go2wFastFlatEnvCfg_PLAY,     ppo=Go2wFastFlatPPORunnerCfg)
+# Rough terrain — height scanner + curriculum (PRODUCTION: model_8996, Phase 7 frozen)
+gym.register("RexmiRl-Go2w-Velocity-Rough-v0",             env=Go2wRoughEnvCfg,             ppo=Go2wRoughPPORunnerCfg)
+gym.register("RexmiRl-Go2w-Velocity-Rough-Play-v0",        env=Go2wRoughEnvCfg_PLAY,        ppo=Go2wRoughPPORunnerCfg)
+# Steep-slope terrain — Phase 8 dedicated policy (23°–45°, start from model_8996)
+gym.register("RexmiRl-Go2w-Velocity-SteepSlope-v0",        env=Go2wSteepSlopeEnvCfg,        ppo=Go2wSteepSlopePPORunnerCfg)
+gym.register("RexmiRl-Go2w-Velocity-SteepSlope-Play-v0",   env=Go2wSteepSlopeEnvCfg_PLAY,   ppo=Go2wSteepSlopePPORunnerCfg)
 ```
 
 ---
@@ -358,7 +365,7 @@ Terms marked *(rough only)* are added only in `Go2wRoughEnvCfg.__post_init__()`.
 | `track_ang_vel_z_exp` | +0.75 | exp(-(ωz - ωz_cmd)² / 0.25) | Match turning rate |
 | `is_alive` | +0.2 | 1 while running, 0 at termination | Stay upright |
 | `climb_progress` *(rough only)* | **1.0** *(weight baked in)* | **0.4×** max(0,vz) flat terrain; **1.5×** max(0,vz) near obstacle (height scan gated) | Reward climbing; reduced on flat to prevent bouncing exploit |
-| `flat_orientation_l2` | **-0.8 (flat env) / -0.3 (rough env, Phase 8)** | ‖gravity_projected_xy‖² | Keep base level; rough env further relaxed so body can align with steep slopes |
+| `flat_orientation_l2` | **-0.8 (both flat and rough env, Phase 7 frozen)** | ‖gravity_projected_xy‖² | Keep base level; steep-slope env overrides to -0.1 to allow sustained body tilt on 23°–45° slopes |
 | `lin_vel_z_l2` | **-1.5** | vz² | Damp bouncing (restored from -0.3 to kill bouncing exploit) |
 | `ang_vel_xy_l2` | -0.5 | ωx² + ωy² | No pitch/roll wobble |
 | `dof_torques_l2` | -1e-5 | ‖τ‖² | Minimise energy |
@@ -391,7 +398,7 @@ hip spreading.
 | Condition | Type | Note |
 |-----------|------|------|
 | `base_contact` (base link touches ground) | failure | Legs/wheels contact is normal |
-| `bad_orientation` — flat env: tilt > 1.0 rad (57°); rough env (Phase 8): tilt > 1.35 rad (77°) | failure | Rough env relaxed to allow legitimate steep-slope body tilt |
+| `bad_orientation` — flat env: tilt > 1.0 rad (57°); rough env (Phase 7 frozen): 1.0 rad (57°); steep-slope env (Phase 8): 1.4 rad (80°) | failure | Steep-slope env only relaxed — 35° headroom above 45° max slope; rough env unchanged at model_8996 state |
 | 20 seconds elapsed (1000 steps) | timeout | Success — episode ran to completion |
 
 ### Velocity commands
@@ -514,11 +521,37 @@ python scripts/train.py --task RexmiRl-Go2w-Velocity-Rough-v0 --headless \
 # Quick smoke test (128 envs — verifies config loads without errors)
 python scripts/train.py --task RexmiRl-Go2w-Velocity-Rough-v0 --num_envs 128
 
-# Visualise rough policy
+# Visualise rough policy (model_8996 — PRODUCTION, Phase 7 frozen)
 python scripts/play.py --task RexmiRl-Go2w-Velocity-Rough-Play-v0
 
 # Watch TensorBoard (rough)
 tensorboard --logdir logs/rsl_rl/go2w_velocity_rough
+
+# ── Steep-slope terrain (Phase 8 — dedicated 23°–45° policy) ──────────────
+# Trained from model_8996 weights. Separate log dir: go2w_velocity_steep_slope/
+# IMPORTANT: do NOT use --resume in between new runs (resets curriculum to 0)
+# Use --load_run + --checkpoint to resume from the best existing checkpoint.
+
+# First run — load model_8996 as starting point
+python scripts/train.py --task RexmiRl-Go2w-Velocity-SteepSlope-v0 --headless \
+    --load_run go2w_velocity_rough/2026-06-14_20-03-41 --checkpoint model_8996.pt
+
+# Resume a subsequent run from the latest steep-slope checkpoint
+python scripts/train.py --task RexmiRl-Go2w-Velocity-SteepSlope-v0 --headless --resume
+
+# Visualise steep-slope policy (50 robots on 23°–45° slope tiles)
+python scripts/play.py --task RexmiRl-Go2w-Velocity-SteepSlope-Play-v0
+
+# Visualise steep-slope policy with a specific checkpoint
+python scripts/play.py --task RexmiRl-Go2w-Velocity-SteepSlope-Play-v0 \
+    --load_run go2w_velocity_steep_slope/<date>_<time> --checkpoint model_<iter>.pt
+
+# Watch TensorBoard (steep-slope)
+tensorboard --logdir logs/rsl_rl/go2w_velocity_steep_slope
+
+# Evaluate steep-slope policy on the 5 steep-slope variants
+CKPT_STEEP=logs/rsl_rl/go2w_velocity_steep_slope/<date>_<time>/model_<iter>.pt
+python scripts/eval.py --checkpoint $CKPT_STEEP --group steep_slope
 ```
 
 > **Note on run.sh**: `run.sh` is a convenience wrapper but has historically had a
@@ -561,8 +594,12 @@ logs/rsl_rl/
     <date>_<time>/
       model_<iter>.pt     ← policy checkpoints (save every 100 iters)
   go2w_velocity_rough/         ← rough terrain policy (height scan + curriculum)
+    2026-06-14_20-03-41/       ← PRODUCTION run — model_8996.pt is the best checkpoint
+      model_8996.pt       ← Phase 7 production checkpoint (FROZEN — do not retrain)
+      model_<iter>.pt     ← other checkpoints (save every 100 iters)
+  go2w_velocity_steep_slope/   ← Phase 8 dedicated steep-slope policy (23°–45°)
     <date>_<time>/
-      model_<iter>.pt
+      model_<iter>.pt     ← checkpoints (save every 50 iters)
 ```
 
 ---
@@ -954,44 +991,68 @@ python scripts/train.py --task RexmiRl-Go2w-Velocity-Rough-v0 --headless --resum
   (`base_weight=0.4` flat, `obstacle_weight=1.5` near obstacle); checkpoint `model_8996.pt`
 - **Achieved**: slope/rough tracking recovered to Phase 5 levels; stair-climbing gains preserved
 
-### Phase 8 (current): Steep slopes (23°–45°)
+### Phase 8 (current): Steep slopes (23°–45°) — two-policy split
 
-**Goal**: Enable the robot to traverse steep slopes up to 45° — including Shackleton crater
-(~35°) — using the same unified rough terrain policy (no separate extreme-terrain policy).
+**Why a unified policy failed** (4600 iters, model crashed into these walls):
 
-**Changes made** (resume from `model_8996.pt` — same obs space, no architecture change):
+| Problem | Explanation |
+|---------|-------------|
+| Curriculum reset | Every `--load_run` restart reset curriculum to level 0; all 4600 iters stayed at `terrain_level ≈ 0.45` — never reached steep-slope rows |
+| Reward conflict | Relaxing `flat_orientation_l2 = -0.3` opened a wheel-lift exploit on flat terrain (thigh-salute gait) |
+| Anti-exploit overfit | Adding `hip_deviation=-0.5` + `thigh_deviation=-0.15` to block exploits also blocked legitimate lateral stepping (no vy tracking) |
 
-| Change | Value | Reason |
-|--------|-------|--------|
-| `steep_slope` sub-terrain added | proportion=0.15, 23°–45° | New training distribution covering crater slopes |
-| Existing terrain proportions | 0.20 → 0.17 each | Rebalanced to sum to 1.0 with new terrain |
-| `num_rows` | 10 → 12 | More curriculum levels for wider difficulty range |
-| `flat_orientation_l2` (rough env only) | -0.8 → **-0.3** | Body must align with 35°–45° slope; flat env unchanged at -0.8 |
-| `bad_orientation` limit (rough env only) | 1.0 rad → **1.35 rad** | 77° gives 32° headroom above 45° slope; flat env unchanged at 1.0 rad |
+**Solution: dedicated steep-slope policy** — new file `steep_slope_env_cfg.py`
 
-**New eval variants** (41 total):
+Inherits the complete Phase 7 rough env (same robot, scanner, stagnation, climb_progress,
+leg_deviation, curriculum).  Only three things change:
+
+| Setting | Phase 7 rough env (frozen) | Steep-slope env (Phase 8) |
+|---------|----------------------------|---------------------------|
+| Terrain | 5 types: stairs/boxes/rough/slope (0°–23°) | **ONLY `HfPyramidSlopedTerrainCfg` (23°–45°)** |
+| `flat_orientation_l2` | -0.8 | **-0.1** — body must tilt with 35°–45° slope |
+| `bad_orientation` limit | 1.0 rad (57°) | **1.4 rad (80°)** — 35° headroom above 45° |
+
+Curriculum rows 0→9 interpolate slope: **row 0 = 23°** (handoff from model_8996), **row 9 = 45°**.
+The obs/action space is identical to model_8996 → weights load cleanly, no architecture change.
+
+**Training commands:**
 
 ```bash
-# Phase 8 steep-slope group (5 variants, ~2-3 min)
-python scripts/eval.py --checkpoint $CKPT --group steep_slope
+# First run — load model_8996 as starting point
+conda activate env_isaacsim
+python scripts/train.py --task RexmiRl-Go2w-Velocity-SteepSlope-v0 --headless \
+    --load_run go2w_velocity_rough/2026-06-14_20-03-41 --checkpoint model_8996.pt
 
-# Full 41-variant sweep
-python scripts/eval.py --checkpoint $CKPT
+# Resume from the latest steep-slope checkpoint
+python scripts/train.py --task RexmiRl-Go2w-Velocity-SteepSlope-v0 --headless --resume
+```
+
+**Visualise the steep-slope policy (50 robots on 23°–45° tiles):**
+
+```bash
+# Latest checkpoint (auto-picks most recent steep-slope run)
+python scripts/play.py --task RexmiRl-Go2w-Velocity-SteepSlope-Play-v0
+
+# Specific checkpoint
+python scripts/play.py --task RexmiRl-Go2w-Velocity-SteepSlope-Play-v0 \
+    --load_run go2w_velocity_steep_slope/<date>_<time> --checkpoint model_<iter>.pt
 ```
 
 **TensorBoard signals to watch:**
+
 ```
-flat_orientation_l2:  will become less negative (body tilting to align with slopes) — expected
-bad_orientation:      termination rate should drop (1.35 rad limit catches fewer recoveries)
-climb_progress:       should stay active — steep slopes trigger obstacle_weight=1.5
-track_lin_vel_xy_exp: should not regress significantly vs Phase 7 baseline (~1.90+)
+terrain_levels:       should climb 0 → 4–5 within 1000 iters (23° → 32°)
+flat_orientation_l2:  grows more negative (body tilting onto slopes) — expected
+bad_orientation:      termination rate should drop vs rough env (1.4 rad limit)
+climb_progress:       always in obstacle_weight=1.5 mode (any slope > 3° triggers it)
+track_lin_vel_xy_exp: target ≥ Phase 7 baseline (~1.90+) at final curriculum rows
 ```
 
-**Training command:**
+**Eval steep-slope policy:**
+
 ```bash
-conda activate env_isaacsim
-python scripts/train.py --task RexmiRl-Go2w-Velocity-Rough-v0 --headless \
-    --load_run go2w_velocity_rough/2026-06-14_20-03-41 --checkpoint model_8996.pt
+CKPT_STEEP=logs/rsl_rl/go2w_velocity_steep_slope/<date>_<time>/model_<iter>.pt
+python scripts/eval.py --checkpoint $CKPT_STEEP --group steep_slope
 ```
 
 ### Phase 9 (planned): Energy efficiency and gait elegance
@@ -1017,4 +1078,4 @@ python scripts/train.py --task RexmiRl-Go2w-Velocity-Rough-v0 --headless \
 
 ---
 
-*Last updated: 2026-06-17 · REXMI Project · Phase 8 in progress — steep slopes (23°–45°)*
+*Last updated: 2026-06-19 · REXMI Project · Phase 8 in progress — two-policy split (rough frozen @ model_8996, steep-slope 23°–45° in training)*

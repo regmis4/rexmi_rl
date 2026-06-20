@@ -267,6 +267,23 @@ class Go2wSteepSlopeEnvCfg(Go2wRoughEnvCfg):
         # These are negligible compared to velocity tracking (+1.88/step at 0.5 m/s).
         # -0.1 is still positive (rather than 0) so arbitrary sway is still slightly
         # penalised — the policy should tilt WITH the slope, not randomly.
+        # Stronger yaw tracking on steep slopes — reduces lateral drift on curved
+        # terrain like crater walls.
+        #
+        # Problem: on steep uphill climbs all wheel torque is consumed fighting
+        # gravity.  With no torque margin, any lateral slope force (present when
+        # heading ≠ fall-line direction) creates yaw drift the policy can't correct.
+        #
+        # Fix: raise track_ang_vel_z_exp weight 0.75 → 1.5.  This makes yaw-rate
+        # tracking twice as valuable as forward tracking (1.5 vs. ~1.0 effective),
+        # so the policy allocates differential wheel torque to heading correction
+        # even at the cost of slightly lower forward speed.
+        #
+        # On flat terrain 0.75 is enough — yaw torques are cheap without gravity.
+        # On 35° slope the torque budget is tight, so 2× weight is needed to keep
+        # yaw correction in the objective mix alongside longitudinal climbing.
+        self.rewards.track_ang_vel_z_exp.weight = 1.5
+
         self.rewards.flat_orientation_l2.weight = -0.1
 
         # bad_orientation: 1.0 rad (57°, inherited) → 1.4 rad (80°)

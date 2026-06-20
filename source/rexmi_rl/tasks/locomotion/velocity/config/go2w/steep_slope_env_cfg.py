@@ -209,15 +209,22 @@ class Go2wSteepSlopeEnvCfg(Go2wRoughEnvCfg):
         # Penalises any single calf that deviates significantly from the group mean.
         # Does NOT restrict total calf range (needed for slope adaptation).
         #
-        # Analysis for raised rear-right leg (0.80 rad, others at 0.35 rad):
+        # Threshold raised to 0.20 rad (from initial 0.15) to safely accommodate
+        # lateral vy stepping via a trot gait on steep slopes:
+        #   • Stance calves at ~0.50 rad (extra extension to reach tilted ground)
+        #   • Swing calves at ~0.10-0.20 rad (lifted for step clearance)
+        #   • Swing/stance split from group mean: ~0.15-0.18 rad — within 0.20 ✓
+        #   • 0.15 was too tight: could penalise legitimate vy stepping at 35°+
+        #
+        # Tripod exploit analysis (raised rear-right leg at 0.80 rad, others 0.35):
         #   mean = 0.4625 rad
-        #   raised calf spread from mean: 0.3375 rad >> 0.15 threshold
-        #   excess: 0.1875 rad → cost = -2.0 × 0.1875 = -0.375/step → unprofitable ✗
+        #   raised calf spread from mean: 0.3375 rad >> 0.20 threshold
+        #   excess: 0.1375 rad → cost = -2.0 × 0.1375 = -0.275/step → unprofitable ✗
         #
         # Normal terrain adaptation (all calves shift symmetrically):
         #   spread from mean ≈ 0 → zero cost ✓
-        # Hard turn (asymmetric terrain):
-        #   spread from mean ≈ 0.05 rad < 0.15 threshold → zero cost ✓
+        # Lateral trot for vy (two legs swing together at ±0.18 rad from mean):
+        #   spread = 0.18 rad < 0.20 threshold → zero cost ✓
         from rexmi_rl.tasks.locomotion.velocity.mdp import (
             joint_group_symmetry_penalty as _jgsp,
         )
@@ -227,7 +234,7 @@ class Go2wSteepSlopeEnvCfg(Go2wRoughEnvCfg):
             func=_jgsp,
             weight=-2.0,
             params={
-                "threshold_from_mean": 0.15,
+                "threshold_from_mean": 0.20,   # 0.20 rad — accommodates trot swing
                 "asset_cfg": _SECfg4("robot", joint_names=[".*_calf_joint"]),
             },
         )
@@ -236,14 +243,15 @@ class Go2wSteepSlopeEnvCfg(Go2wRoughEnvCfg):
         # Complements hip_crossing_penalty (absolute ±0.25 threshold) by also
         # catching the case where one hip is at a very different angle from the
         # others (as happens when one leg is lifted for the tripod stance).
-        # Threshold 0.10 rad: normal balance spread ≤ 0.05 rad → zero cost.
+        # Threshold 0.15 rad: vy abduction α < 0.15 rad → zero cost.
+        # Hard turn at α = 0.18 rad → excess for 2 hips = 0.06 → -0.12/step (mild).
         from isaaclab.managers import SceneEntityCfg as _SECfg5
 
         self.rewards.hip_symmetry = RewTerm(
             func=_jgsp,
             weight=-1.0,
             params={
-                "threshold_from_mean": 0.10,
+                "threshold_from_mean": 0.15,   # 0.15 rad — vy stepping abduction safe
                 "asset_cfg": _SECfg5("robot", joint_names=[".*_hip_joint"]),
             },
         )

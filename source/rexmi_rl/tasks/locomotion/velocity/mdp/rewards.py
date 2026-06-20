@@ -184,3 +184,102 @@ def stagnation_penalty(
     is_stuck: torch.Tensor = fwd_vel.abs() < threshold  # bool (num_envs,)
 
     return (has_fwd_cmd & is_stuck).float()
+
+
+def hip_crossing_penalty(
+    env: ManagerBasedRLEnv,
+    threshold_rad: float = 0.25,
+    asset_cfg=None,
+) -> torch.Tensor:
+    """
+    Penalise hip joints that exceed a threshold deviation from their default position.
+
+    This creates a DEAD ZONE ± threshold_rad around the default hip stance where the
+    policy is completely free — no cost for normal slope-balance adjustments.
+    Only "weirdo territory" (hip deviation beyond ± threshold_rad) is penalised.
+
+    WHY A THRESHOLD PENALTY INSTEAD OF PLAIN L1?
+    --------------------------------------------
+    The existing ``leg_deviation`` term uses L1 (linear penalty on all joint deviation).
+    At weight -0.05, a hip crossing 0.5 rad from default costs only 0.025/step —
+    far too weak to deter the crossing exploit when the crossing provides even
+    slight stability benefit.
+
+    A linear penalty also CANNOT discriminate between:
+      • Normal slope-balance lean (±0.15 rad): acceptable — robot needs this to
+        traverse slopes and respond to lateral (vy) velocity commands.
+      • Rear leg crossing (±0.5 rad): weirdo territory — robot tips sideways onto
+        one wheel, left leg migrates to where right leg should be.
+
+    With threshold_rad = 0.25:
+      • 0.15 rad lean → excess = 0   → zero cost (slope balance preserved ✓)
+      • 0.40 rad crossing → excess = 0.15 → at weight -2.0: cost = -0.30/step
+      • 0.50 rad crossing → excess = 0.25 → at weight -2.0: cost = -0.50/step
+
+    At 0.50 rad crossing: -0.50/step makes crossing unprofitable vs. the +1.6/step
+    velocity tracking reward.  The policy will switch from the crossing gait to
+    proper slope-aligned traversal.
+
+    WHY THIS WON'T BLOCK vy TRACKING:
+    ----------------------------------
+    In Phase 8 attempt 1, ``hip_deviation=-0.5`` (linear) blocked vy tracking because
+    it penalised ANY hip deviation, even the 0.05–0.15 rad needed for lateral stepping.
+    This threshold version leaves ±0.25 rad completely free, which covers all normal
+    lateral stepping.  The free zone is 1.7× wider than the maximum hip use needed for
+    vy tracking (±0.15 rad), providing a comfortable safety margin.
+
+    WHY ONLY IN THE STEEP-SLOPE ENV:
+    ---------------------------------
+    This penalty is specific to ``steep_slope_env_cfg.py`` (not the rough env).
+    The rough env (model_8996) is frozen — we do NOT change its reward function.
+    On flat/rough terrain the hip crossing exploit never developed because the
+    curriculum never reached 33°+ slopes consistently.
+
+    Parameters
+    ----------
+    env           : the running ManagerBasedRLEnv
+    threshold_rad : dead zone radius around each hip's default position (rad).
+                    Default 0.25 rad: free zone covers normal slope-balance use
+                    (±0.15 rad) with 0.10 rad margin.
+    asset_cfg     : SceneEntityCfg with joint_ids resolved to hip joint indices.
+                    Use joint_names=[".*_hip_joint"] in the RewardTermCfg params.
+
+    Returns
+    -------
+    Tensor shape (num_envs,).
+    Sum of excess hip deviations beyond threshold across all 4 hip joints.
+    Multiply by a negative weight (-2.0 recommended) in RewardTermCfg.
+
+    Example RewardTermCfg (in steep_slope_env_cfg.py)::
+
+        from isaaclab.managers import SceneEntityCfg
+        self.rewards.hip_crossing = RewTerm(
+            func=hip_crossing_penalty,
+            weight=-2.0,
+            params={
+                "threshold_rad": 0.25,
+                "asset_cfg": SceneEntityCfg("robot", joint_names=[".*_hip_joint"]),
+            },
+        )
+    """
+    if asset_cfg is None:
+        raise ValueError("hip_crossing_penalty requires asset_cfg with joint_names=['.*_hip_joint']")
+
+    robot = env.scene[asset_cfg.name]
+
+    # Current hip joint positions vs. their default (spawn) positions
+    # joint_pos shape: (num_envs, total_joints)
+    # joint_ids: list of hip joint indices resolved at env startup
+    hip_pos: torch.Tensor = robot.data.joint_pos[:, asset_cfg.joint_ids]
+    hip_default: torch.Tensor = robot.data.default_joint_pos[:, asset_cfg.joint_ids]
+
+    # Absolute deviation from default stance for each hip joint
+    hip_dev: torch.Tensor = (hip_pos - hip_default).abs()  # (num_envs, 4)
+
+    # Dead zone: no cost within ±threshold_rad of default.
+    # Beyond the threshold, return the excess deviation (not the full deviation).
+    # This creates a soft boundary: cheap inside the zone, costly outside.
+    excess: torch.Tensor = (hip_dev - threshold_rad).clamp(min=0.0)  # (num_envs, 4)
+
+    # Sum excess across all 4 hip joints (FL, FR, RL, RR)
+    return excess.sum(dim=-1)  # (num_envs,)

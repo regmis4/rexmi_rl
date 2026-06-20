@@ -148,7 +148,43 @@ class Go2wSteepSlopeEnvCfg(Go2wRoughEnvCfg):
         )
 
         # ==================================================================
-        # 2. ORIENTATION — relax for steep slopes
+        # 2. HIP CROSSING PENALTY — targeted "weirdo territory" boundary
+        # ==================================================================
+        # Problem observed at iter ~2000: rear leg crossing exploit.
+        # Left wheel on ground, right wheel in air, right wheel spinning fast,
+        # left leg migrating to where right leg should be.
+        #
+        # Root cause: leg_deviation=-0.05 costs only 0.025/step for a 0.5 rad
+        # hip crossing — not enough to make the exploit unprofitable.
+        # A linear L1 penalty cannot discriminate "acceptable ±0.15 rad slope
+        # lean" from "±0.5 rad weirdo crossing"; both are penalised the same
+        # proportionally, so any crossing that confers stability wins.
+        #
+        # Fix: threshold-based penalty with a ±0.25 rad DEAD ZONE.
+        #   • 0.15 rad lean  → excess = 0      → zero cost  ✓ (vy tracking free)
+        #   • 0.50 rad cross → excess = 0.25   → cost = -2.0×0.25 = -0.50/step ✗
+        #
+        # Why -2.0 weight and NOT -0.5 (which killed vy tracking in attempt 1)?
+        #   Attempt 1 used hip_deviation=-0.5 LINEAR on all hip deviation —
+        #   even 0.05 rad cost 0.025/step, blocking lateral stepping entirely.
+        #   This threshold version fires at ZERO cost inside ±0.25 rad, so
+        #   lateral stepping (±0.15 rad) remains completely free.
+        from rexmi_rl.tasks.locomotion.velocity.mdp import (
+            hip_crossing_penalty as _hip_crossing_penalty,
+        )
+        from isaaclab.managers import SceneEntityCfg as _SECfg2
+
+        self.rewards.hip_crossing = RewTerm(
+            func=_hip_crossing_penalty,
+            weight=-2.0,
+            params={
+                "threshold_rad": 0.25,
+                "asset_cfg": _SECfg2("robot", joint_names=[".*_hip_joint"]),
+            },
+        )
+
+        # ==================================================================
+        # 3. ORIENTATION — relax for steep slopes
         # ==================================================================
         # flat_orientation_l2: -0.8 (inherited) → -0.1
         #

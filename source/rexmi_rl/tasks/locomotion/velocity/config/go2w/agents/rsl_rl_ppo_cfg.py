@@ -284,8 +284,12 @@ class Go2wSteepSlopePPORunnerCfg(Go2wRoughPPORunnerCfg):
     # Separate log directory from rough runs — avoids --resume cross-contamination.
     experiment_name = "go2w_velocity_steep_slope"
 
-    # 2000 iterations is sufficient for slope-only curriculum (10 rows × ~200 iters/row).
-    max_iterations = 2000
+    # 3000 iterations per resumed run.
+    # With curriculum state restored (scripts/train.py), a resume from model_N.pt
+    # starts the curriculum at exactly where model_N left off — zero re-warming
+    # overhead.  3000 iterations × 98k steps ≈ 294M env interactions per run.
+    # Increase further (--max_iterations 5000) if needed without config changes.
+    max_iterations = 3000
 
     # More frequent saves than rough (100 iters) for finer curriculum tracking.
     save_interval = 50

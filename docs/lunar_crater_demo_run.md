@@ -34,6 +34,10 @@ logs/rsl_rl/go2w_velocity_rough/2026-06-14_20-03-41/model_8996.pt
 >
 > If you need to pin a specific checkpoint, pass the **full absolute path** to
 > `--checkpoint` — bare filenames (e.g. `--checkpoint model_8996.pt`) will fail.
+>
+> ⚠️ **Use `python scripts/play.py` directly — do NOT use `./run.sh`.**
+> `run.sh` has a known PYTHONPATH bug that shadows the installed `rsl_rl` package
+> and causes import errors.  All commands below use `python scripts/play.py`.
 
 ---
 
@@ -43,35 +47,35 @@ logs/rsl_rl/go2w_velocity_rough/2026-06-14_20-03-41/model_8996.pt
 
 ```bash
 # UPSLOPE: 10 robots traverse from crater floor → rim
-./run.sh scripts/play.py \
+python scripts/play.py \
     --task RexmiRl-Go2w-Crater-Type2-Play-v0 \
     --load_run 2026-06-14_20-03-41
 ```
 
 ```bash
 # DOWNSLOPE: 10 robots descend from rim → crater floor
-./run.sh scripts/play.py \
+python scripts/play.py \
     --task RexmiRl-Go2w-Crater-Type2-Down-Play-v0 \
     --load_run 2026-06-14_20-03-41
 ```
 
 ```bash
 # Single-robot recording — upslope (best for video capture)
-./run.sh scripts/play.py \
+python scripts/play.py \
     --task RexmiRl-Go2w-Crater-Type2-Record-v0 \
     --load_run 2026-06-14_20-03-41
 ```
 
 ```bash
 # Single-robot recording — downslope
-./run.sh scripts/play.py \
+python scripts/play.py \
     --task RexmiRl-Go2w-Crater-Type2-Down-Record-v0 \
     --load_run 2026-06-14_20-03-41
 ```
 
 ```bash
 # Or with explicit full checkpoint path (if you need a specific model):
-./run.sh scripts/play.py \
+python scripts/play.py \
     --task RexmiRl-Go2w-Crater-Type2-Record-v0 \
     --checkpoint /home/susan/rexmi_rl/logs/rsl_rl/go2w_velocity_rough/2026-06-14_20-03-41/model_8996.pt
 ```
@@ -92,14 +96,14 @@ Total height drop: ~6.7 m over 32 m.
 
 ```bash
 # UPSLOPE: 10 robots — floor → rim
-./run.sh scripts/play.py \
+python scripts/play.py \
     --task RexmiRl-Go2w-Crater-Type1-Play-v0 \
     --load_run 2026-06-14_20-03-41
 ```
 
 ```bash
 # DOWNSLOPE: 10 robots — rim → floor
-./run.sh scripts/play.py \
+python scripts/play.py \
     --task RexmiRl-Go2w-Crater-Type1-Down-Play-v0 \
     --load_run 2026-06-14_20-03-41
 ```
@@ -115,14 +119,14 @@ Good choice as opening demo before showing steeper terrain.
 
 ```bash
 # UPSLOPE: 10 robots — floor → rim (hits limit at 31.5° mid-wall)
-./run.sh scripts/play.py \
+python scripts/play.py \
     --task RexmiRl-Go2w-Crater-Type3-Play-v0 \
     --load_run 2026-06-14_20-03-41
 ```
 
 ```bash
 # DOWNSLOPE: 10 robots — spawns at 35° rim, struggles immediately
-./run.sh scripts/play.py \
+python scripts/play.py \
     --task RexmiRl-Go2w-Crater-Type3-Down-Play-v0 \
     --load_run 2026-06-14_20-03-41
 ```

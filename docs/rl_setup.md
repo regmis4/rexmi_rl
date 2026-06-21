@@ -1,15 +1,15 @@
 # REXMI RL — Complete Developer Reference
 
-> **Current status: Phase 8 in progress — Steep slopes (23°–45°) via two-policy split**
+> **Current status: Phase 8 — Steep slopes (23°–45°), exploit-free policy at terrain_level 4.77 (~33.5°)**
 >
-> Phases 1–7 complete. `model_8996.pt` (Phase 7 best checkpoint) is the production
-> rough-terrain policy — it handles stairs (up/down to 23 cm), boxes (20 cm), rough, and
-> moderate slopes (0°–23°) and is **frozen** (no further training).
-> Phase 8 trains a SEPARATE dedicated steep-slope policy (`RexmiRl-Go2w-Velocity-SteepSlope-v0`)
-> starting from model_8996 weights. The steep-slope env trains exclusively on 23°–45° slopes
-> with a very light orientation penalty (`flat_orientation_l2=-0.1`) and a 80° termination
-> limit — settings that would cause exploits in the unified rough policy but are safe in
-> an isolated slope-only training distribution.
+> Phases 1–7 complete. `model_8996.pt` (Phase 7) is the production rough-terrain policy — frozen.
+> Phase 8 trains a dedicated steep-slope policy (`RexmiRl-Go2w-Velocity-SteepSlope-v0`)
+> from model_8996 weights. Best checkpoint: **`model_1999.pt`** (run `2026-06-19_22-37-58`).
+>
+> Phase 8 summary: eliminated hip-crossing, thigh-salute, and tripod/tail-leg exploits via
+> dead-zone threshold penalties; boosted yaw tracking (0.75→1.5) to reduce lateral crater-wall
+> drift; rewrote `scripts/train.py` to save/restore curriculum state alongside every checkpoint
+> so future resumes start the curriculum exactly where the previous run ended.
 
 This document explains **every design decision** made across all four phases of
 the Go2W RL setup.  The goal is that after reading this you understand the full
@@ -291,13 +291,14 @@ A thin re-export of all 4 config classes from `rough_env_cfg.py`.
 | `Go2wFlatPPORunnerCfg` | Flat (standard) | [128,128,128] | 1000 | ~60 |
 | `Go2wFastFlatPPORunnerCfg` | Fast flat (2 m/s) | [128,128,128] | **1500** | ~60 |
 | `Go2wRoughPPORunnerCfg` | Rough (Phase 7 frozen) | [512,256,128] | 3000 | ~220 |
-| `Go2wSteepSlopePPORunnerCfg` | **Steep-slope (Phase 8)** | [512,256,128] | **2000** | **~220** |
+| `Go2wSteepSlopePPORunnerCfg` | **Steep-slope (Phase 8)** | [512,256,128] | **3000** | **~220** |
 
 Key differences: `empirical_normalization=True` for rough/steep-slope terrain — height scan
 values span ±0.5 m, which would dominate the network input without normalisation.
 `Go2wSteepSlopePPORunnerCfg` inherits the rough network identically (same obs/action space,
 same architecture) and only differs in `experiment_name="go2w_velocity_steep_slope"`,
-`max_iterations=2000`, and `save_interval=50`.  model_8996 weights load directly.
+`max_iterations=3000`, and `save_interval=50`.  model_8996 weights load directly.
+Override for a longer one-shot run: `--max_iterations 5000` (no config change needed).
 
 ---
 
@@ -529,15 +530,34 @@ tensorboard --logdir logs/rsl_rl/go2w_velocity_rough
 
 # ── Steep-slope terrain (Phase 8 — dedicated 23°–45° policy) ──────────────
 # Trained from model_8996 weights. Separate log dir: go2w_velocity_steep_slope/
-# IMPORTANT: do NOT use --resume in between new runs (resets curriculum to 0)
-# Use --load_run + --checkpoint to resume from the best existing checkpoint.
+#
+# Curriculum state is saved alongside every model checkpoint:
+#   model_N.pt             ← network weights
+#   model_N_curriculum.pt  ← terrain_levels tensor at that iteration  (NEW)
+#
+# On --load_run, scripts/train.py auto-restores terrain_levels from the matching
+# _curriculum.pt — the curriculum continues exactly where the previous run ended.
+# Use --no_curriculum_restore to start the curriculum fresh with transferred weights.
 
-# First run — load model_8996 as starting point
+# First run — load model_8996 as starting point (no curriculum file exists yet)
 python scripts/train.py --task RexmiRl-Go2w-Velocity-SteepSlope-v0 --headless \
     --load_run go2w_velocity_rough/2026-06-14_20-03-41 --checkpoint model_8996.pt
 
-# Resume a subsequent run from the latest steep-slope checkpoint
-python scripts/train.py --task RexmiRl-Go2w-Velocity-SteepSlope-v0 --headless --resume
+# Resume from the best steep-slope checkpoint (curriculum state auto-restored):
+python scripts/train.py --task RexmiRl-Go2w-Velocity-SteepSlope-v0 --headless \
+    --load_run go2w_velocity_steep_slope/2026-06-19_22-37-58 --checkpoint model_1999.pt
+# → [REXMI] curriculum restored  mean_level=4.770  ← model_1999_curriculum.pt
+# → terrain starts at terrain_levels=4.77, zero re-warming overhead
+
+# Run longer without editing the config (override iterations from CLI):
+python scripts/train.py --task RexmiRl-Go2w-Velocity-SteepSlope-v0 --headless \
+    --load_run go2w_velocity_steep_slope/2026-06-19_22-37-58 --checkpoint model_1999.pt \
+    --max_iterations 5000
+
+# Transfer weights only — start curriculum fresh (e.g. changing terrain type):
+python scripts/train.py --task RexmiRl-Go2w-Velocity-SteepSlope-v0 --headless \
+    --load_run go2w_velocity_steep_slope/2026-06-19_22-37-58 --checkpoint model_1999.pt \
+    --no_curriculum_restore
 
 # Visualise steep-slope policy (50 robots on 23°–45° slope tiles)
 python scripts/play.py --task RexmiRl-Go2w-Velocity-SteepSlope-Play-v0
@@ -599,7 +619,15 @@ logs/rsl_rl/
       model_<iter>.pt     ← other checkpoints (save every 100 iters)
   go2w_velocity_steep_slope/   ← Phase 8 dedicated steep-slope policy (23°–45°)
     <date>_<time>/
-      model_<iter>.pt     ← checkpoints (save every 50 iters)
+      model_<iter>.pt             ← checkpoints (save every 50 iters)
+      curriculum/                 ← terrain_levels tensors (subdirectory — avoids model_*.pt glob)
+        model_<iter>.pt           ← terrain_levels tensor for that checkpoint  (NEW)
+      2026-06-19_22-37-58/        ← original Phase 8.5/8.6 run — no curriculum/ dir
+        model_1999.pt             ← terrain_levels=4.77 (~33.5°), exploit-free
+      2026-06-20_<time>/          ← first curriculum-save run — terrain_levels=5.38 (~36.1°)
+        model_2999.pt             ← best checkpoint to resume from
+        curriculum/
+          model_2999.pt           ← terrain_levels=5.38 — restored automatically on next resume
 ```
 
 ---
@@ -1015,6 +1043,65 @@ leg_deviation, curriculum).  Only three things change:
 Curriculum rows 0→9 interpolate slope: **row 0 = 23°** (handoff from model_8996), **row 9 = 45°**.
 The obs/action space is identical to model_8996 → weights load cleanly, no architecture change.
 
+#### Phase 8.5 — Exploit elimination via dead-zone threshold penalties ✅ COMPLETE
+
+Model_8996 had learned three latent exploits that did not appear on rough terrain but were
+immediately visible on dedicated slope tiles:
+
+| Exploit | Description | Fix |
+|---------|-------------|-----|
+| **Hip crossing** | Rear legs crossed under the body — narrow base, less stable | `hip_crossing_penalty` threshold ±0.25 rad, weight=-2.0 |
+| **Thigh salute** | Front thighs raised >0.40 rad — lifted wheels off slope for less friction load | `thigh_salute` threshold 0.40 rad, weight=-1.0 |
+| **Tripod/calf symmetry** | One calf extended and anchored like a tail, other three used for motion | `calf_symmetry` threshold 0.20 rad, weight=-2.0; `hip_symmetry` threshold 0.15 rad, weight=-1.0 |
+
+All penalties use **dead-zone thresholds** — zero cost inside the normal operating range,
+so lateral stepping, turning, and vy traversal are completely unaffected.
+The exploits were specifically the out-of-range patterns.
+
+#### Phase 8.6 — Yaw tracking boost ✅ COMPLETE
+
+On curved crater walls the robot was drifting laterally because yaw correction was weak.
+`track_ang_vel_z_exp` weight raised 0.75 → **1.5** (doubled).
+
+**Phase 8 final metrics** (model_1999.pt, run 2026-06-19_22-37-58):
+```
+terrain_levels:           4.77 (~33.5°)  — robust traversal up to Shackleton inner wall gradient
+base_contact:             0.0%           — no falls
+time_out:                 97.9%          — full 20s episodes
+bad_orientation:          2.1%           — occasional slip, no collapses
+calf_symmetry:           -0.02           — exploit eliminated
+track_ang_vel_z_exp:      1.33           — yaw tracking solid (was 0.27 pre-boost)
+error_vel_yaw:            0.28 rad/s     — 33% reduction in heading drift
+```
+
+#### Phase 8 infrastructure fix — curriculum state save/restore ✅ COMPLETE
+
+**Problem**: Isaac Lab's `runner.load(checkpoint)` restores only network weights.
+The `terrain_levels` tensor (which robot is at which curriculum difficulty) is NOT
+saved in the checkpoint and always restarts from random 0→9.  Every `--load_run` resume
+re-converges to the policy's equilibrium (~4.77) in ~200 iterations before it can advance.
+
+**Fix** (`scripts/train.py` rewritten as a proper training script):
+- Monkey-patches `runner.save()` to co-save `model_N_curriculum.pt` alongside every `model_N.pt`
+- On `--load_run`, auto-restores `terrain_levels` from the matching `_curriculum.pt`
+- `--no_curriculum_restore` flag to opt out (e.g. intentionally starting curriculum fresh)
+
+**New workflow**:
+```bash
+# Resume from model_1999.pt — curriculum starts at terrain_levels=4.77, zero overhead
+python scripts/train.py --task RexmiRl-Go2w-Velocity-SteepSlope-v0 --headless \
+    --load_run go2w_velocity_steep_slope/2026-06-19_22-37-58 --checkpoint model_1999.pt
+# → [REXMI] curriculum restored  mean_level=4.770  ← model_1999_curriculum.pt
+```
+
+Note: `model_1999_curriculum.pt` does NOT exist for run `2026-06-19_22-37-58` (trained
+before this fix was added).  The first resume from that run will reconverge in ~200 iterations.
+All subsequent runs will have the `_curriculum.pt` files from iteration 0.
+
+`Go2wSteepSlopePPORunnerCfg.max_iterations` also increased **2000 → 3000** — with curriculum
+continuity these are 3000 genuine new iterations above the earned equilibrium rather than
+200 overhead + 1800 stuck at the same level.
+
 **Training commands:**
 
 ```bash
@@ -1023,8 +1110,9 @@ conda activate env_isaacsim
 python scripts/train.py --task RexmiRl-Go2w-Velocity-SteepSlope-v0 --headless \
     --load_run go2w_velocity_rough/2026-06-14_20-03-41 --checkpoint model_8996.pt
 
-# Resume from the latest steep-slope checkpoint
-python scripts/train.py --task RexmiRl-Go2w-Velocity-SteepSlope-v0 --headless --resume
+# Resume with curriculum continuity (auto-restores terrain_levels from _curriculum.pt):
+python scripts/train.py --task RexmiRl-Go2w-Velocity-SteepSlope-v0 --headless \
+    --load_run go2w_velocity_steep_slope/2026-06-19_22-37-58 --checkpoint model_1999.pt
 ```
 
 **Visualise the steep-slope policy (50 robots on 23°–45° tiles):**
@@ -1041,11 +1129,11 @@ python scripts/play.py --task RexmiRl-Go2w-Velocity-SteepSlope-Play-v0 \
 **TensorBoard signals to watch:**
 
 ```
-terrain_levels:       should climb 0 → 4–5 within 1000 iters (23° → 32°)
+terrain_levels:       target >5 (35°+) with curriculum continuity enabled
 flat_orientation_l2:  grows more negative (body tilting onto slopes) — expected
-bad_orientation:      termination rate should drop vs rough env (1.4 rad limit)
-climb_progress:       always in obstacle_weight=1.5 mode (any slope > 3° triggers it)
-track_lin_vel_xy_exp: target ≥ Phase 7 baseline (~1.90+) at final curriculum rows
+bad_orientation:      should stay ~2% (1.4 rad limit gives good headroom)
+calf_symmetry:        should stay near -0.02 (exploit gone, stays gone)
+track_ang_vel_z_exp:  target ~1.33+ (doubled yaw weight maintained)
 ```
 
 **Eval steep-slope policy:**
@@ -1053,6 +1141,10 @@ track_lin_vel_xy_exp: target ≥ Phase 7 baseline (~1.90+) at final curriculum r
 ```bash
 CKPT_STEEP=logs/rsl_rl/go2w_velocity_steep_slope/<date>_<time>/model_<iter>.pt
 python scripts/eval.py --checkpoint $CKPT_STEEP --group steep_slope
+```
+```bash
+# Visualize eval policy, options are 25, 30, 35, 40 and 45 deg
+python scripts/eval.py --checkpoint $CKPT_STEEP --visual --terrain steep_slope_45deg
 ```
 
 ### Phase 9 (planned): Energy efficiency and gait elegance
@@ -1078,4 +1170,222 @@ python scripts/eval.py --checkpoint $CKPT_STEEP --group steep_slope
 
 ---
 
-*Last updated: 2026-06-19 · REXMI Project · Phase 8 in progress — two-policy split (rough frozen @ model_8996, steep-slope 23°–45° in training)*
+---
+
+## 13. Quick Command Reference
+
+> One-stop reference for every command in the project.
+> Full explanations are in the sections above — this section is a cheat-sheet only.
+> Always activate `conda activate env_isaacsim` first.
+
+---
+
+### Setup
+
+```bash
+# One-time install
+pip install -e .
+python -c "import rexmi_rl; print('OK')"
+```
+
+---
+
+### Flat terrain (Phase 3 baseline, ±0.5 m/s)
+
+```bash
+# Train from scratch (~8 min, 1000 iters)
+python scripts/train.py --task RexmiRl-Go2w-Velocity-Flat-v0 --headless
+
+# Play (GUI)
+python scripts/play.py --task RexmiRl-Go2w-Velocity-Flat-Play-v0
+
+# TensorBoard
+tensorboard --logdir logs/rsl_rl/go2w_velocity_flat
+```
+
+---
+
+### Fast flat terrain (up to 2.0 m/s forward)
+
+```bash
+# Train from scratch (~12 min, 1500 iters) — CANNOT resume from std flat (wheel scale changed)
+python scripts/train.py --task RexmiRl-Go2w-Velocity-FastFlat-v0 --headless
+
+# Play (GUI)
+python scripts/play.py --task RexmiRl-Go2w-Velocity-FastFlat-Play-v0
+
+# TensorBoard
+tensorboard --logdir logs/rsl_rl/go2w_velocity_fast_flat
+```
+
+---
+
+### Rough terrain (Phase 7 production — model_8996 FROZEN)
+
+```bash
+# Train from scratch
+python scripts/train.py --task RexmiRl-Go2w-Velocity-Rough-v0 --headless
+
+# Resume latest run
+python scripts/train.py --task RexmiRl-Go2w-Velocity-Rough-v0 --headless --resume
+
+# Resume from a specific checkpoint
+python scripts/train.py --task RexmiRl-Go2w-Velocity-Rough-v0 --headless \
+    --load_run go2w_velocity_rough/2026-06-14_20-03-41 --checkpoint model_8996.pt
+
+# Smoke test (verifies config, ~2 min)
+python scripts/train.py --task RexmiRl-Go2w-Velocity-Rough-v0 --num_envs 128
+
+# Play — production policy (GUI)
+python scripts/play.py --task RexmiRl-Go2w-Velocity-Rough-Play-v0
+
+# Play — specific checkpoint (GUI)
+python scripts/play.py --task RexmiRl-Go2w-Velocity-Rough-Play-v0 \
+    --load_run go2w_velocity_rough/<date>_<time> --checkpoint model_<iter>.pt
+
+# TensorBoard
+tensorboard --logdir logs/rsl_rl/go2w_velocity_rough
+
+# ── Eval ──────────────────────────────────────────────────────────────────
+CKPT=logs/rsl_rl/go2w_velocity_rough/2026-06-14_20-03-41/model_8996.pt
+
+# Full sweep — all variants (headless, ~10-20 min)
+python scripts/eval.py --checkpoint $CKPT
+
+# One terrain group only
+python scripts/eval.py --checkpoint $CKPT --group stairs_up
+python scripts/eval.py --checkpoint $CKPT --group stairs_down
+python scripts/eval.py --checkpoint $CKPT --group boxes
+python scripts/eval.py --checkpoint $CKPT --group slope
+python scripts/eval.py --checkpoint $CKPT --group rough
+
+# Single variant (headless, ~1 min)
+python scripts/eval.py --checkpoint $CKPT --terrain stairs_up_15cm
+
+# Single variant — visual (GUI, opens Isaac Sim)
+python scripts/eval.py --checkpoint $CKPT --visual --terrain stairs_up_10cm
+python scripts/eval.py --checkpoint $CKPT --visual --terrain stairs_down_12cm
+python scripts/eval.py --checkpoint $CKPT --visual --terrain boxes_20cm
+python scripts/eval.py --checkpoint $CKPT --visual --terrain slope_20deg
+python scripts/eval.py --checkpoint $CKPT --visual --terrain rough_10cm
+
+# More robots / longer episodes for better statistics
+python scripts/eval.py --checkpoint $CKPT --group slope --num_envs 100
+python scripts/eval.py --checkpoint $CKPT --terrain rough_10cm --steps 3000
+
+# Save CSV to custom path
+python scripts/eval.py --checkpoint $CKPT --out results/my_eval.csv
+```
+
+---
+
+### Steep-slope terrain (Phase 8 — 23°–45° dedicated policy)
+
+```bash
+# ── Training ──────────────────────────────────────────────────────────────
+
+# First run — load model_8996 weights as starting point
+python scripts/train.py --task RexmiRl-Go2w-Velocity-SteepSlope-v0 --headless \
+    --load_run go2w_velocity_rough/2026-06-14_20-03-41 --checkpoint model_8996.pt
+
+# Resume from best checkpoint WITH curriculum continuity (curriculum starts at 4.77)
+python scripts/train.py --task RexmiRl-Go2w-Velocity-SteepSlope-v0 --headless \
+    --load_run go2w_velocity_steep_slope/2026-06-19_22-37-58 --checkpoint model_1999.pt
+
+# Resume from best checkpoint — longer run (no config edit needed)
+python scripts/train.py --task RexmiRl-Go2w-Velocity-SteepSlope-v0 --headless \
+    --load_run go2w_velocity_steep_slope/2026-06-19_22-37-58 --checkpoint model_1999.pt \
+    --max_iterations 5000
+
+# Resume weights only, restart curriculum from scratch (e.g. changing terrain type)
+python scripts/train.py --task RexmiRl-Go2w-Velocity-SteepSlope-v0 --headless \
+    --load_run go2w_velocity_steep_slope/2026-06-19_22-37-58 --checkpoint model_1999.pt \
+    --no_curriculum_restore
+
+# Smoke test
+python scripts/train.py --task RexmiRl-Go2w-Velocity-SteepSlope-v0 --num_envs 128
+
+# TensorBoard
+tensorboard --logdir logs/rsl_rl/go2w_velocity_steep_slope
+
+# ── Play ──────────────────────────────────────────────────────────────────
+
+# Play — latest steep-slope checkpoint (GUI)
+python scripts/play.py --task RexmiRl-Go2w-Velocity-SteepSlope-Play-v0
+
+# Play — specific checkpoint (GUI)
+python scripts/play.py --task RexmiRl-Go2w-Velocity-SteepSlope-Play-v0 \
+    --load_run go2w_velocity_steep_slope/2026-06-19_22-37-58 --checkpoint model_1999.pt
+
+# ── Eval ──────────────────────────────────────────────────────────────────
+CKPT_STEEP=logs/rsl_rl/go2w_velocity_steep_slope/2026-06-19_22-37-58/model_1999.pt
+
+# Steep-slope group only (5 variants: 25°, 30°, 35°, 40°, 45°)
+python scripts/eval.py --checkpoint $CKPT_STEEP --group steep_slope
+
+# Single angle — headless
+python scripts/eval.py --checkpoint $CKPT_STEEP --terrain steep_slope_25deg
+python scripts/eval.py --checkpoint $CKPT_STEEP --terrain steep_slope_35deg
+python scripts/eval.py --checkpoint $CKPT_STEEP --terrain steep_slope_45deg
+
+# Single angle — visual (GUI)
+python scripts/eval.py --checkpoint $CKPT_STEEP --visual --terrain steep_slope_25deg
+python scripts/eval.py --checkpoint $CKPT_STEEP --visual --terrain steep_slope_30deg
+python scripts/eval.py --checkpoint $CKPT_STEEP --visual --terrain steep_slope_35deg
+python scripts/eval.py --checkpoint $CKPT_STEEP --visual --terrain steep_slope_40deg
+python scripts/eval.py --checkpoint $CKPT_STEEP --visual --terrain steep_slope_45deg
+
+# Full eval sweep (all 41 variants including steep_slope) — headless, ~15-25 min
+python scripts/eval.py --checkpoint $CKPT_STEEP
+```
+
+---
+
+### Crater terrain
+
+> See `docs/lunar_crater_demo_run.md` for full setup details.
+
+```bash
+# Train on crater terrain
+python scripts/train.py --task RexmiRl-Go2w-Velocity-Crater-v0 --headless
+
+# Resume crater training from a steep-slope checkpoint
+python scripts/train.py --task RexmiRl-Go2w-Velocity-Crater-v0 --headless \
+    --load_run go2w_velocity_steep_slope/2026-06-19_22-37-58 --checkpoint model_1999.pt
+
+# Play crater policy (GUI)
+python scripts/play.py --task RexmiRl-Go2w-Velocity-Crater-Play-v0
+
+# TensorBoard
+tensorboard --logdir logs/rsl_rl/go2w_velocity_crater
+```
+
+---
+
+### TensorBoard — all experiments at once
+
+```bash
+tensorboard --logdir logs/rsl_rl
+# Shows all experiments: flat / fast_flat / rough / steep_slope / crater in one view
+```
+
+---
+
+### Find the latest checkpoint in any run
+
+```bash
+# Latest rough checkpoint
+ls logs/rsl_rl/go2w_velocity_rough/ | sort | tail -1
+# → 2026-06-14_20-03-41
+
+ls logs/rsl_rl/go2w_velocity_rough/2026-06-14_20-03-41/*.pt | sort -V | tail -3
+# → model_8896.pt  model_8946.pt  model_8996.pt
+
+# Latest steep-slope checkpoint
+ls logs/rsl_rl/go2w_velocity_steep_slope/ | sort | tail -1
+ls logs/rsl_rl/go2w_velocity_steep_slope/<date>_<time>/*.pt | sort -V | tail -3
+```
+
+---
+
+*Last updated: 2026-06-20 · REXMI Project · Phase 8 — exploit-free steep-slope policy (model_1999.pt, terrain_level 4.77 ~33.5°); curriculum state save/restore added to scripts/train.py*

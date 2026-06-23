@@ -7,8 +7,9 @@ Lunar crater traversal environment configurations for the Go2W investor demo.
 Overview
 --------
 These configs deploy the trained Phase 6-Optimized rough-terrain policy onto
-procedurally-generated lunar south pole crater wall terrains.  No re-training
-is required — the existing policy checkpoint is loaded by play.py unchanged.
+procedurally-generated lunar south pole crater wall terrains derived from
+NASA LOLA ``LDEM_80S_40MPP_ADJ.TIF`` (40 m/px, 2026-06-22).
+No re-training is required — the existing policy checkpoint is loaded unchanged.
 
 Each config wraps Go2wRoughEnvCfg (which already has the height scanner,
 full 16-DOF actions, and all rewards) and replaces the terrain generator with
@@ -254,12 +255,12 @@ class LunarCraterType1EnvCfg(LunarCraterBaseEnvCfg):
         )
 
         # Spawn z correction (upslope).
-        # Floor at x=3 m has terrain height ≈ 0.08 m.
-        # Tile centre (x=16 m) has terrain height ≈ 1.43 m (= env_origin_z).
-        # Without correction the robot spawns 1.35 m above the floor terrain
-        # and falls — fine for Type 1 but still messy.  Shift z down so it
-        # lands cleanly ≈ 0.3–0.5 m above the actual floor surface.
-        self.events.reset_base.params["pose_range"]["z"] = (-1.6, -1.0)
+        # Tile zones: [1°×4.8m, 5°×11.2m, 7.5°×8m, 9°×6.4m, 4°×1.6m]
+        # Tile centre (x=16 m) = end of lower-wall zone:
+        #   4.8×tan(1°) + 11.2×tan(5°) = 0.084 + 0.981 = 1.065 m (env_origin_z)
+        # Floor at tile x=3 m:  3.0×tan(1°) = 0.052 m
+        # spawn_z = 0.052 − 1.065 + 0.35 (body height) = −0.663 m
+        self.events.reset_base.params["pose_range"]["z"] = (-0.9, -0.4)
 
 
 @configclass
@@ -293,14 +294,15 @@ class LunarCraterType1DownEnvCfg(LunarCraterType1EnvCfg):
     def __post_init__(self):
         super().__post_init__()
         # Spawn near rim end (tile x ≈ 28–30 m), face downslope (yaw=π).
-        # Rim terrain (x=29 m) ≈ 4.12 m above tile floor.
-        # env_origin_z ≈ 1.43 m (centre height) → z correction = +2.69 m.
+        # Rim terrain at x=29 m (zones 1-4 + partial 5):
+        #   4.8×tan(1°) + 11.2×tan(5°) + 8.0×tan(7.5°) + 5.0×tan(9°) = 2.910 m
+        # env_origin_z = 1.065 m → z correction = 2.910 − 1.065 = +1.845 m
         self.events.reset_base.params = {
             "pose_range": {
                 "x": (12.0, 14.0),           # tile x ≈ 28–30 m (near rim)
                 "y": (-3.0, 3.0),
                 "yaw": (math.pi, math.pi),   # face downslope (-x direction)
-                "z": (2.4, 3.2),             # +rim_height - centre_height
+                "z": (1.5, 2.2),             # +rim_height - centre_height
             },
             "velocity_range": {
                 "x": (0.0, 0.0), "y": (0.0, 0.0), "z": (0.0, 0.0),
@@ -331,7 +333,8 @@ class LunarCraterType2EnvCfg(LunarCraterBaseEnvCfg):
     Type 2 lunar crater traversal demo — Faustini archetype (PRIMARY DEMO).
 
     Archetype: Faustini (42 km, Nectarian, ~3.9 Ga)
-    Wall slope: 11.5–17.5° (peak)  |  Max: ~25°  |  Policy capability: ✅ all zones
+    DEM-derived wall slopes: 14–15.5° peak (200 m baseline, best ingress 330°)
+    Max wall slope: 13.6°  |  P50: 7.8°  |  Policy capability: ✅ all zones
 
     Faustini is the most scientifically compelling crater for investors:
       • Named after a real, known south pole crater visible in LRO images
@@ -339,13 +342,13 @@ class LunarCraterType2EnvCfg(LunarCraterBaseEnvCfg):
       • PRIME robotics target for future ISRU (in-situ resource utilisation)
       • Accessible slope angles that the current policy handles cleanly
 
-    The robot traverses from the flat PSR floor (1.5°) through progressively
-    steeper wall sections (11.5° → 15° → 17.5°) to the rim crest (6.5°).
-    Height gain of ~6.7 m over 32 m = compelling visual demonstration of
+    The robot traverses from the floor approach (4°) through the main wall
+    (15.5° lower → 14° mid → 12° upper) to the rim crest (6.5°).
+    Height gain of ~7.0 m over 32 m = compelling visual demonstration of
     the wheeled-legged architecture's slope-handling capability.
 
     Narrative: "This is Faustini crater — one of the primary targets for
-    lunar water ice extraction.  The robot descends 6.7 m from the rim to the
+    lunar water ice extraction.  The robot descends 7 m from the rim to the
     permanently shadowed floor, demonstrating the slope negotiation required
     for any mission to access those ice deposits."
     """
@@ -359,9 +362,12 @@ class LunarCraterType2EnvCfg(LunarCraterBaseEnvCfg):
         )
 
         # Spawn z correction (upslope).
-        # Floor at x=3 m ≈ 0.08 m.  Tile centre (x=16 m) ≈ 2.40 m (env_origin_z).
-        # Without correction the robot falls 2.3 m → tips over on landing.
-        self.events.reset_base.params["pose_range"]["z"] = (-2.6, -2.0)
+        # Tile zones: [4°×3.2m, 15.5°×8m, 14°×11.2m, 12°×6.4m, 6.5°×3.2m]
+        # Tile centre (x=16 m, in mid-wall zone):
+        #   3.2×tan(4°) + 8.0×tan(15.5°) + 4.8×tan(14°) = 0.224 + 2.219 + 1.197 = 3.640m
+        # Floor at tile x=3 m (floor zone):  3.0×tan(4°) = 0.210 m
+        # spawn_z = 0.210 − 3.640 + 0.35 (body height) = −3.080 m
+        self.events.reset_base.params["pose_range"]["z"] = (-3.3, -2.7)
 
 
 @configclass
@@ -394,14 +400,16 @@ class LunarCraterType2DownEnvCfg(LunarCraterType2EnvCfg):
 
     def __post_init__(self):
         super().__post_init__()
-        # Rim terrain (x=29 m) ≈ 6.05 m above floor.
-        # env_origin_z ≈ 2.40 m → z correction = +3.65 m.
+        # Rim terrain at tile x=29 m (all zones + partial rim):
+        #   3.2×tan(4°)+8.0×tan(15.5°)+11.2×tan(14°)+6.4×tan(12°)+0.2×tan(6.5°)
+        #   = 0.224 + 2.219 + 2.793 + 1.360 + 0.023 = 6.619 m
+        # env_origin_z = 3.640 m → z correction = 6.619 − 3.640 = +2.979 m
         self.events.reset_base.params = {
             "pose_range": {
                 "x": (12.0, 14.0),           # tile x ≈ 28–30 m (near rim)
                 "y": (-3.0, 3.0),
                 "yaw": (math.pi, math.pi),   # face downslope
-                "z": (3.4, 4.2),             # +rim_height - centre_height
+                "z": (2.7, 3.5),             # +rim_height - centre_height
             },
             "velocity_range": {
                 "x": (0.0, 0.0), "y": (0.0, 0.0), "z": (0.0, 0.0),
@@ -432,7 +440,8 @@ class LunarCraterType3EnvCfg(LunarCraterBaseEnvCfg):
     Type 3 lunar crater traversal demo — Shackleton archetype (steep, young).
 
     Archetype: Shackleton (21 km, Imbrian, ~3.6 Ga)
-    Wall slope: 22.5–35°  |  Max: 35°  |  Policy capability: ⚠️ Phase 8 required
+    DEM-derived wall slopes: 20° transition, 31° main wall, 22° upper (200 m baseline)
+    Max wall slope: 31.0° (DEM)  |  Policy capability: ⚠️ Phase 8 required (>20°)
 
     Shackleton is the most famous lunar south pole crater:
       • Sits directly at the South Pole (89.9°S)
@@ -459,9 +468,12 @@ class LunarCraterType3EnvCfg(LunarCraterBaseEnvCfg):
         )
 
         # Spawn z correction (upslope).
-        # Floor at x=3 m ≈ 0.16 m (3° slope).  Centre (x=16 m) ≈ 6.74 m.
-        # Without correction the robot falls 6.6 m → always tips on impact.
-        self.events.reset_base.params["pose_range"]["z"] = (-6.9, -6.3)
+        # Tile zones: [2°×3.2m, 20°×4.8m, 31°×17.6m, 22°×4.8m, 12°×1.6m]
+        # Tile centre (x=16 m, in main wall zone):
+        #   3.2×tan(2°) + 4.8×tan(20°) + 8.0×tan(31°) = 0.112 + 1.747 + 4.807 = 6.666 m
+        # Floor at tile x=3 m (floor zone): 3.0×tan(2°) = 0.105 m
+        # spawn_z = 0.105 − 6.666 + 0.35 (body height) = −6.211 m
+        self.events.reset_base.params["pose_range"]["z"] = (-6.5, -5.9)
 
 
 @configclass
@@ -493,14 +505,16 @@ class LunarCraterType3DownEnvCfg(LunarCraterType3EnvCfg):
 
     def __post_init__(self):
         super().__post_init__()
-        # Rim terrain (x=29 m) ≈ 14.17 m above floor.
-        # env_origin_z ≈ 6.74 m → z correction = +7.43 m.
+        # Rim terrain at tile x=29 m:
+        #   3.2×tan(2°)+4.8×tan(20°)+17.6×tan(31°)+3.4×tan(22°)
+        #   = 0.112 + 1.747 + 10.575 + 1.374 = 13.808 m
+        # env_origin_z = 6.666 m → z correction = 13.808 − 6.666 = +7.142 m
         self.events.reset_base.params = {
             "pose_range": {
-                "x": (12.0, 14.0),           # tile x ≈ 28–30 m (near 35° rim)
+                "x": (12.0, 14.0),           # tile x ≈ 28–30 m (near 31° main wall)
                 "y": (-3.0, 3.0),
                 "yaw": (math.pi, math.pi),   # face downslope
-                "z": (7.2, 8.2),             # +rim_height - centre_height
+                "z": (6.9, 7.7),             # +rim_height - centre_height
             },
             "velocity_range": {
                 "x": (0.0, 0.0), "y": (0.0, 0.0), "z": (0.0, 0.0),

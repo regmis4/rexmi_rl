@@ -21,6 +21,13 @@ logs/
 runs/
 wandb/
 
+# LOLA DEM raw files (~716 MB) — download with scripts/process_lola_dem.py
+data/lola/
+
+# Per-crater GIS outputs (large heightfields and meshes)
+# Regenerate with: python scripts/process_lola_dem.py
+data/craters/
+
 # Local environment config (contains machine-specific paths)
 .env
 

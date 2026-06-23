@@ -6,25 +6,31 @@ Procedural heightfield generators for lunar south pole crater wall terrains.
 
 Each generator produces a **cross-section tile** of a crater wall — a sloped
 terrain tile that represents the traversal corridor from crater floor to rim.
-The macro slope profile is derived from NASA LOLA 5 m/pix DEM data and published
-morphometry literature (see docs/lunar_crater_terrain_research.md).
 
-Three crater morphology types are implemented:
+All slope values are derived from NASA LOLA ``LDEM_80S_40MPP_ADJ.TIF`` (40 m/px
+south polar DEM, NASA PGDA).  Processing pipeline: ``scripts/process_lola_dem.py``.
+Full radial profiles and locomotion analysis are in ``data/craters/<name>/``.
+See ``docs/lunar_crater_terrain_research.md`` for the complete methodology.
 
-  Type 1 — Ancient complex crater (Haworth / Shoemaker / Nobile archetype)
+**Slope definition:** All values are radial slope at a **200 m baseline**,
+computed from the P50 (median) axisymmetric radial profile.
+
+Three crater morphology classes are implemented (DEM-derived):
+
+  Class A — Broad, shallow (Haworth archetype)
   -----------------------------------------------------------------------
-  Large (≥52 km), Pre-Nectarian (~4.2 Ga), heavily degraded.
-  Wall slopes are gentle (7.5–14°) — all zones within current policy capability.
+  d/D ≈ 0.09, P50 wall slope 1–3°, max 9°.  Very gentle; current policy trivial.
+  Best ingress azimuth 160°, max wall slope 9.2° (Haworth DEM).
 
-  Type 2 — Intermediate crater (Faustini archetype)  ← PRIMARY DEMO TARGET
+  Class B — Moderate complex (Faustini archetype)  ← PRIMARY DEMO TARGET
   -----------------------------------------------------------------------
-  Intermediate (42 km), Nectarian, moderate degradation.
-  Inner wall mean slope 15.4°, max ~25°.  All zones within current policy.
+  d/D ≈ 0.07, main wall 14–16° (200 m baseline).  All zones within current policy.
+  Best ingress azimuth 330°, max wall slope 13.6° (Faustini DEM).
 
-  Type 3 — Young steep crater (Shackleton archetype)
+  Class C — Deep, steep (Shackleton archetype)
   -----------------------------------------------------------------------
-  Young (21 km, Imbrian ~3.6 Ga), best-preserved geometry.
-  Average wall slope 30.5°, max 35°.  Requires Phase 8 slope training.
+  d/D ≈ 0.19, main wall uniformly 28–32° (200 m baseline).
+  Best ingress azimuth 130°, max wall slope 31.0°.  Requires Phase 8.
 
 Isaac Lab terrain function API
 ------------------------------
@@ -158,32 +164,34 @@ def _build_crater_hf(
 
 
 # ===========================================================================
-# Public terrain generator functions — one per crater morphology type
+# Public terrain generator functions — one per crater morphology class
 # ===========================================================================
 
 @height_field_to_mesh
 def type1_ancient_crater_wall(difficulty: float, cfg) -> np.ndarray:
     """
-    Type 1 crater wall — ancient, heavily degraded (Haworth / Shoemaker archetype).
+    Class A crater wall — ancient, heavily degraded (Haworth archetype).
 
-    Source morphometry (LOLA, Smith et al. 2010; MDPI RS 2024):
-      Diameter: 52 km  |  Depth: ~2.0 km  |  d/D: ~0.038
-      Wall slope mean: 8–15°, max ~20°, heavily mass-wasted
+    DEM-derived morphometry (LOLA LDEM_80S_40MPP_ADJ.TIF):
+      Rim radius: 27.06 km  |  Depth: 5 016 m  |  d/D: 0.093
+      Best ingress azimuth: 160°
+      Max wall slope (200 m baseline, best azimuth): 9.2°
+      P50 wall slope: 1.3°
 
-    Profile (for 32 m tile, floor → rim):
-      Floor (20%, 6.4m):  1.5° — flat PSR floor + debris aprons
-      Lower wall (35%, 11.2m):  7.5° — mass-wasted lower terrace
-      Mid wall (25%, 8.0m): 11.5° — degraded middle slope
-      Upper wall (15%, 4.8m): 14.0° — steeper upper section
-      Rim crest (5%, 1.6m):  6.5° — degraded, rounded rim
+    Profile (for 32 m tile, floor → rim), slope at 200 m baseline:
+      Approach floor (15%, 4.8 m):   1.0° — flat PSR floor region
+      Lower wall    (35%, 11.2 m):   5.0° — very gentle degraded lower slope
+      Mid wall      (25%, 8.0 m):    7.5° — moderate middle section
+      Upper wall    (20%, 6.4 m):    9.0° — steepest zone (matches DEM max)
+      Rim crest     ( 5%, 1.6 m):    4.0° — degraded, rounded rim
 
-    Max tile height ≈ 3.9 m over 32 m.
+    Max tile height ≈ 2.1 m over 32 m.
     All zones ✅ within current Go2W policy capability (Phase 6-Optimized).
     """
     return _build_crater_hf(
         cfg,
-        zone_slopes_deg=[1.5, 7.5, 11.5, 14.0, 6.5],
-        zone_fractions=[0.20, 0.35, 0.25, 0.15, 0.05],
+        zone_slopes_deg=[1.0, 5.0, 7.5, 9.0, 4.0],
+        zone_fractions=[0.15, 0.35, 0.25, 0.20, 0.05],
         roughness_m=cfg.roughness_m,
         seed=cfg.seed,
     )
@@ -192,27 +200,36 @@ def type1_ancient_crater_wall(difficulty: float, cfg) -> np.ndarray:
 @height_field_to_mesh
 def type2_faustini_crater_wall(difficulty: float, cfg) -> np.ndarray:
     """
-    Type 2 crater wall — Faustini archetype (PRIMARY DEMO TARGET).
+    Class B crater wall — Faustini archetype (PRIMARY DEMO TARGET).
 
-    Source morphometry (LOLA; Hayne et al. PSJ 2024; Grokipedia):
-      Diameter: 42 km  |  Depth: ~2.5 km  |  d/D: 0.059
-      Rim mean slope: 7.2°  |  Inner wall mean: 15.4°  |  Max: ~25°
+    DEM-derived morphometry (LOLA LDEM_80S_40MPP_ADJ.TIF):
+      Rim radius: 22.86 km  |  Depth: 3 336 m  |  d/D: 0.073
+      Best ingress azimuth: 330°
+      Max wall slope (200 m baseline, best azimuth): 13.6°
+      P50 wall slope: 7.8°
 
-    Profile (for 32 m tile, floor → rim):
-      Floor (15%, 4.8m):   1.5° — PSR floor (-2600 m level)
-      Lower wall (35%, 11.2m): 11.5° — moderate lower wall
-      Mid wall (30%, 9.6m):   15.0° — steeper mid section
-      Upper wall (15%, 4.8m): 17.5° — approach to rim
-      Rim crest (5%, 1.6m):   6.5° — degraded 7.2° mean rim
+    Radial profile zones (r_norm → slope at 200 m baseline):
+      r=0.40 → 4.4°  (floor transition)
+      r=0.50 → 16.0°  (lower wall — steepest)
+      r=0.60 → 14.3°  (mid wall)
+      r=0.70 → 14.3°  (mid wall)
+      r=0.80 → 13.9°  (upper wall)
+      r=0.90 →  9.2°  (rim approach)
 
-    Max tile height ≈ 6.7 m over 32 m.
+    Profile (for 32 m tile, floor → rim), slope at 200 m baseline:
+      Approach floor (10%, 3.2 m):   4.0° — floor transition (DEM: 4.4°)
+      Lower wall     (25%, 8.0 m):  15.5° — steepest section (DEM: 14–16°)
+      Mid wall       (35%, 11.2 m): 14.0° — main wall (DEM: 14.3°)
+      Upper wall     (20%, 6.4 m):  12.0° — DEM: 13.9° → 9.2°
+      Rim crest      (10%, 3.2 m):   6.5° — rim approach, decreasing
+
+    Max tile height ≈ 7.0 m over 32 m.
     All zones ✅ within current Go2W policy capability (Phase 6-Optimized).
-    Peak slope (17.5°) matches training distribution upper range.
     """
     return _build_crater_hf(
         cfg,
-        zone_slopes_deg=[1.5, 11.5, 15.0, 17.5, 6.5],
-        zone_fractions=[0.15, 0.35, 0.30, 0.15, 0.05],
+        zone_slopes_deg=[4.0, 15.5, 14.0, 12.0, 6.5],
+        zone_fractions=[0.10, 0.25, 0.35, 0.20, 0.10],
         roughness_m=cfg.roughness_m,
         seed=cfg.seed,
     )
@@ -221,26 +238,41 @@ def type2_faustini_crater_wall(difficulty: float, cfg) -> np.ndarray:
 @height_field_to_mesh
 def type3_shackleton_crater_wall(difficulty: float, cfg) -> np.ndarray:
     """
-    Type 3 crater wall — Shackleton archetype (young, steep, best-preserved).
+    Class C crater wall — Shackleton archetype (young, steep, best-preserved).
 
-    Source morphometry (Zuber et al. 2012, Science 338; LPSC 2013 poster 2924):
-      Diameter: 21 km  |  Depth: 4.1 km  |  d/D: 0.195
-      Average wall slope: 30.5°  |  Max: 35°
+    DEM-derived morphometry (LOLA LDEM_80S_40MPP_ADJ.TIF):
+      Rim radius: 10.92 km  |  Depth: 4 077 m  |  d/D: 0.187
+      Best ingress azimuth: 130°
+      Max wall slope (200 m baseline, best azimuth): 31.0°
+      P50 wall slope: 28.6°
+      Validation: DEM depth 4 077 m vs. Zuber et al. 2012 (Science) 4 100 ± 50 m ✓
 
-    Profile (for 32 m tile, floor → rim):
-      Floor (10%, 3.2m):    3.0° — near-flat floor
-      Lower wall (20%, 6.4m): 22.5° — transition from floor
-      Mid wall (55%, 17.6m): 31.5° — main 30.5° average wall
-      Rim crest (15%, 4.8m): 35.0° — sharp rim
+    Radial profile zones (r_norm → slope at 200 m baseline):
+      r=0.20 →  5.3°  (lower floor transition)
+      r=0.30 → 13.3°  (floor-to-wall transition)
+      r=0.40 → 28.4°  (lower wall, steep onset)
+      r=0.50 → 30.4°  (main wall)
+      r=0.60 → 31.4°  (main wall, peak)
+      r=0.70 → 31.9°  (main wall)
+      r=0.80 → 30.6°  (main wall)
+      r=0.90 → 21.8°  (upper wall / rim transition)
 
-    Max tile height ≈ 16.9 m over 32 m.
-    ⚠️  Mid wall (31.5°) and rim (35°) EXCEED current policy capability (~20°).
-    Requires Phase 8 training (slope_range up to 35°) before full demo.
+    Profile (for 32 m tile, floor → rim), slope at 200 m baseline:
+      Floor           (10%, 3.2 m):   2.0° — near-flat floor (DEM: 0–5°)
+      Transition      (15%, 4.8 m):  20.0° — DEM: 13–28° transition zone
+      Main wall       (55%, 17.6 m): 31.0° — DEM: uniformly 28–32°
+      Upper wall      (15%, 4.8 m):  22.0° — DEM: 21.8° at r=0.9
+      Rim crest       ( 5%, 1.6 m):  12.0° — rim approach
+
+    Max tile height ≈ 15.0 m over 32 m.
+    ⚠️  Main wall (31°) and transition (20°) EXCEED current policy capability (~20°).
+    Requires Phase 8 training (slope_range up to 30°+) before full demo.
+    Floor and lower zone traversable with current policy.
     """
     return _build_crater_hf(
         cfg,
-        zone_slopes_deg=[3.0, 22.5, 31.5, 35.0],
-        zone_fractions=[0.10, 0.20, 0.55, 0.15],
+        zone_slopes_deg=[2.0, 20.0, 31.0, 22.0, 12.0],
+        zone_fractions=[0.10, 0.15, 0.55, 0.15, 0.05],
         roughness_m=cfg.roughness_m,
         seed=cfg.seed,
     )
@@ -253,10 +285,10 @@ def type3_shackleton_crater_wall(difficulty: float, cfg) -> np.ndarray:
 @configclass
 class CraterType1WallCfg(HfTerrainBaseCfg):
     """
-    Type 1 ancient crater wall terrain configuration.
+    Class A crater wall terrain configuration.
 
-    Archetype: Haworth / Shoemaker / Nobile (52–79 km, Pre-Nectarian)
-    Slope range: 7.5–14°  |  Demo readiness: ✅ ready now
+    Archetype: Haworth (51.4 km, Pre-Nectarian, d/D=0.093)
+    DEM max wall slope: 9.2°  |  Demo readiness: ✅ ready now
 
     Inherits from HfTerrainBaseCfg:
       horizontal_scale = 0.1 m/pixel
@@ -277,13 +309,13 @@ class CraterType1WallCfg(HfTerrainBaseCfg):
 @configclass
 class CraterType2WallCfg(HfTerrainBaseCfg):
     """
-    Type 2 Faustini-archetype crater wall terrain configuration.
+    Class B crater wall terrain configuration.
 
-    Archetype: Faustini (42 km, Nectarian)
-    Slope range: 11.5–17.5°  |  Demo readiness: ✅ PRIMARY DEMO TARGET
+    Archetype: Faustini (42.5 km, Nectarian, d/D=0.073)
+    DEM max wall slope: 13.6°, P50: 7.8°  |  Demo readiness: ✅ PRIMARY DEMO TARGET
 
     All zones traversable with the Phase 6-Optimized rough-terrain policy.
-    Peak slope (17.5°) is within the trained range (~20° max).
+    Peak slope (15.5°) is well within the trained range (~20° max).
     """
     function: Callable = type2_faustini_crater_wall
     proportion: float = 1.0
@@ -297,18 +329,19 @@ class CraterType2WallCfg(HfTerrainBaseCfg):
 @configclass
 class CraterType3WallCfg(HfTerrainBaseCfg):
     """
-    Type 3 Shackleton-archetype crater wall terrain configuration.
+    Class C crater wall terrain configuration.
 
-    Archetype: Shackleton (21 km, Imbrian)
-    Slope range: 22.5–35°  |  Demo readiness: ⚠️ Phase 8 required
+    Archetype: Shackleton (20.9 km, Imbrian, d/D=0.187)
+    DEM max wall slope: 31.0°, P50: 28.6°  |  Demo readiness: ⚠️ Phase 8 required
 
-    Floor zone (3°) traversable now.
-    Mid wall (31.5°) and rim (35°) require Phase 8 slope training.
+    Floor zone (2°) traversable now.
+    Main wall (31°) requires Phase 8 slope training.
+    Shackleton depth validated: DEM 4 077 m vs. Zuber et al. 2012 (4 100 ± 50 m).
     """
     function: Callable = type3_shackleton_crater_wall
     proportion: float = 1.0
 
-    # Shackleton walls are smooth (less accumulated regolith)
+    # Shackleton walls have less accumulated regolith — smoother surface
     roughness_m: float = 0.02
 
     seed: int = 3

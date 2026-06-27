@@ -59,11 +59,16 @@ import math
 from isaaclab.terrains import TerrainGeneratorCfg
 from isaaclab.utils import configclass
 
-from rexmi_rl.tasks.locomotion.velocity.config.go2w.rough_env_cfg import Go2wRoughEnvCfg
+from rexmi_rl.tasks.locomotion.velocity.config.go2w.rough_env_cfg import (
+    Go2wFlatEnvCfg,
+    Go2wRoughEnvCfg,
+)
+from rexmi_rl.tasks.locomotion.velocity.config.go2w.fast_flat_env_cfg import Go2wFastFlatEnvCfg
 from rexmi_rl.tasks.locomotion.velocity.config.go2w.crater_terrain import (
     CraterType1WallCfg,
     CraterType2WallCfg,
     CraterType3WallCfg,
+    LunarCraterDemoBowlCfg,
 )
 
 
@@ -71,7 +76,11 @@ from rexmi_rl.tasks.locomotion.velocity.config.go2w.crater_terrain import (
 # Terrain generator factory
 # ===========================================================================
 
-def _crater_terrain_gen(sub_terrain_cfg, num_cols: int = 10) -> TerrainGeneratorCfg:
+def _crater_terrain_gen(
+    sub_terrain_cfg,
+    num_cols: int = 10,
+    size: tuple = (32.0, 32.0),
+) -> TerrainGeneratorCfg:
     """
     Create a TerrainGeneratorCfg for a crater wall demo.
 
@@ -81,15 +90,18 @@ def _crater_terrain_gen(sub_terrain_cfg, num_cols: int = 10) -> TerrainGenerator
         The crater type configuration (Type1, Type2, or Type3).
     num_cols : int
         Number of parallel terrain tiles to generate (= number of demo robots).
+    size : tuple
+        (width_x, length_y) of each tile in metres.
+        Type 1/2/3 cross-sections use (32, 32); the Bowl uses (64, 64).
 
     Returns
     -------
     TerrainGeneratorCfg
-        32 m × 32 m tiles at 10 cm resolution, 1 difficulty row (no curriculum).
+        Tiles at 10 cm resolution, 1 difficulty row (no curriculum).
     """
     return TerrainGeneratorCfg(
         seed=0,
-        size=(32.0, 32.0),           # 32 m × 32 m per tile
+        size=size,                   # configurable tile size (bowl = 64 m × 64 m)
         border_width=20.0,           # flat border around the terrain grid
         num_rows=1,                   # 1 difficulty level — no curriculum
         num_cols=num_cols,            # one tile per robot
@@ -533,3 +545,237 @@ class LunarCraterType3DownEnvCfg_PLAY(LunarCraterType3DownEnvCfg):
         self.scene.terrain.terrain_generator = _crater_terrain_gen(
             CraterType3WallCfg(proportion=1.0), num_cols=1
         )
+
+
+# ===========================================================================
+# Demo Bowl — full radial crater at robot scale (HEADLINE DEMO — Phase 8 ✅)
+# ===========================================================================
+
+@configclass
+class LunarCraterDemoBowlEnvCfg(LunarCraterBaseEnvCfg):
+    """
+    Full radial crater bowl — headline investor demo environment.
+
+    Unlike the cross-section tiles (Type 1/2/3), this terrain is a complete
+    axisymmetric crater bowl (22 m diameter) centred in the 32 m × 32 m tile.
+    The robot spawns OUTSIDE the crater on the exterior ramp and drives straight
+    through the bowl in a single continuous command (no turns required).
+
+    Traversal sequence (per crossing, ~52 s at 0.5 m/s):
+      1. Exterior ramp (8° downhill)      → approach the crater
+      2. Rim crest (23°)                  → enter the crater
+      3. Upper wall descent (33°)         → steepest zone, Phase 8 policy working
+      4. Main wall (30°)                  → sustained steep slope
+      5. Floor-wall transition (20°)      → easing off
+      6. Flat floor (0°, r < 3 m)         → brief flat traverse
+      7. Opposite wall ascent (20°→33°)   → mirrored uphill challenge
+      8. Opposite rim crest (23°)         → exit the crater
+      9. Opposite exterior (8° uphill)    → exits the scene
+
+    Each 300 s episode completes ~5 full bowl crossings.
+    10 robots fan out at different y-offsets → each traverses a different azimuthal
+    sector of the bowl (±5° slope variation per sector).
+
+    Spawn geometry:
+      - env_origin = tile centre = crater centre = floor level (h ≈ 0 m)
+      - Robot spawns at x = +13 m (2 m past rim on exterior ramp)
+      - Rim height above floor ≈ 4.40 m; exterior at r=13 m ≈ 4.12 m
+      - spawn_z = h_exterior + body_clearance = 4.12 + 0.35 = 4.47 m
+
+    Surface features (LROC-calibrated, Shackleton interior reference):
+      • Boulders       : 10 Gaussian bumps, 0.15–0.50 m, r = 3.5–10 m
+      • Fractures      : 2 concentric troughs at r = 5.5 m and 8.0 m
+      • Scarp          : 0.18 m mass-wasting ridge at r = 7.0 m
+      • Debris apron   : raised regolith ring at r ≈ 3.8 m
+      • Roughness      : 2.5 cm wall (exposed rock) / 8 cm floor (loose debris)
+    """
+
+    def __post_init__(self):
+        super().__post_init__()
+
+        # ---------------------------------------------------------------
+        # Replace the terrain with the full radial crater bowl.
+        # 64 m × 64 m tile — crater (22 m dia) + exterior + mountain (NE).
+        # ---------------------------------------------------------------
+        self.scene.env_spacing = 66.0   # 64 m tile + 2 m clearance
+        self.scene.terrain.terrain_generator = _crater_terrain_gen(
+            LunarCraterDemoBowlCfg(proportion=1.0), num_cols=10, size=(64.0, 64.0)
+        )
+
+        # ---------------------------------------------------------------
+        # Spawn OUTSIDE the crater (x = +13 m from tile centre = env_origin)
+        # Rim at r = 11 m; spawn at r = 13 m (2 m on exterior ramp).
+        # yaw = π → robot faces −x world direction (toward crater centre at x=0).
+        # Forward command (+0.5 m/s body frame) = −x world = into the crater. ✓
+        # ---------------------------------------------------------------
+        # Height at spawn (r = 13 m, exterior ramp):
+        #   h_rim     = 4.396 m   (piecewise integral of wall slopes)
+        #   h(r=13 m) = 4.396 − (13−11) × tan(8°) = 4.396 − 0.281 = 4.115 m
+        #   env_origin_z = h at tile centre (r = 0, crater floor) ≈ 0 m
+        #   spawn_z = h_spawn + body_clearance = 4.115 + 0.35 = 4.465 m
+        #   Range adds ±0.45 m for azimuthal noise and boulders near spawn.
+        self.events.reset_base.params = {
+            "pose_range": {
+                "x": (12.0, 14.0),          # r ≈ 12–14 m (exterior ramp, rim at r=11 m)
+                "y": (-3.0, 3.0),            # lateral: each of 10 robots at a different y
+                "yaw": (math.pi, math.pi),   # face −x direction (toward crater centre)
+                "z": (4.0, 4.9),             # above env_origin (floor level)
+            },
+            "velocity_range": {
+                "x": (0.0, 0.0), "y": (0.0, 0.0), "z": (0.0, 0.0),
+                "roll": (0.0, 0.0), "pitch": (0.0, 0.0), "yaw": (0.0, 0.0),
+            },
+        }
+
+
+@configclass
+class LunarCraterDemoBowlEnvCfg_PLAY(LunarCraterDemoBowlEnvCfg):
+    """
+    Demo bowl — single-robot recording variant.
+
+    Use for investor video captures:
+      python scripts/play.py --task RexmiRl-Go2w-Crater-Bowl-Record-v0 \\
+          --load_run 2026-06-20_15-37-32
+
+    The robot traverses through the full crater bowl: approaches from outside,
+    descends 4.4 m into the floor, re-ascends the opposite wall, and exits.
+    """
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.num_envs = 1
+        self.scene.terrain.terrain_generator = _crater_terrain_gen(
+            LunarCraterDemoBowlCfg(proportion=1.0), num_cols=1, size=(64.0, 64.0)
+        )
+
+
+# ===========================================================================
+# Demo Bowl — Flat obs-space variants (for flat / fast-flat policies)
+# ===========================================================================
+# These envs inherit from Go2wFlatEnvCfg (no height scanner, no terrain curriculum)
+# and add the bowl terrain.  Compatible with flat-policy checkpoints only.
+# For rough / steep-slope policies, use LunarCraterDemoBowlEnvCfg above.
+
+@configclass
+class LunarCraterDemoBowlFlatEnvCfg(Go2wFlatEnvCfg):
+    """
+    Demo bowl — flat observation-space variant.
+
+    Inherits Go2wFlatEnvCfg (no height scanner — flat policy obs space) and
+    adds the full crater bowl terrain.  Use this env when loading a flat or
+    fast-flat policy checkpoint.
+
+    Runner → ``Go2wFlatPPORunnerCfg`` or ``Go2wFastFlatPPORunnerCfg``
+    """
+
+    def __post_init__(self):
+        super().__post_init__()
+
+        # Switch terrain from flat-plane to bowl generator
+        self.scene.terrain.terrain_type = "generator"
+        self.scene.terrain.terrain_generator = _crater_terrain_gen(
+            LunarCraterDemoBowlCfg(proportion=1.0), num_cols=10, size=(64.0, 64.0)
+        )
+
+        # Shared demo overrides (same as LunarCraterDemoBowlEnvCfg)
+        self.episode_length_s = 300.0
+        self.scene.num_envs = 10
+        self.scene.env_spacing = 66.0
+
+        # No curriculum, no noise, no pushes
+        if hasattr(self, "curriculum") and hasattr(self.curriculum, "terrain_levels"):
+            self.curriculum.terrain_levels = None
+        self.observations.policy.enable_corruption = False
+        self.events.push_robot = None
+        self.events.base_external_force_torque = None
+
+        # Fixed forward command at 0.5 m/s
+        self.commands.base_velocity.ranges.lin_vel_x = (0.5, 0.5)
+        self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
+        self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
+
+        # Spawn on exterior ramp, face −x (toward crater centre)
+        self.events.reset_base.params = {
+            "pose_range": {
+                "x": (12.0, 14.0),
+                "y": (-3.0, 3.0),
+                "yaw": (math.pi, math.pi),
+                "z": (4.0, 4.9),
+            },
+            "velocity_range": {
+                "x": (0.0, 0.0), "y": (0.0, 0.0), "z": (0.0, 0.0),
+                "roll": (0.0, 0.0), "pitch": (0.0, 0.0), "yaw": (0.0, 0.0),
+            },
+        }
+
+
+@configclass
+class LunarCraterDemoBowlFlatEnvCfg_PLAY(LunarCraterDemoBowlFlatEnvCfg):
+    """Demo bowl (flat obs) — single-robot recording variant."""
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.num_envs = 1
+        self.scene.terrain.terrain_generator = _crater_terrain_gen(
+            LunarCraterDemoBowlCfg(proportion=1.0), num_cols=1, size=(64.0, 64.0)
+        )
+
+
+@configclass
+class LunarCraterDemoBowlFastFlatEnvCfg(Go2wFastFlatEnvCfg):
+    """
+    Demo bowl — fast-flat observation-space variant.
+
+    Same bowl terrain as LunarCraterDemoBowlFlatEnvCfg but inherits from
+    Go2wFastFlatEnvCfg.  Matches the fast-flat policy checkpoint obs space.
+
+    Runner → ``Go2wFastFlatPPORunnerCfg``
+    """
+
+    def __post_init__(self):
+        super().__post_init__()
+
+        self.scene.terrain.terrain_type = "generator"
+        self.scene.terrain.terrain_generator = _crater_terrain_gen(
+            LunarCraterDemoBowlCfg(proportion=1.0), num_cols=10, size=(64.0, 64.0)
+        )
+
+        self.episode_length_s = 300.0
+        self.scene.num_envs = 10
+        self.scene.env_spacing = 66.0
+
+        if hasattr(self, "curriculum") and hasattr(self.curriculum, "terrain_levels"):
+            self.curriculum.terrain_levels = None
+        self.observations.policy.enable_corruption = False
+        self.events.push_robot = None
+        self.events.base_external_force_torque = None
+
+        self.commands.base_velocity.ranges.lin_vel_x = (0.5, 0.5)
+        self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
+        self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
+
+        self.events.reset_base.params = {
+            "pose_range": {
+                "x": (12.0, 14.0),
+                "y": (-3.0, 3.0),
+                "yaw": (math.pi, math.pi),
+                "z": (4.0, 4.9),
+            },
+            "velocity_range": {
+                "x": (0.0, 0.0), "y": (0.0, 0.0), "z": (0.0, 0.0),
+                "roll": (0.0, 0.0), "pitch": (0.0, 0.0), "yaw": (0.0, 0.0),
+            },
+        }
+
+
+@configclass
+class LunarCraterDemoBowlFastFlatEnvCfg_PLAY(LunarCraterDemoBowlFastFlatEnvCfg):
+    """Demo bowl (fast-flat obs) — single-robot recording variant."""
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.num_envs = 1
+        self.scene.terrain.terrain_generator = _crater_terrain_gen(
+            LunarCraterDemoBowlCfg(proportion=1.0), num_cols=1, size=(64.0, 64.0)
+        )
+

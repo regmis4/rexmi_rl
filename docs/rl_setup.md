@@ -1,15 +1,27 @@
 # REXMI RL — Complete Developer Reference
 
-> **Current status: Phase 8 — Steep slopes (23°–45°), exploit-free policy at terrain_level 4.77 (~33.5°)**
+> **Current status: Phase 8i COMPLETE — model_13994.pt is the PRODUCTION POLICY**
 >
-> Phases 1–7 complete. `model_8996.pt` (Phase 7) is the production rough-terrain policy — frozen.
-> Phase 8 trains a dedicated steep-slope policy (`RexmiRl-Go2w-Velocity-SteepSlope-v0`)
-> from model_8996 weights. Best checkpoint: **`model_1999.pt`** (run `2026-06-19_22-37-58`).
+> Phases 1–8i complete. Crater bowl demo ready.
 >
-> Phase 8 summary: eliminated hip-crossing, thigh-salute, and tripod/tail-leg exploits via
-> dead-zone threshold penalties; boosted yaw tracking (0.75→1.5) to reduce lateral crater-wall
-> drift; rewrote `scripts/train.py` to save/restore curriculum state alongside every checkpoint
-> so future resumes start the curriculum exactly where the previous run ended.
+> | Policy | Checkpoint | Use |
+> |--------|-----------|-----|
+> | `model_8996.pt` (Phase 7) | `go2w_velocity_rough/2026-06-14_20-03-41` | Rough terrain generalist — **frozen** |
+> | `model_5998.pt` (Phase 8) | `go2w_velocity_steep_slope/2026-06-20_15-37-32` | Steep-slope descent — **frozen** |
+> | **`model_13994.pt` (Phase 8i)** | **`go2w_velocity_rocky_slope/2026-06-30_09-31-48`** | **Rocky slope uphill+downhill — PRODUCTION** |
+>
+> **Phase 8i key result**: Restarting from model_8996 (neutral gait) broke the 22° uphill ceiling
+> that blocked 5 consecutive phases (8d–8h). The model_12495 lineage was descent-dominant (gait basin
+> contaminated by Phase 8c's downhill tiles); model_8996 has neutral gait and escaped the attractor.
+>
+> **Crater bowl demo:**
+> ```bash
+> conda activate env_isaacsim
+> python scripts/play.py --task RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0 \
+>     --checkpoint logs/rsl_rl/go2w_velocity_rocky_slope/2026-06-30_09-31-48/model_13994.pt
+> ```
+>
+> **Eval summary (model_13994.pt):** up_25°=0.60, up_30°=0.57, up_35°=0.57 | down_30°=0.98, down_35°=0.91
 
 This document explains **every design decision** made across all four phases of
 the Go2W RL setup.  The goal is that after reading this you understand the full
@@ -291,13 +303,15 @@ A thin re-export of all 4 config classes from `rough_env_cfg.py`.
 | `Go2wFlatPPORunnerCfg` | Flat (standard) | [128,128,128] | 1000 | ~60 |
 | `Go2wFastFlatPPORunnerCfg` | Fast flat (2 m/s) | [128,128,128] | **1500** | ~60 |
 | `Go2wRoughPPORunnerCfg` | Rough (Phase 7 frozen) | [512,256,128] | 3000 | ~220 |
-| `Go2wSteepSlopePPORunnerCfg` | **Steep-slope (Phase 8)** | [512,256,128] | **3000** | **~220** |
+| `Go2wSteepSlopePPORunnerCfg` | Steep-slope (Phase 8, **frozen**) | [512,256,128] | 3000 | ~220 |
+| `Go2wRockySlopePPORunnerCfg` | **Rocky-slope (Phase 8c, current)** | [512,256,128] | **2000** | **~220** |
 
-Key differences: `empirical_normalization=True` for rough/steep-slope terrain — height scan
-values span ±0.5 m, which would dominate the network input without normalisation.
-`Go2wSteepSlopePPORunnerCfg` inherits the rough network identically (same obs/action space,
-same architecture) and only differs in `experiment_name="go2w_velocity_steep_slope"`,
-`max_iterations=3000`, and `save_interval=50`.  model_8996 weights load directly.
+Key differences: `empirical_normalization=True` for rough/steep-slope/rocky-slope terrain — height
+scan values span ±0.5 m, which would dominate the network input without normalisation.
+`Go2wSteepSlopePPORunnerCfg` differs from rough only in `experiment_name="go2w_velocity_steep_slope"`,
+`max_iterations=3000`, and `save_interval=50`.  `Go2wRockySlopePPORunnerCfg` further inherits from
+steep-slope, only overriding `experiment_name="go2w_velocity_rocky_slope"`.  model_5998.pt loads
+directly (identical [512,256,128] network and ~220-dim obs space).
 Override for a longer one-shot run: `--max_iterations 5000` (no config change needed).
 
 ---
@@ -314,9 +328,15 @@ gym.register("RexmiRl-Go2w-Velocity-FastFlat-Play-v0",     env=Go2wFastFlatEnvCf
 # Rough terrain — height scanner + curriculum (PRODUCTION: model_8996, Phase 7 frozen)
 gym.register("RexmiRl-Go2w-Velocity-Rough-v0",             env=Go2wRoughEnvCfg,             ppo=Go2wRoughPPORunnerCfg)
 gym.register("RexmiRl-Go2w-Velocity-Rough-Play-v0",        env=Go2wRoughEnvCfg_PLAY,        ppo=Go2wRoughPPORunnerCfg)
-# Steep-slope terrain — Phase 8 dedicated policy (23°–45°, start from model_8996)
+# Steep-slope terrain — Phase 8 policy (23°–45°, FROZEN: model_5998.pt)
 gym.register("RexmiRl-Go2w-Velocity-SteepSlope-v0",        env=Go2wSteepSlopeEnvCfg,        ppo=Go2wSteepSlopePPORunnerCfg)
 gym.register("RexmiRl-Go2w-Velocity-SteepSlope-Play-v0",   env=Go2wSteepSlopeEnvCfg_PLAY,   ppo=Go2wSteepSlopePPORunnerCfg)
+# Rocky slope terrain — Phase 8b (15°–35° + boulders, load from model_5998.pt)
+gym.register("RexmiRl-Go2w-Velocity-RockySlope-v0",        env=Go2wRockySlopeEnvCfg,        ppo=Go2wRockySlopePPORunnerCfg)
+gym.register("RexmiRl-Go2w-Velocity-RockySlope-Play-v0",   env=Go2wRockySlopeEnvCfg_PLAY,   ppo=Go2wRockySlopePPORunnerCfg)
+# Crater bowl — rocky-slope policy (PRIMARY DEMO after Phase 8b training)
+gym.register("RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0",   env=LunarCraterDemoBowlEnvCfg,       ppo=Go2wRockySlopePPORunnerCfg)
+gym.register("RexmiRl-Go2w-Crater-Bowl-RockySlope-Record-v0", env=LunarCraterDemoBowlEnvCfg_PLAY,  ppo=Go2wRockySlopePPORunnerCfg)
 ```
 
 ---
@@ -1147,6 +1167,60 @@ python scripts/eval.py --checkpoint $CKPT_STEEP --group steep_slope
 python scripts/eval.py --checkpoint $CKPT_STEEP --visual --terrain steep_slope_45deg
 ```
 
+### Phase 8b (current): Rocky slope training — steep slopes WITH boulders
+
+**Motivation**: The crater bowl demo has steep slopes (25–33°) AND scattered boulders
+simultaneously.  The Phase 8 steep-slope policy (model_5998.pt) falls on this because it was
+trained only on CLEAN pyramid slopes.  Phase 8b adds boulder-obstacle robustness.
+
+**New terrain** (`rocky_slope_env_cfg.py` + `crater_terrain.py`):
+
+| Row | Difficulty | Slope | Boulders | h_max | Roughness |
+|-----|-----------|-------|----------|-------|-----------|
+| 0 | 0.0 | 15° | 3 | 5 cm | 1 cm |
+| 4 | 0.4 | 23° | 13 | 11 cm | 3 cm |
+| 7 | 0.7 | 29° | 18 | 16 cm | 5 cm |
+| 9 | 1.0 | 35° | 25 | 20 cm | 6 cm |
+
+Boulders are Gaussian bumps (`_add_boulders()`) scattered across the full 8×8 m tile —
+the robot must handle rocks on both the slope section AND the 2 m flat platform.
+
+**Why inherit from `Go2wSteepSlopeEnvCfg` not `Go2wRoughEnvCfg`**:
+Slopes need relaxed orientation (−0.1 vs. −0.8) and wider bad_orientation limit (1.4 vs. 1.0 rad).
+Using rough-env constraints would prevent the robot from tilting correctly into a 35° slope.
+
+**Files added / changed**:
+
+| File | Change |
+|------|--------|
+| `crater_terrain.py` | Added `rocky_pyramid_slope()` function + `RockyPyramidSlopeCfg` |
+| `rocky_slope_env_cfg.py` | New file: `Go2wRockySlopeEnvCfg` + `Go2wRockySlopeEnvCfg_PLAY` |
+| `agents/rsl_rl_ppo_cfg.py` | Added `Go2wRockySlopePPORunnerCfg` |
+| `config/go2w/__init__.py` | Registered 4 new task IDs |
+
+**Training command** (Phase 8b first run):
+
+```bash
+conda activate env_isaacsim
+python scripts/train.py --task RexmiRl-Go2w-Velocity-RockySlope-v0 --headless \
+    --load_run go2w_velocity_steep_slope/2026-06-20_15-37-32 --checkpoint model_5998.pt
+```
+
+**TensorBoard signals to watch**:
+```
+terrain_levels:       expect rapid advance (rows 0-2 fast, rows 7-9 slower)
+flat_orientation_l2:  grows more negative (body tilting onto slope) — expected
+bad_orientation:      should stay ~2% (1.4 rad limit)
+calf_symmetry:        inherited from Phase 8, should stay ~-0.02
+stagnation:           fires when stuck against boulder, drives escape behaviour
+```
+
+**Demo on crater bowl** (after training):
+```bash
+python scripts/play.py --task RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0 \
+    --load_run go2w_velocity_rocky_slope/<run_date> --checkpoint model_<N>.pt
+```
+
 ### Phase 9 (planned): Energy efficiency and gait elegance
 - Increase `dof_torques_l2` weight for leg joints to discourage unnecessary leg movement
   when wheels alone are sufficient (energy-aware gait)
@@ -1167,8 +1241,6 @@ python scripts/eval.py --checkpoint $CKPT_STEEP --visual --terrain steep_slope_4
 ### Phase 12 (planned): Sim-to-real transfer
 - Domain randomisation: friction (0.3–1.2), mass (±20%), motor damping (±30%)
 - Deploy to real Go2W hardware using Isaac Lab's `--real_time` mode
-
----
 
 ---
 
@@ -1341,6 +1413,516 @@ python scripts/eval.py --checkpoint $CKPT_STEEP
 
 ---
 
+### Rocky slope terrain (Phase 8c — 15°–35° + boulders, uphill+downhill, forward-only)
+
+```bash
+# ── Training ──────────────────────────────────────────────────────────────
+
+# Phase 8c — load model_7497.pt (Phase 8b checkpoint, rocky slopes uphill)
+# Changes: 50% downhill tiles, vx forward-only (0.2,0.5), vy=0, ωz±0.5, stagnation -2.5
+conda activate env_isaacsim
+python scripts/train.py --task RexmiRl-Go2w-Velocity-RockySlope-v0 --headless \
+    --load_run go2w_velocity_rocky_slope/<date>_<time> --checkpoint model_7497.pt
+
+# Resume with curriculum continuity (auto-restores terrain_levels from _curriculum.pt)
+python scripts/train.py --task RexmiRl-Go2w-Velocity-RockySlope-v0 --headless --resume
+
+# Resume from a specific run/checkpoint
+python scripts/train.py --task RexmiRl-Go2w-Velocity-RockySlope-v0 --headless \
+    --load_run go2w_velocity_rocky_slope/<date>_<time> --checkpoint model_<iter>.pt
+
+# Smoke test (verifies config loads, ~2 min)
+python scripts/train.py --task RexmiRl-Go2w-Velocity-RockySlope-v0 --num_envs 128
+
+# TensorBoard
+tensorboard --logdir logs/rsl_rl/go2w_velocity_rocky_slope
+
+# ── Play (training terrain — 50 robots on rocky slope tiles) ──────────────
+
+# Latest checkpoint
+python scripts/play.py --task RexmiRl-Go2w-Velocity-RockySlope-Play-v0
+
+# Specific checkpoint
+python scripts/play.py --task RexmiRl-Go2w-Velocity-RockySlope-Play-v0 \
+    --load_run go2w_velocity_rocky_slope/<date>_<time> --checkpoint model_<iter>.pt
+
+# ── Crater bowl demo with rocky-slope policy (PRIMARY DEMO) ───────────────
+
+# 10 robots traversing the full crater bowl
+python scripts/play.py --task RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0 \
+    --load_run go2w_velocity_rocky_slope/<date>_<time> --checkpoint model_<iter>.pt
+
+# Single-robot recording
+python scripts/play.py --task RexmiRl-Go2w-Crater-Bowl-RockySlope-Record-v0 \
+    --load_run go2w_velocity_rocky_slope/<date>_<time> --checkpoint model_<iter>.pt
+
+# Find the latest rocky-slope checkpoint
+ls logs/rsl_rl/go2w_velocity_rocky_slope/ | sort | tail -1
+ls logs/rsl_rl/go2w_velocity_rocky_slope/<date>_<time>/*.pt | sort -V | tail -3
+```
+
+---
+
+### Rocky slope capability eval (Phase 8c/d — uphill and downhill boulder slopes)
+
+Runs `scripts/eval.py` on the **10 new rocky slope eval variants**
+(5 uphill × 5 downhill, 15°–35°, fixed moderate boulders: 12 rocks, 10 cm height, 3 cm roughness).
+Uses `Go2wRockyEvalEnvCfg` (inherits 1.4 rad / 80° orientation limit from the rocky slope training
+env — critical for fair eval at 30°–35° slopes without spurious terminations).
+
+```bash
+CKPT_ROCKY=logs/rsl_rl/go2w_velocity_rocky_slope/2026-06-27_21-57-10/model_12495.pt
+
+# ── Rocky slope eval — primary diagnostic ─────────────────────────────────
+
+# Uphill capability sweep: 15°, 20°, 25°, 30°, 35° (find the cliff)
+# Expected with model_12495.pt: handles 15–20°, struggles 25°+
+python scripts/eval.py --checkpoint $CKPT_ROCKY --group rocky_slope_up
+
+# Downhill braking sweep: 15°, 20°, 25°, 30°, 35°
+# Descent was working in crater bowl demo — find where braking fails
+python scripts/eval.py --checkpoint $CKPT_ROCKY --group rocky_slope_down
+
+# Both groups together (10 variants, ~5-8 min headless)
+python scripts/eval.py --checkpoint $CKPT_ROCKY --group rocky_slope_up
+python scripts/eval.py --checkpoint $CKPT_ROCKY --group rocky_slope_down
+
+# ── Single angle — headless ────────────────────────────────────────────────
+
+python scripts/eval.py --checkpoint $CKPT_ROCKY --terrain rocky_slope_up_15deg
+python scripts/eval.py --checkpoint $CKPT_ROCKY --terrain rocky_slope_up_25deg
+python scripts/eval.py --checkpoint $CKPT_ROCKY --terrain rocky_slope_up_35deg
+
+python scripts/eval.py --checkpoint $CKPT_ROCKY --terrain rocky_slope_down_15deg
+python scripts/eval.py --checkpoint $CKPT_ROCKY --terrain rocky_slope_down_35deg
+
+# ── Single angle — visual (GUI, watch robots attempt the slope) ────────────
+
+python scripts/eval.py --checkpoint $CKPT_ROCKY --visual --terrain rocky_slope_up_15deg
+python scripts/eval.py --checkpoint $CKPT_ROCKY --visual --terrain rocky_slope_up_25deg
+python scripts/eval.py --checkpoint $CKPT_ROCKY --visual --terrain rocky_slope_up_35deg
+
+python scripts/eval.py --checkpoint $CKPT_ROCKY --visual --terrain rocky_slope_down_20deg
+python scripts/eval.py --checkpoint $CKPT_ROCKY --visual --terrain rocky_slope_down_35deg
+
+# ── Reading the results table ──────────────────────────────────────────────
+# tracking_ratio  — mean fwd vel / 0.5 m/s (1.0 = perfect, < 0.5 = failing ←)
+# moving_frac     — % steps with vel > 0.1 m/s  (< 50% = stuck ←)
+# survival_rate   — % episodes reaching timeout (vs falling/terminating early)
+# mean_dist_m     — estimated distance covered per episode in metres
+#
+# ⚠️  SURVIVAL METRIC CAVEAT — uphill pyramid terrain only ⚠️
+#
+# For uphill variants the terrain is a pyramid with the LOW point at the
+# centre.  Robots spawn at the low centre, climb outward, and hit the tile
+# boundary (8 m away).  When the robot SUCCESSFULLY traverses the slope it
+# reaches the boundary, triggers an env reset (counted as ep_step_buf < 990
+# because the episode was short), and survival = 0%.
+#
+# At steeper angles where the robot gets STUCK against boulders, no reset
+# ever fires, ep_step_buf = 1000 at eval end → survival = 100%.
+#
+# Result: survival=0% means "successfully climbing" and survival=100% means
+# "stuck and going nowhere".  For uphill terrain use tracking and moving as
+# the only meaningful metrics.  Survival is reliable for downhill (flat
+# platform at top, robot descends outward and doesn't cross a boundary).
+#
+# Key signal: find the angle where tracking_ratio drops below 0.5 →
+#   that is the current uphill capability cliff.
+#   After Phase 8d training (100% uphill, 1500 iters), re-run and compare.
+```
+
+---
+
+### model_12495.pt baseline eval results (Phase 8c end — 2026-06-28)
+
+Run before Phase 8d training.  50 envs × 1000 steps, 12 boulders, 10 cm height, 3 cm roughness.
+
+**Downhill (descent braking) — SOLVED**
+
+| Variant | Tracking | Moving | Survival | Dist(m) | Notes |
+|---------|----------|--------|----------|---------|-------|
+| down_15° | **0.89** | 99% | 100% | 8.9 | ✅ Excellent |
+| down_20° | **0.87** | 97% | 100% | 8.7 | ✅ Excellent |
+| down_25° | **0.82** | 95% | 100% | 8.2 | ✅ Solid |
+| down_30° | **0.79** | 94% | 100% | 7.9 | ✅ Solid |
+| down_35° | **0.72** | 91% | 100% | 7.2 | ✅ Functional |
+
+Descent braking works all the way to 35° (Shackleton crater max gradient).
+**No further downhill training needed.**
+
+**Uphill (climb against gravity + boulders) — CAPABILITY CLIFF AT 25°–30°**
+
+| Variant | Tracking | Moving | Survival* | Dist(m) | Notes |
+|---------|----------|--------|-----------|---------|-------|
+| up_15° | 0.62 | 82% | 0%* | 6.2 | ⚠️ Partial — boulder wedging |
+| up_20° | 0.60 | 88% | 0%* | 6.0 | ⚠️ Partial — stagnation driving escape |
+| up_25° | 0.53 | 88% | 0%* | 5.2 | ⚠️ Near cliff — ep_len=980 (some fails) |
+| up_30° | 0.42 | 75% | 100%* | 4.2 | ❌ **Cliff** — robot stuck, not climbing |
+| up_35° | 0.42 | 73% | 100%* | 4.2 | ❌ No further degradation beyond 30° |
+
+*Survival inverted for uphill pyramid — see caveat above.
+
+**Root cause of 30° cliff**: gravity load × 12 boulders overwhelms the uphill push
+capacity.  The 50% downhill tile mix in Phase 8c diluted the uphill gradient signal.
+Phase 8d trains 100% uphill tiles to concentrate gradient on exactly this failure mode.
+
+**Phase 8d training command (resume from model_12495.pt, 100% uphill, 1500 iters):**
+
+```bash
+conda activate env_isaacsim
+python scripts/train.py --task RexmiRl-Go2w-Velocity-RockySlope-v0 --headless \
+    --load_run go2w_velocity_rocky_slope/2026-06-27_21-57-10 --checkpoint model_12495.pt
+```
+
+**model_13994.pt Phase 8d eval results (2026-06-28) — COMPLETED**
+
+Root cause of stall: `terrain_levels` ended at **0.185** — identical to where it started.
+The curriculum auto-demoted to row ≈1.9 (≈18° slope) at the start of Phase 8d and stayed there
+for all 1500 iterations.  Row 7–9 (29°–35°) were too far above policy capability to ever be reached.
+
+| Variant | 12495.pt (8c end) | 13994.pt (8d end) | Δ | Notes |
+|---------|------------------|------------------|---|-------|
+| **down_15°** | 0.89 | **0.96** | **+0.07** | ✅ Improved |
+| **down_20°** | 0.87 | **0.95** | **+0.08** | ✅ Improved |
+| down_25° | 0.82 | 0.81 | -0.01 | ≈ same |
+| **down_30°** | 0.79 | **0.91** | **+0.12** | ✅ Major |
+| **down_35°** | 0.72 | **0.90** | **+0.18** | ✅ Major |
+| up_15° | 0.62 | 0.60 | -0.02 | ≈ same (survival 0→50%: now traverses fast enough to reset) |
+| up_20° | 0.60 | 0.61 | +0.01 | ≈ same |
+| up_25° | 0.53 | 0.55 | +0.02 | small |
+| up_30° | 0.42 | 0.46 | +0.04 | small |
+| up_35° | 0.42 | 0.44 | +0.02 | small |
+
+**Key insight**: Downhill improved significantly (+0.12–0.18) because general gait quality
+improved at ≈18° rows and transferred to descent (gravity-assisted, easier to improve).
+Uphill gained only +0.01–0.04 — insufficient because the curriculum never trained on 25°+.
+
+**Root cause of curriculum stall**: `slope_max_deg=35°` put hard rows (7–9) at 29°–35°.
+Policy capability at those angles: tracking≈0.42 (well below promotion threshold).
+Curriculum correctly demoted to row≈1.9 and equilibrated there for 1500 iters.
+**Fix (Phase 8e)**: compress terrain to slope_max_deg=25°, add friction randomisation, add uphill lean reward.
+
+---
+
+### Phase 8e — model_13994.pt → uphill cliff push (slope_max=25°, friction rand, lean reward)
+
+**Three targeted changes** (implemented in `rocky_slope_env_cfg.py` + `rewards.py`):
+
+| Change | What | Why |
+|--------|------|-----|
+| Terrain range | `slope_max_deg: 35° → 25°` | Hard rows (7–9) now accessible at 23°–25° instead of 29°–35°. Curriculum can advance. |
+| Friction rand | μ ∈ (0.5, 1.5) per reset | Forces "weight-commit" uphill technique. min=0.5 > tan(25°)=0.47 ensures traction. Sim-to-real essential. |
+| Lean reward | `uphill_lean_reward` weight=+0.5 | Rewards nose-down pitch while climbing (vz>0.01). Missing behaviour: robot was flat-body fighting gravity. |
+
+**Phase 8e training command (resume from model_13994.pt, 2000 more iters):**
+
+```bash
+conda activate env_isaacsim
+python scripts/train.py --task RexmiRl-Go2w-Velocity-RockySlope-v0 --headless \
+    --load_run go2w_velocity_rocky_slope/2026-06-28_11-06-55 \
+    --checkpoint model_13994.pt --max_iterations 15994
+```
+
+**TensorBoard signals to watch in Phase 8e:**
+```
+terrain_levels:   target >2.0 within first 500 iters (was stuck at 0.19 in Phase 8d)
+uphill_lean:      should become non-zero once robot starts climbing (gate: vz>0.01)
+stagnation:       should stay small — friction rand adds variance but not stagnation
+flat_orientation: will grow slightly more negative (correct: leaning into slope)
+```
+
+**Phase 8e eval results (model_15993.pt, 2026-06-28) — COMPLETED**
+
+`terrain_levels` advanced from 0.19 to **0.64** (≈21°), then plateau'd — new equilibrium.
+Downhill improved strongly. Uphill flat (0.54 at 25°) — root cause: never trained pure uphill climbing.
+
+**Uphill** (tracking ratio, vx commanded = 0.5 m/s)
+
+| Variant | 12495.pt (8c) | 13994.pt (8d) | **15993.pt (8e)** | Notes |
+|---------|--------------|--------------|-------------------|-------|
+| up_15° | 0.62 | 0.60 | **0.60** | ≈ same |
+| up_20° | 0.60 | 0.61 | **0.59** | ≈ same |
+| up_25° | 0.53 | 0.55 | **0.54** | no improvement |
+| up_30° | 0.42 | 0.46 | **0.50** | small +0.04 |
+| up_35° | 0.42 | 0.44 | **0.42** | no improvement |
+
+**Downhill** (tracking ratio)
+
+| Variant | 12495.pt (8c) | 13994.pt (8d) | **15993.pt (8e)** | Notes |
+|---------|--------------|--------------|-------------------|-------|
+| down_15° | 0.89 | 0.96 | **1.00** | ✅ Perfect |
+| down_20° | 0.87 | 0.95 | **0.98** | ✅ Near-perfect |
+| down_25° | 0.82 | 0.81 | **0.94** | ✅ +0.13 major |
+| down_30° | 0.79 | 0.91 | **0.91** | same |
+| down_35° | 0.72 | 0.90 | **0.79** | ⚠️ Visual: fast successful descent (tile-boundary hit), not falls |
+
+**Root cause of uphill plateau**: Phases 8b–8e always combined boulders + slope
+simultaneously.  The policy found an equilibrium at the combined difficulty (21° + rocks)
+and could not advance — every promotion attempt was reversed by boulder wedging.
+The three skills needed (rough/obstacles, downhill, uphill steep slope) must be trained
+separately and combined.  model_8996 owns obstacles.  model_15993 owns downhill.
+Pure steep uphill was never trained in isolation with Phase 8e improvements.
+
+**Crater demo command (model_15993.pt — best overall for demo):**
+```bash
+conda activate env_isaacsim
+python scripts/play.py --task RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0 \
+    --checkpoint logs/rsl_rl/go2w_velocity_rocky_slope/2026-06-28_13-35-50/model_15993.pt
+```
+
+---
+
+### Phase 8f — pure uphill slope (no boulders, full 15°–35° range, resume model_15993.pt)
+
+**Strategy**: Remove boulders entirely.  Train only pure slope climbing (15°–35° pyramid)
+for 2000 iters.  With no boulders the ONLY limiter is slope steepness — the curriculum
+will advance freely past row 0.64 toward rows 5–7 (27°–30°).
+
+Reference: model_5998.pt (clean pyramid, 23°–45°, no boulders) reached terrain_levels=4.77 (≈33°).
+Phase 8f starts from model_15993.pt which already has friction robustness + lean reward baked in.
+
+**Phase 8g (planned after Phase 8f)**: reintroduce boulders at low count (max=6) on top of
+the Phase 8f checkpoint.  The policy will already know how to climb 25°–30° — boulders
+become an inconvenience to navigate, not a wall that stops climbing entirely.
+
+**Phase 8f training command (resume model_15993.pt, 2000 iters):**
+
+```bash
+conda activate env_isaacsim
+python scripts/train.py --task RexmiRl-Go2w-Velocity-RockySlope-v0 --headless \
+    --load_run go2w_velocity_rocky_slope/2026-06-28_13-35-50 \
+    --checkpoint model_15993.pt --max_iterations 2000
+```
+
+**TensorBoard signals to watch in Phase 8f:**
+```
+terrain_levels:   target >3.0 within 500 iters, >5.0 by end (NO boulders blocking)
+stagnation:       should drop toward 0 (no boulder wedging)
+uphill_lean:      should increase as slope rows increase
+flat_orientation: grows more negative as slope steepens — expected
+```
+
+**Phase 8f results (model_17992.pt, 2026-06-28) — COMPLETED, stalled**
+
+`terrain_levels` ended at **0.315** (= 21.3° with slope_max=35°) — identical to Phase 8e (21.4°).
+Removing boulders did NOT advance the curriculum. Stagnation was still -0.025 to -0.037 on PURE
+SLOPE with zero obstacles. The 21° ceiling is structural to model_15993.pt, not a terrain issue.
+The downhill-dominant training lineage (8b/c/d/e) converged to braking/descent weights that
+cannot be reshaped by the +0.5 lean reward signal.
+
+---
+
+### Phase 8g — amplified lean reward (+3.0), pure slope, resume model_17992.pt
+
+**Single change from Phase 8f**: `uphill_lean` weight +0.5 → **+3.0** (6×).
+
+At +3.0 the lean incentive is ~45% of velocity tracking reward — strong enough to reshape
+posture and force the nose-down gait required for slope climbing. Terrain unchanged (pure slope,
+no boulders, 15°–35°).
+
+**Decision gate at 500 iters**: if `terrain_levels` is still ≤ 0.40 → lean shaping is insufficient,
+the policy has converged too far into a descent gait. If it advances past 0.5 → working.
+
+**Phase 8g training command (resume model_17992.pt, 2000 iters):**
+
+```bash
+conda activate env_isaacsim
+python scripts/train.py --task RexmiRl-Go2w-Velocity-RockySlope-v0 --headless \
+    --load_run go2w_velocity_rocky_slope/2026-06-28_17-10-42 \
+    --checkpoint model_17992.pt --max_iterations 2000
+```
+
+**TensorBoard signals to watch in Phase 8g:**
+```
+terrain_levels:  GATE at iter+500: must pass 0.40 (currently 0.31)
+                 Target by end: >2.0 (≈24°), ideally >4.0 (≈28°)
+uphill_lean:     should rise from 0.003 to 0.01+ as posture reshapes
+stagnation:      target < -0.010 (was -0.025 — high for pure slope, gravity only)
+flat_orientation: more negative = body leaning into slope = correct
+```
+
+**Phase 8g result (CRASHED, 2026-06-29) — value function diverged**
+
+| Signal | Phase 8g start (iter 19208) | Phase 8g crash (iter 24340) |
+|--------|-----------------------------|-----------------------------|
+| `uphill_lean` | 0.11 | **2.0 (maxed)** |
+| `thigh_salute` | -0.007 | **-0.100 (maxed)** |
+| `terrain_levels` | 0.29 | **0.004 (collapsed)** |
+| `track_lin_vel_xy_exp` | 1.74 | **1.07 (degraded)** |
+| `value_function_loss` | 0.017 | **∞** |
+
+**Root cause**: The robot found the exploit `thigh-salute → nose-down pitch → max lean reward`:
+- Lean reward per step: +3.0 × (pitch profit) ≈ **+2.0/step**
+- Thigh_salute penalty: -1.0 weight → **-0.10/step** at max fire
+- Net: **+1.9/step profit** — policy abandoned climbing to farm lean reward
+- Value function targets diverged exponentially → NaN → crash at iter 24341
+
+Error: `RuntimeError: normal expects all elements of std >= 0.0` (NaN in network weights)
+
+**Conclusion**: There is no safe lean reward weight. At weight=0.5 it's too weak; at weight=3.0 it's
+exploited. The thigh-salute exploit (raise thighs → pitch forward → lean reward) is always available
+and always cheaper than genuine climbing.
+
+---
+
+### Phase 8h — Physics fix: boulders + friction floor (Path B+C), resume model_15993.pt
+
+**Physics root cause (properly diagnosed after 8g):**
+- Go2W has 1600 N wheel force — torque is NOT the problem
+- Climbing requires μ ≥ tan(θ). With μ_min=0.5: any slope >26.6° is physically impossible in the lowest-friction episodes
+- Phase 8f (pure smooth slope) was the worst case: no geometric interlocking at all, only the μ coefficient
+
+**Two config changes (no new reward terms):**
+
+| Change | Before | After | Physical effect |
+|--------|--------|-------|-----------------|
+| Friction floor | μ_min=0.5 → guaranteed slip at 35° | **μ_min=0.8** → arctan(0.8)=38.7° max gripable | All episodes physically achievable at 35° |
+| Boulder texture | 0 boulders (Phase 8f) | **max=12, h≤15cm** | Geometric interlocking adds traction beyond μ coefficient |
+
+Boulder count: 12 (not 25 like Phase 8e) to avoid wedging. Height: 15cm max (not 20cm) — 3× wheel radius, step-overable with stagnation escape. **Lean reward: removed** — no exploitable posture reward at any weight.
+
+**Phase 8h training command (resume model_15993.pt, 3000 iters ≈ 4 hours):**
+
+```bash
+conda activate env_isaacsim
+python scripts/train.py --task RexmiRl-Go2w-Velocity-RockySlope-v0 --headless \
+    --load_run go2w_velocity_rocky_slope/2026-06-28_13-35-50 \
+    --checkpoint model_15993.pt --max_iterations 3000
+```
+
+**TensorBoard signals to watch in Phase 8h:**
+```
+terrain_levels:  target >1.0 within 500 iters, >3.0 (24°) by 2000 iters
+stagnation:      boulders restored → will rise from -0.025 to -0.04–0.06 — OK
+                 if > -0.10 consistently: boulders wedging, reduce boulder_height_max
+thigh_salute:    should stay near 0 (lean reward gone, no incentive to salute)
+flat_orientation: more negative = body tilting into slope = correct
+track_lin_vel:   should stay > 1.60; if < 1.40 boulders are blocking forward progress
+```
+
+**Phase 8h results (model_17992.pt, 2026-06-29_19-58-05) — COMPLETED, same ceiling**
+
+| Metric | Phase 8h end | Assessment |
+|--------|-------------|------------|
+| terrain_levels | **0.385** (22.7° on 35° max) | Same as 8e/8f/8g ceiling |
+| thigh_salute | **-0.003** | ✅ Exploit gone |
+| value_function_loss | **0.019** | ✅ Stable throughout |
+| track_lin_vel_xy_exp | **1.75–1.80** | ✅ Full velocity tracking preserved |
+
+terrain_levels trajectory: 0.403 (start) → 0.421 (peak) → **0.385 (end)** — slight regression.
+
+**Root cause confirmed — gait basin, not physics:**
+
+The friction floor and boulder texture changes did exactly what the physics analysis predicted (no
+exploit, stable training, good velocity tracking). But the terrain_levels ceiling of ~22° persisted
+across all phases from 8d through 8h — that's 5 separate training runs with different terrain,
+friction, rewards, and obstacle configurations, all converging to the same equilibrium.
+
+The common factor is the **gait basin baked in at Phase 8c (model_12495.pt)**:
+```
+model_5998.pt  terrain_levels=4.77 (33°)  — pure uphill basin      ← CORRECT
+     ↓ Phase 8c: 50% downhill tiles → model_12495 — descent basin   ← WRONG TURN
+     ↓ 8d/e/f/g/h: 5 phases, all inherit descent basin → 22°        ← CONFIRMED
+```
+
+Phase 8c was necessary to teach descent (needed for crater bowl demo), but it permanently
+shifted the policy's gait equilibrium from "push against gravity" to "brake against gravity".
+No terrain or reward change can escape that attractor without starting from a different basin.
+
+---
+
+### Phase 8i — Restart from model_8996.pt (rough terrain neutral gait), Phase 8h terrain
+
+**Critical correction:** model_5998.pt is NOT an uphill specialist. `HfPyramidSlopedTerrainCfg`
+has a 2m flat CENTER PLATFORM — robots spawn on the platform and go DOWN on all sides. The
+"going sideways" problem: on a pyramid with slopes everywhere, the robot finds the lowest-gradient
+lateral path instead of fighting straight uphill. terrain_levels=4.77 means model_5998 **descends**
+33°+ slopes. It is a descent specialist, same gait basin as model_12495.
+
+**Correct starting point: model_8996.pt** — rough terrain generalist, trained on MIXED terrain
+(stairs up/down, slopes, boxes, rough) with no pure-descent exposure. This has the most neutral
+gait of any checkpoint. Starting Rocky Slope uphill from model_8996 directly **skips the entire
+steep-slope descent detour** that contaminated all subsequent policies.
+
+```
+model_8996.pt   — rough terrain, mixed up/down, NEUTRAL gait         ← correct start
+     ↓ Phase 8 steep slope (HfPyramidSlopedTerrainCfg = DESCEND):
+model_5998.pt   — pyramid slope, descend from platform               ← ALSO DESCENT
+     ↓ Phase 8b: rocky slope → model_7497 → Phase 8c: 50% downhill → model_12495 DESCENT
+     ↓ Phases 8d–8h: 5 runs, all converge to 22° ceiling             ← confirmed
+```
+
+**NOTE:** 22° ceiling may still apply — it may be a true physical limit (friction/traction/
+robot geometry) not just a gait basin issue. Phase 8i with model_8996 will answer this definitively.
+If it also stalls at ~22° after 3000 iters, the ceiling is physical and the demo proceeds with
+model_15993.pt.
+
+**Phase 8i training command (fresh start from model_8996.pt, 3000 iters ≈ 4 hours):**
+
+```bash
+conda activate env_isaacsim
+python scripts/train.py --task RexmiRl-Go2w-Velocity-RockySlope-v0 --headless \
+    --load_run go2w_velocity_rough/2026-06-14_20-03-41 \
+    --checkpoint model_8996.pt --max_iterations 3000
+```
+
+**TensorBoard signals to watch in Phase 8i:**
+```
+terrain_levels:  GATE at 500 iters: expect >0.5 (model_8996 → rocky slope is untested;
+                 it handled rough slopes to 23° but never pure 35° rocky uphill)
+                 If still ≤ 0.30 at iter+500: 22° is physical limit, not gait basin
+stagnation:      will fire vs boulders, target -0.05 to -0.08 (manageable)
+                 if > -0.12 consistently: boulders wedging, reduce boulder_height_max
+track_lin_vel:   model_8996 used ±0.5 m/s (same as rocky slope env) — tracking OK from iter 0
+thigh_salute:    should stay near 0 (no lean reward bait)
+flat_orientation: will go more negative (body tilting into slope) — expected
+```
+
+**Phase 8i eval results (model_13994.pt, 2026-06-30_09-31-48) — PRODUCTION POLICY ✅**
+
+```bash
+CKPT_8I=logs/rsl_rl/go2w_velocity_rocky_slope/2026-06-30_09-31-48/model_13994.pt
+python scripts/eval.py --checkpoint $CKPT_8I --group rocky_slope_up
+python scripts/eval.py --checkpoint $CKPT_8I --group rocky_slope_down
+```
+
+**Uphill (ascending, against gravity + boulders):**
+
+| Variant | model_15993 (8e best) | **model_13994 (8i)** | Δ |
+|---------|----------------------|----------------------|---|
+| up_15° | 0.60 | **0.64** | +0.04 |
+| up_20° | 0.59 | **0.64** | +0.05 |
+| up_25° | 0.54 | **0.60** | **+0.06** |
+| up_30° | 0.50 | **0.57** | **+0.07** |
+| up_35° | 0.42 | **0.57** | **+0.15 🏆** |
+
+**Downhill (descent braking):**
+
+| Variant | model_15993 (8e best) | **model_13994 (8i)** | Δ |
+|---------|----------------------|----------------------|---|
+| down_15° | 1.00 | **1.00** | = |
+| down_20° | 0.98 | **1.00** | +0.02 |
+| down_25° | 0.94 | **0.99** | +0.05 |
+| down_30° | 0.91 | **0.98** | +0.07 |
+| down_35° | 0.79 | **0.91** | **+0.12 🏆** |
+
+**Both uphill AND downhill improved** — the neutral gait quality from model_8996 transferred to
+everything. Shackleton inner wall (28–33°): descent at 0.98–0.91 tracking ✅, ascent at 0.57–0.60
+tracking (0.28–0.30 m/s — slow but functional for crater traverse demo) ✅.
+
+Note: `survival=0%` at up_15° and up_35° is the tile-boundary reset artifact — robots successfully
+cross the full 8m tile width and reset early (not falls). `survival=50%` at 20°–30° = half the
+robots mid-traverse at eval end. Use `tracking` and `moving` as the meaningful metrics for uphill.
+
+**Crater bowl demo command (production):**
+```bash
+python scripts/play.py --task RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0 \
+    --checkpoint logs/rsl_rl/go2w_velocity_rocky_slope/2026-06-30_09-31-48/model_13994.pt
+```
+
+---
+
 ### Crater terrain
 
 > See `docs/lunar_crater_demo_run.md` for full setup details.
@@ -1355,6 +1937,10 @@ python scripts/train.py --task RexmiRl-Go2w-Velocity-Crater-v0 --headless \
 
 # Play crater policy (GUI)
 python scripts/play.py --task RexmiRl-Go2w-Velocity-Crater-Play-v0
+
+
+python scripts/play.py --task RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0 \
+    --checkpoint logs/rsl_rl/go2w_velocity_rocky_slope/2026-06-28_13-35-50/model_15993.pt
 
 # TensorBoard
 tensorboard --logdir logs/rsl_rl/go2w_velocity_crater
@@ -1388,4 +1974,4 @@ ls logs/rsl_rl/go2w_velocity_steep_slope/<date>_<time>/*.pt | sort -V | tail -3
 
 ---
 
-*Last updated: 2026-06-20 · REXMI Project · Phase 8 — exploit-free steep-slope policy (model_1999.pt, terrain_level 4.77 ~33.5°); curriculum state save/restore added to scripts/train.py*
+*Last updated: 2026-06-30 · REXMI Project · Phase 8i complete — model_13994.pt is PRODUCTION POLICY; model_8996 neutral gait broke the 22° ceiling that blocked 5 prior phases; up_35°: 0.42→0.57 (+0.15), down_35°: 0.79→0.91 (+0.12); both uphill AND downhill improved; crater bowl demo ready*

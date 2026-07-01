@@ -188,6 +188,7 @@ gym.register(
 # Play:
 #   python scripts/play.py --task RexmiRl-Go2w-Velocity-SteepSlope-Play-v0
 # Logs: logs/rsl_rl/go2w_velocity_steep_slope/
+# FROZEN: model_5998.pt (2026-06-20_15-37-32) — do not retrain this experiment
 
 gym.register(
     id="RexmiRl-Go2w-Velocity-SteepSlope-v0",
@@ -425,6 +426,87 @@ gym.register(
         ),
         "rsl_rl_cfg_entry_point": (
             f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wFastFlatPPORunnerCfg"
+        ),
+    },
+)
+
+# ---------------------------------------------------------------------------
+# Rocky slope terrain (Phase 8b — steep slopes WITH boulders, 15°–35°)
+# ---------------------------------------------------------------------------
+# Addresses the crater bowl failure mode: robot falls when a boulder snags
+# its leg on a steep slope.  This policy is trained on pyramid slopes that
+# have difficulty-scaled Gaussian boulder bumps and surface roughness added.
+#
+# Train (load from frozen steep-slope checkpoint):
+#   python scripts/train.py --task RexmiRl-Go2w-Velocity-RockySlope-v0 --headless \
+#       --load_run go2w_velocity_steep_slope/2026-06-20_15-37-32 --checkpoint model_5998.pt
+# Resume:
+#   python scripts/train.py --task RexmiRl-Go2w-Velocity-RockySlope-v0 --headless --resume
+# Play training terrain:
+#   python scripts/play.py --task RexmiRl-Go2w-Velocity-RockySlope-Play-v0 \
+#       --load_run go2w_velocity_rocky_slope/<run_date>
+# Demo on crater bowl:
+#   python scripts/play.py --task RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0 \
+#       --load_run go2w_velocity_rocky_slope/<run_date>
+# Logs: logs/rsl_rl/go2w_velocity_rocky_slope/
+
+gym.register(
+    id="RexmiRl-Go2w-Velocity-RockySlope-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w"
+            ".rocky_slope_env_cfg:Go2wRockySlopeEnvCfg"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wRockySlopePPORunnerCfg"
+        ),
+    },
+)
+
+gym.register(
+    id="RexmiRl-Go2w-Velocity-RockySlope-Play-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w"
+            ".rocky_slope_env_cfg:Go2wRockySlopeEnvCfg_PLAY"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wRockySlopePPORunnerCfg"
+        ),
+    },
+)
+
+# Crater bowl with rocky-slope policy (PRIMARY DEMO after Phase 8b training)
+gym.register(
+    id="RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w.crater_env_cfg"
+            ":LunarCraterDemoBowlEnvCfg"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wRockySlopePPORunnerCfg"
+        ),
+    },
+)
+
+gym.register(
+    id="RexmiRl-Go2w-Crater-Bowl-RockySlope-Record-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w.crater_env_cfg"
+            ":LunarCraterDemoBowlEnvCfg_PLAY"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wRockySlopePPORunnerCfg"
         ),
     },
 )

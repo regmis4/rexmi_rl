@@ -347,6 +347,254 @@ class CraterType3WallCfg(HfTerrainBaseCfg):
 
 
 # ===========================================================================
+# Rocky Pyramid Slope — sloped terrain with boulders for robustness training
+# ===========================================================================
+
+@height_field_to_mesh
+def rocky_pyramid_slope(difficulty: float, cfg) -> np.ndarray:
+    """
+    Pyramid slope with difficulty-scaled boulders and surface roughness.
+
+    Used to train policy robustness on textured steep terrain — the scenario
+    encountered in the crater bowl (sloped surface + scattered rocks simultaneously).
+
+    The ``difficulty`` parameter (0.0 at curriculum row 0, 1.0 at row 9)
+    simultaneously scales slope angle, boulder count, boulder size, and roughness:
+
+      difficulty = 0.0  →  slope = 15°,  3 boulders, h_max =  5 cm, roughness = 1 cm
+      difficulty = 0.5  →  slope = 25°, 14 boulders, h_max = 12 cm, roughness = 3.5 cm
+      difficulty = 1.0  →  slope = 35°, 25 boulders, h_max = 20 cm, roughness = 6 cm
+
+    The robot warms up on familiar slopes (15°, 3 tiny rocks) and progressively
+    encounters the crater-wall reality (35°, 25 rocks, 6 cm texture) — no cold start.
+
+    Tile layout:
+      • 8 m × 8 m pyramid slope (same tile size as steep-slope training)
+      • 2 m flat platform in the tile centre — robot spawns here
+      • Slope rises outward from the platform edge to the tile border
+      • Boulders scattered across the full tile (slope AND platform)
+        so the robot learns to handle rocks in all phases of traversal
+
+    Parameters
+    ----------
+    difficulty : float
+        Curriculum difficulty in [0.0, 1.0].  Row 0 = 0.0, row 9 = 1.0.
+    cfg : RockyPyramidSlopeCfg
+        Configuration dataclass with all terrain parameters.
+
+    Returns
+    -------
+    np.ndarray  shape (x_pixels, y_pixels), dtype int16
+        Height field in raw units (raw × vertical_scale = metres).
+    """
+    x_pixels = int(cfg.size[0] / cfg.horizontal_scale)
+    y_pixels = int(cfg.size[1] / cfg.horizontal_scale)
+    hx, hy = x_pixels // 2, y_pixels // 2
+
+    # ------------------------------------------------------------------
+    # Difficulty-scaled parameters
+    # ------------------------------------------------------------------
+    slope_deg    = cfg.slope_min_deg + difficulty * (cfg.slope_max_deg - cfg.slope_min_deg)
+    n_boulders   = int(cfg.boulder_count_min
+                       + difficulty * (cfg.boulder_count_max - cfg.boulder_count_min))
+    b_height_max = (cfg.boulder_height_min
+                    + difficulty * (cfg.boulder_height_max - cfg.boulder_height_min))
+    roughness    = cfg.roughness_min_m + difficulty * (cfg.roughness_max_m - cfg.roughness_min_m)
+
+    # ------------------------------------------------------------------
+    # Build pyramid slope heightfield
+    # ------------------------------------------------------------------
+    # Tile-centred physical coordinates (metres)
+    x_m = (np.arange(x_pixels) - hx) * cfg.horizontal_scale
+    y_m = (np.arange(y_pixels) - hy) * cfg.horizontal_scale
+    X, Y = np.meshgrid(x_m, y_m, indexing='ij')
+
+    # Distance from the flat platform edge (Chebyshev / L∞ metric creates a
+    # square platform matching Isaac Lab's HfPyramidSlopedTerrainCfg geometry)
+    platform_half = cfg.platform_width / 2.0
+    dist_from_platform = np.maximum(
+        0.0,
+        np.maximum(np.abs(X) - platform_half, np.abs(Y) - platform_half),
+    )
+    h = math.tan(math.radians(slope_deg)) * dist_from_platform
+
+    # ------------------------------------------------------------------
+    # Surface roughness — uniform noise, difficulty-scaled amplitude
+    # ------------------------------------------------------------------
+    rng = np.random.default_rng(seed=cfg.seed)
+    h += rng.uniform(-roughness / 2.0, roughness / 2.0, h.shape)
+
+    # ------------------------------------------------------------------
+    # Scatter boulders across the full tile (slope + platform)
+    # ------------------------------------------------------------------
+    # h_min is fixed so there are always some small rocks even at row 0.
+    # h_max scales with difficulty so hard rows have larger boulders.
+    half_x = cfg.size[0] / 2.0
+    half_y = cfg.size[1] / 2.0
+    _add_boulders(
+        h, X, Y, rng,
+        n_boulders,
+        cfg.boulder_height_min, b_height_max,
+        cfg.boulder_radius_min, cfg.boulder_radius_max,
+        -half_x, half_x, -half_y, half_y,
+    )
+
+    # Ensure global minimum = 0 (consistent with other terrain generators)
+    h -= h.min()
+    return (h / cfg.vertical_scale).astype(np.int16)
+
+
+@configclass
+class RockyPyramidSlopeCfg(HfTerrainBaseCfg):
+    """
+    Rocky pyramid slope terrain configuration.
+
+    Combines a pyramid slope (identical geometry to HfPyramidSlopedTerrainCfg)
+    with randomly scattered Gaussian boulder bumps and surface roughness.
+    Used by ``Go2wRockySlopeEnvCfg`` to train robustness on textured steep terrain.
+
+    Parameters tagged with "(difficulty-scaled)" are linearly interpolated between
+    their _min and _max values as curriculum difficulty increases from 0.0 to 1.0.
+
+    Inherits from HfTerrainBaseCfg:
+      horizontal_scale = 0.1 m/pixel
+      vertical_scale   = 0.005 m/unit
+      border_width     = 0.0 m
+      size             = set by TerrainGeneratorCfg.size (8 m × 8 m)
+    """
+    function: Callable = rocky_pyramid_slope
+    proportion: float = 1.0
+
+    # Slope angle range (difficulty-scaled)
+    slope_min_deg: float = 15.0   # row 0: 15° — warm-up, already known from steep-slope training
+    slope_max_deg: float = 35.0   # row 9: 35° — current physical capability ceiling
+
+    # Flat platform in tile centre (robot spawn zone)
+    platform_width: float = 2.0   # metres, matches HfPyramidSlopedTerrainCfg default
+
+    # Surface roughness amplitude (difficulty-scaled, uniform noise ±roughness/2)
+    roughness_min_m: float = 0.010   # 1 cm at easiest row — nearly clean
+    roughness_max_m: float = 0.060   # 6 cm at hardest (matches crater floor roughness)
+
+    # Boulder count (difficulty-scaled)
+    boulder_count_min: int = 3    # 3 rocks at row 0 — almost a clean slope
+    boulder_count_max: int = 25   # 25 rocks at row 9 — heavily cluttered crater wall
+
+    # Boulder height: h_min fixed; h_max difficulty-scaled
+    boulder_height_min: float = 0.05   # 5 cm always present (even easiest row)
+    boulder_height_max: float = 0.20   # 20 cm at hardest (matches rough-terrain box heights)
+
+    # Boulder width/sigma = radius / 2 — wide relative to height for flat slab appearance
+    boulder_radius_min: float = 0.15   # narrow, sharp-edged rocks
+    boulder_radius_max: float = 0.50   # wide, flat slabs (matches exterior bowl boulders)
+
+    # Random seed for reproducible tile geometry
+    seed: int = 99
+
+
+# ===========================================================================
+# Rocky Inverted Pyramid Slope — downhill variant for descent training
+# ===========================================================================
+
+@height_field_to_mesh
+def rocky_pyramid_slope_down(difficulty: float, cfg) -> np.ndarray:
+    """
+    Inverted pyramid slope with difficulty-scaled boulders — DOWNHILL variant.
+
+    Mirrors ``rocky_pyramid_slope()`` exactly but with the slope direction
+    REVERSED: the flat platform at the tile centre is the **highest** point,
+    and terrain falls away toward the tile edges.  The robot spawns at the
+    centre (high) and is commanded FORWARD — it descends the slope.
+
+    Used for controlled-descent training (Phase 8c): the policy must learn to
+    actively brake wheels as gravity accelerates it down the crater wall.
+
+    Difficulty scaling — identical to the uphill variant:
+      difficulty = 0.0  →  slope = 15°,  3 boulders, h_max =  5 cm, roughness = 1 cm
+      difficulty = 0.5  →  slope = 25°, 14 boulders, h_max = 12 cm, roughness = 3.5 cm
+      difficulty = 1.0  →  slope = 35°, 25 boulders, h_max = 20 cm, roughness = 6 cm
+
+    Tile layout: same 8 m × 8 m tile, 2 m flat platform at the peak (centre).
+    Boulders scattered across the full tile including the flat platform — the
+    robot must handle rocks on both the descent AND the launch zone.
+    """
+    x_pixels = int(cfg.size[0] / cfg.horizontal_scale)
+    y_pixels = int(cfg.size[1] / cfg.horizontal_scale)
+    hx, hy = x_pixels // 2, y_pixels // 2
+
+    # ------------------------------------------------------------------
+    # Difficulty-scaled parameters (same as uphill variant)
+    # ------------------------------------------------------------------
+    slope_deg    = cfg.slope_min_deg + difficulty * (cfg.slope_max_deg - cfg.slope_min_deg)
+    n_boulders   = int(cfg.boulder_count_min
+                       + difficulty * (cfg.boulder_count_max - cfg.boulder_count_min))
+    b_height_max = (cfg.boulder_height_min
+                    + difficulty * (cfg.boulder_height_max - cfg.boulder_height_min))
+    roughness    = cfg.roughness_min_m + difficulty * (cfg.roughness_max_m - cfg.roughness_min_m)
+
+    # ------------------------------------------------------------------
+    # Build INVERTED pyramid slope heightfield (peak at centre)
+    # ------------------------------------------------------------------
+    x_m = (np.arange(x_pixels) - hx) * cfg.horizontal_scale
+    y_m = (np.arange(y_pixels) - hy) * cfg.horizontal_scale
+    X, Y = np.meshgrid(x_m, y_m, indexing='ij')
+
+    platform_half = cfg.platform_width / 2.0
+    dist_from_platform = np.maximum(
+        0.0,
+        np.maximum(np.abs(X) - platform_half, np.abs(Y) - platform_half),
+    )
+
+    # Maximum distance from platform to tile edge
+    max_dist = max(cfg.size[0] / 2.0 - platform_half, cfg.size[1] / 2.0 - platform_half)
+    max_h = math.tan(math.radians(slope_deg)) * max_dist
+
+    # INVERTED: platform = max_h (highest), tile edges = 0 (lowest)
+    h = max_h - math.tan(math.radians(slope_deg)) * dist_from_platform
+
+    # ------------------------------------------------------------------
+    # Surface roughness — use a different seed offset to produce a
+    # different boulder/roughness pattern from the uphill companion tile
+    # ------------------------------------------------------------------
+    rng = np.random.default_rng(seed=cfg.seed + 1000)
+    h += rng.uniform(-roughness / 2.0, roughness / 2.0, h.shape)
+
+    # ------------------------------------------------------------------
+    # Scatter boulders across the full tile
+    # ------------------------------------------------------------------
+    half_x = cfg.size[0] / 2.0
+    half_y = cfg.size[1] / 2.0
+    _add_boulders(
+        h, X, Y, rng,
+        n_boulders,
+        cfg.boulder_height_min, b_height_max,
+        cfg.boulder_radius_min, cfg.boulder_radius_max,
+        -half_x, half_x, -half_y, half_y,
+    )
+
+    # Ensure global minimum = 0
+    h -= h.min()
+    return (h / cfg.vertical_scale).astype(np.int16)
+
+
+@configclass
+class RockyPyramidSlopeDownCfg(RockyPyramidSlopeCfg):
+    """
+    Downhill rocky pyramid slope — robot descends from the centre platform.
+
+    Inherits all parameters from ``RockyPyramidSlopeCfg`` (same slope range,
+    boulder counts, heights, roughness, platform width, seed).  The only
+    difference is the terrain generator function: ``rocky_pyramid_slope_down``
+    inverts the height profile so the platform is the peak and the robot
+    descends when commanded forward.
+
+    Used alongside ``RockyPyramidSlopeCfg`` in a 50 / 50 terrain split so
+    the policy trains equally on uphill and downhill scenarios.
+    """
+    function: Callable = rocky_pyramid_slope_down
+
+
+# ===========================================================================
 # Demo Bowl — full radial crater at robot scale (NEW HEADLINE DEMO TERRAIN)
 # ===========================================================================
 

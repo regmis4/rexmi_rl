@@ -181,10 +181,20 @@ if args._single is None and not args.visual:
         [f"slope_{d}deg"         for d in [2, 5, 8, 10, 15, 20, 23]] +
         # rough (5)
         [f"rough_{n}cm"          for n in [2, 4, 6, 8, 10]] +
-        # steep_slope (5) — Phase 8; 35° = Shackleton crater target
-        [f"steep_slope_{d}deg"   for d in [25, 30, 35, 40, 45]]
+        # steep_slope (5) — Phase 8 clean; 35° = Shackleton crater target
+        [f"steep_slope_{d}deg"   for d in [25, 30, 35, 40, 45]] +
+
+        # rocky_slope_up (5) — Phase 8c/d; uphill boulder slope, find capability cliff
+        [f"rocky_slope_up_{d}deg"   for d in [15, 20, 25, 30, 35]] +
+
+        # rocky_slope_down (5) — Phase 8c/d; downhill braking on boulder slope
+        [f"rocky_slope_down_{d}deg" for d in [15, 20, 25, 30, 35]]
     )
-    _VALID_GROUPS = ["stairs_up", "stairs_down", "boxes", "slope", "rough", "steep_slope"]
+    _VALID_GROUPS = [
+        "stairs_up", "stairs_down", "boxes", "slope", "rough",
+        "steep_slope",
+        "rocky_slope_up", "rocky_slope_down",
+    ]
 
     if not os.path.isfile(args.checkpoint):
         print(f"[eval] ERROR: checkpoint not found: {args.checkpoint}")
@@ -311,7 +321,11 @@ if args._single is None and not args.visual:
     # -----------------------------------------------------------------------
     # Print results table
     # -----------------------------------------------------------------------
-    GROUPS = ["stairs_up", "stairs_down", "boxes", "slope", "rough", "steep_slope"]
+    GROUPS = [
+        "stairs_up", "stairs_down", "boxes", "slope", "rough",
+        "steep_slope",
+        "rocky_slope_up", "rocky_slope_down",
+    ]
     sep = "─" * 80
 
     print("=" * 80)
@@ -536,14 +550,32 @@ for _step in range(args.steps):
         ep_step_buf   = ep_step_buf * (~dones)
 
 # Metrics
+# ---------------------------------------------------------------------------
+# Survival accounting:
+# Isaac Lab's RslRlVecEnvWrapper only includes actual FAILURES (base_contact,
+# bad_orientation) in the dones tensor — episode TIMEOUTS (truncations) are
+# handled internally by the env and are NOT returned as dones=True.
+#
+# This means for robust policies that don't fall, dones is always False,
+# ep_count=0, and the naive formula gives survival_pct=0% — misleading.
+#
+# Fix: after the loop, envs still in their episode (ep_step_buf > 0) are
+# accounted as "completed via timeout" — they ran the full eval window
+# without falling.  Any env with ep_step_buf >= _SURVIVAL_THRESH is a survivor.
+# ---------------------------------------------------------------------------
 total_steps  = step_count.float()
 mean_vel     = (vel_accum / total_steps.clamp(min=1)).mean().item()
 tracking     = min(mean_vel / _COMMANDED_VEL, 1.0)
 moving_frac  = (moving_steps.float() / total_steps.clamp(min=1)).mean().item()
-total_ep     = ep_count.sum().item()
-total_surv   = ep_survived.sum().item()
+
+# Envs still running at end of eval (never terminated via fall)
+still_running_mask = ep_step_buf > 0
+still_survived_mask = still_running_mask & (ep_step_buf >= _SURVIVAL_THRESH)
+
+total_ep     = ep_count.sum().item() + still_running_mask.sum().item()
+total_surv   = ep_survived.sum().item() + still_survived_mask.sum().item()
 survival_pct = (total_surv / max(total_ep, 1)) * 100.0
-mean_ep_len  = (total_steps.sum().item() / total_ep) if total_ep > 0 else float(args.steps)
+mean_ep_len  = (total_steps.sum().item() / max(total_ep, 1))
 mean_dist    = tracking * _COMMANDED_VEL * mean_ep_len * _POLICY_DT
 
 result = {

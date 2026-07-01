@@ -44,6 +44,11 @@ from isaaclab.terrains.height_field.hf_terrains_cfg import (
 from isaaclab.utils import configclass
 
 from rexmi_rl.tasks.locomotion.velocity.config.go2w.rough_env_cfg import Go2wRoughEnvCfg
+from rexmi_rl.tasks.locomotion.velocity.config.go2w.rocky_slope_env_cfg import Go2wRockySlopeEnvCfg
+from rexmi_rl.tasks.locomotion.velocity.config.go2w.crater_terrain import (
+    RockyPyramidSlopeCfg,
+    RockyPyramidSlopeDownCfg,
+)
 
 
 # ============================================================================
@@ -332,3 +337,145 @@ for _n in [2, 4, 6, 8, 10]:
 # 35° is the Shackleton crater target; sweep 25–45° in 5° steps.
 for _d in [25, 30, 35, 40, 45]:
     EVAL_VARIANTS.append((f"steep_slope_{_d}deg", lambda d=_d: steep_slope_cfg(d)))
+
+
+# ============================================================================
+# Rocky slope evaluation base config
+# ============================================================================
+
+@configclass
+class Go2wRockyEvalEnvCfg(Go2wRockySlopeEnvCfg):
+    """
+    Base evaluation config for rocky slope variants (uphill and downhill).
+
+    Inherits from Go2wRockySlopeEnvCfg to get the correct training env settings:
+      • bad_orientation = 1.4 rad (80°) — CRITICAL: rocky slopes reach 35°, robot
+        body tilts 30°+, so the 57° rough-env limit would cause false terminations
+      • flat_orientation_l2 = -0.1 — matches rocky slope training exactly
+      • anti-exploit rewards (hip_crossing, thigh_salute, calf_symmetry, hip_symmetry)
+      • stagnation penalty (-2.5) — measures whether robot escapes boulders
+      • height scanner (160-dim) — same obs space as model_12495.pt
+
+    Applies the standard eval overrides:
+      • Fixed forward command: vx = 0.5 m/s (clear capability boundary test)
+      • 50 robots, 8 m spacing (one per 8×8 m tile)
+      • No terrain curriculum
+      • No sensor noise (clean measurement)
+      • No random pushes or external forces
+
+    Note on difficulty at eval: Isaac Lab passes difficulty=0.0 to all tiles when
+    num_rows=1.  The rocky slope terrain functions at difficulty=0.0 use only the
+    _min values of all difficulty-scaled parameters (slope_min_deg, boulder_count_min,
+    boulder_height_min, roughness_min_m).  The factory functions below set these
+    min values to the desired fixed eval difficulty, making max values irrelevant.
+    """
+
+    def __post_init__(self):
+        # Apply Go2wRockySlopeEnvCfg (rocky slope terrain + relaxed orientation +
+        # anti-exploit rewards + stagnation=-2.5 + forward-only commands)
+        super().__post_init__()
+
+        # Override commands: fixed 0.5 m/s forward for clean capability measurement
+        # (training used vx ∈ (0.2, 0.5) but eval standardises at 0.5 m/s)
+        self.commands.base_velocity.ranges.lin_vel_x = (0.5, 0.5)
+        self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
+        self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
+
+        # 50 robots, one per 8 m × 8 m tile
+        self.scene.num_envs = 50
+        self.scene.env_spacing = 8.0
+
+        # No terrain curriculum — robots stay at the fixed difficulty we set
+        self.curriculum.terrain_levels = None
+
+        # Clean observations — no noise so measurement reflects true policy performance
+        self.observations.policy.enable_corruption = False
+
+        # No perturbations — isolate terrain difficulty from external forces
+        self.events.push_robot = None
+        self.events.base_external_force_torque = None
+
+
+# ============================================================================
+# Rocky slope factory functions
+# ============================================================================
+# Fixed boulder parameters for eval:
+#   • 12 boulders per tile — representative of mid-difficulty crater wall
+#   • 10 cm boulder height — meaningful obstacle but not extreme
+#   • 3 cm surface roughness — matches crater floor texture
+#
+# Because difficulty=0.0 in eval (num_rows=1), ONLY the _min values are used.
+# The _max values are set equal to _min to make the intent explicit.
+
+_ROCKY_EVAL_BOULDER_PARAMS = dict(
+    boulder_count_min=12,     boulder_count_max=12,
+    boulder_height_min=0.10,  boulder_height_max=0.10,  # 10 cm fixed
+    boulder_radius_min=0.15,  boulder_radius_max=0.50,  # varied width (representative)
+    roughness_min_m=0.030,    roughness_max_m=0.030,    # 3 cm roughness fixed
+)
+
+
+def rocky_slope_up_cfg(slope_deg: int) -> Go2wRockyEvalEnvCfg:
+    """
+    Uphill rocky pyramid slope — robot climbs from the LOW centre platform outward.
+
+    The terrain geometry: platform at the lowest point, slope rises to tile edges.
+    Robot spawns at the low centre and is commanded 0.5 m/s forward — it must
+    climb up the rocky slope against gravity.
+
+    slope_deg  : slope angle in degrees (15, 20, 25, 30, or 35)
+    Boulders   : 12 rocks, 10 cm height, 15–50 cm radius, 3 cm roughness (fixed)
+
+    Use this group to characterise the uphill boulder-climbing capability cliff.
+    Expected: current policy (model_12495.pt) handles 15–20°, struggles 25°+.
+    """
+    cfg = Go2wRockyEvalEnvCfg()
+    cfg.scene.terrain.terrain_generator = _single_terrain_gen(
+        RockyPyramidSlopeCfg(
+            proportion=1.0,
+            slope_min_deg=float(slope_deg),   # difficulty=0 uses slope_min_deg
+            slope_max_deg=float(slope_deg),   # set equal for clarity
+            **_ROCKY_EVAL_BOULDER_PARAMS,
+        )
+    )
+    return cfg
+
+
+def rocky_slope_down_cfg(slope_deg: int) -> Go2wRockyEvalEnvCfg:
+    """
+    Downhill rocky slope — robot descends from the HIGH centre platform outward.
+
+    The terrain geometry: platform at the highest point (peak), slope falls to
+    tile edges.  Robot spawns at the high centre and is commanded 0.5 m/s forward
+    — it descends the rocky slope; wheels must brake to prevent runaway.
+
+    slope_deg  : slope angle in degrees (15, 20, 25, 30, or 35)
+    Boulders   : 12 rocks, 10 cm height, 15–50 cm radius, 3 cm roughness (fixed)
+
+    Use this group to characterise descent control.  Descent was observed working
+    in the crater bowl demo with model_12495.pt — these variants measure at what
+    angle the braking skill breaks down.
+    """
+    cfg = Go2wRockyEvalEnvCfg()
+    cfg.scene.terrain.terrain_generator = _single_terrain_gen(
+        RockyPyramidSlopeDownCfg(
+            proportion=1.0,
+            slope_min_deg=float(slope_deg),
+            slope_max_deg=float(slope_deg),
+            **_ROCKY_EVAL_BOULDER_PARAMS,
+        )
+    )
+    return cfg
+
+
+# -- Rocky slope uphill (5 variants) --  Phase 8c/d
+# Sweeps 15°–35° in 5° increments to find the uphill capability cliff.
+# Boulders fixed at moderate density (12 rocks, 10 cm height, 3 cm roughness).
+for _d in [15, 20, 25, 30, 35]:
+    EVAL_VARIANTS.append((f"rocky_slope_up_{_d}deg", lambda d=_d: rocky_slope_up_cfg(d)))
+
+# -- Rocky slope downhill (5 variants) --  Phase 8c/d
+# Sweeps 15°–35° downhill.  Descent was observed working at moderate angles in
+# the crater bowl demo; these variants quantify exactly where braking fails.
+for _d in [15, 20, 25, 30, 35]:
+    EVAL_VARIANTS.append((f"rocky_slope_down_{_d}deg", lambda d=_d: rocky_slope_down_cfg(d)))

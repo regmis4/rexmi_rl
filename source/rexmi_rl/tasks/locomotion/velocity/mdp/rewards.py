@@ -369,6 +369,67 @@ def joint_deviation_threshold(
     return excess.sum(dim=-1)
 
 
+def uphill_lean_reward(env: ManagerBasedRLEnv) -> torch.Tensor:
+    """
+    Reward nose-down body pitch while the robot is actively climbing ascending terrain.
+
+    On uphill slopes the robot needs to shift weight forward (lean into the slope) to
+    maintain wheel contact pressure and resist backward slipping under gravity.  This
+    term provides a direct gradient for that posture change, complementing the weak
+    flat_orientation_l2 penalty (−0.1 in the steep/rocky slope envs) which only
+    discourages tilting but never *rewards* the correct slope-aligned lean.
+
+    Implementation
+    --------------
+    Body lean is read from ``projected_gravity_b[:, 0]``.  When the body tilts
+    nose-down by angle θ, gravity has a forward component sin(θ) in the body frame,
+    so ``projected_gravity_b[0] ≈ sin(θ)`` (positive = nose-down = leaning into slope).
+
+    The reward is **gated by actual upward world-frame velocity** (vz > 0.01 m/s)
+    so it only fires when the robot is genuinely climbing.  This prevents rewarding
+    an arbitrary forward lean on flat terrain where it is not needed.
+
+    Reward accounting (RewardTermCfg weight = +0.5)
+    ------------------------------------------------
+      θ = 10° lean : 0.5 × sin(10°) ≈ 0.09/step
+      θ = 15° lean : 0.5 × sin(15°) ≈ 0.13/step
+      θ = 24° lean : 0.5 × sin(24°) ≈ 0.20/step   ← matches 25° slope lean target
+
+    At 0.20/step this is comparable to the stagnation penalty (-2.5/step when stuck)
+    — large enough to shape posture but not large enough to compete with velocity
+    tracking (+1.71–1.74/step observed in Phase 8d).
+
+    Phase 8e motivation
+    --------------------
+    Phase 8d (100% uphill, 1500 iters, resume model_12495.pt) stalled at
+    terrain_levels ≈ 0.19 (≈18° slope).  The curriculum could not advance because
+    the combined load at 25°+ exceeded the policy's uphill push capacity.  The
+    missing behaviour: the robot was NOT leaning into the slope — it was trying
+    to stay flat (penalised by flat_orientation_l2=-0.1 if it did lean) while
+    fighting the full component of gravity.  This term teaches the correct posture.
+
+    Returns
+    -------
+    Tensor shape (num_envs,), value ≥ 0.0.
+    Multiply by a positive weight (+0.5 recommended) in RewardTermCfg.
+    """
+    robot = env.scene["robot"]
+
+    # World-frame vertical velocity — positive = climbing upward
+    vz: torch.Tensor = robot.data.root_lin_vel_w[:, 2]  # (num_envs,)
+
+    # Forward command gate: only reward when commanded to move forward
+    cmd_fwd: torch.Tensor = env.command_manager.get_command("base_velocity")[:, 0]
+    climbing: torch.Tensor = ((cmd_fwd > 0.05) & (vz > 0.01)).float()  # (num_envs,)
+
+    # Body nose-down lean: projected_gravity_b[0] > 0 means nose-down (forward tilt)
+    # sin(θ) where θ is the forward pitch angle — ranges 0 to 1 for 0° to 90°
+    grav_fwd: torch.Tensor = robot.data.projected_gravity_b[:, 0]
+    fwd_lean: torch.Tensor = grav_fwd.clamp(min=0.0)  # ignore nose-up (negative) lean
+
+    return climbing * fwd_lean
+
+
 def joint_group_symmetry_penalty(
     env: ManagerBasedRLEnv,
     threshold_from_mean: float = 0.15,

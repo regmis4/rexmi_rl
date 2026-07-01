@@ -293,3 +293,49 @@ class Go2wSteepSlopePPORunnerCfg(Go2wRoughPPORunnerCfg):
 
     # More frequent saves than rough (100 iters) for finer curriculum tracking.
     save_interval = 50
+
+
+# ==============================================================================
+# Phase 8b — Rocky slope PPO config (steep slopes WITH boulders, 15°–35°)
+# ==============================================================================
+
+@configclass
+class Go2wRockySlopePPORunnerCfg(Go2wSteepSlopePPORunnerCfg):
+    """
+    PPO runner configuration for the Go2W rocky-slope policy (Phase 8b).
+
+    Inherits everything from Go2wSteepSlopePPORunnerCfg:
+      • Network: [512, 256, 128] — same architecture as model_5998.pt (loads cleanly)
+      • Obs space: ~220 dims with height scanner — identical to steep-slope policy
+      • Algorithm: adaptive LR, empirical normalisation, same PPO hyperparameters
+      • save_interval: 50 iters — fine-grained curriculum tracking
+
+    Key difference from Go2wSteepSlopePPORunnerCfg:
+      experiment_name = "go2w_velocity_rocky_slope"
+      Logs → logs/rsl_rl/go2w_velocity_rocky_slope/ — separate from steep-slope runs
+      so --resume cannot accidentally cross-contaminate the two experiments.
+
+    Training command:
+        python scripts/train.py --task RexmiRl-Go2w-Velocity-RockySlope-v0 --headless \\
+            --load_run go2w_velocity_steep_slope/2026-06-20_15-37-32 \\
+            --checkpoint model_5998.pt
+
+    Expected convergence:
+      The curriculum should advance faster than the pure steep-slope run because:
+        1. Slope range is narrower (15°–35° vs 23°–45°)
+        2. model_5998.pt already knows all slopes in this range
+        3. The new skill (boulders on slopes) has a smooth easy→hard gradient
+      Target: terrain_level ≥ 7.0 (≥ 29° + heavy clutter) within 3000 iters.
+    """
+
+    experiment_name = "go2w_velocity_rocky_slope"
+
+    # Phase 8d diagnostic: 1500 iterations, 100% uphill tiles.
+    # Phase 8c v1 (50/50 downhill) ended at terrain_level=1.26.
+    # Phase 8c v2 (70/30 downhill) ended at terrain_level=0.86 — curriculum DROPPED.
+    # Hypothesis: downhill tiles create a demotion signal that exactly cancels
+    # uphill promotions regardless of proportion, locking the equilibrium.
+    # This 1500-iter run tests whether terrain_level advances past 3.0 with 100%
+    # uphill tiles — if yes, downhill was the culprit; if no, boulders are the limiter.
+    # 1500 iters ≈ 147M env transitions (~1.5 hours).  Short enough to diagnose fast.
+    max_iterations = 1500

@@ -1463,6 +1463,43 @@ ls logs/rsl_rl/go2w_velocity_rocky_slope/<date>_<time>/*.pt | sort -V | tail -3
 
 ---
 
+### Roughness generalisation eval (Phase 8i — out-of-distribution surface texture)
+
+Tests `model_13994.pt` at fixed 35° slope with increasing surface roughness amplitude.
+Training used 1–6 cm roughness. This sweep goes up to 20 cm to probe generalisation limits.
+
+**Practical context**: 20 cm roughness amplitude (±10 cm surface noise on top of 10 cm boulders)
+is extremely unlikely in any real crater environment. Shackleton crater's inner wall is bare
+anorthosite bedrock — the dominant texture is from dust and small pebbles (<2 cm). The 6 cm
+training max already covers the practical range. The 15/20 cm variants are curiosity tests, not
+deployment requirements.
+
+| Roughness | In/Out of training dist | Equivalent real terrain |
+|-----------|------------------------|------------------------|
+| 3 cm | ✅ In (training max=6 cm) | Fine gravel / dust |
+| 10 cm | ⚠️ OOD (1.7× max) | Cobblestone-sized rocks |
+| 15 cm | ❌ OOD (2.5× max) | Boulder field texture |
+| 20 cm | ❌ Extreme OOD (3.3× max) | Unrealistically rough — curiosity only |
+
+```bash
+CKPT=logs/rsl_rl/go2w_velocity_rocky_slope/2026-06-30_09-31-48/model_13994.pt
+
+# Uphill roughness sweep (4 variants, ~2 min headless)
+python scripts/eval.py --checkpoint $CKPT --group roughness_up_35deg
+
+# Downhill roughness sweep (4 variants, ~2 min headless)
+python scripts/eval.py --checkpoint $CKPT --group roughness_down_35deg
+
+# Single variant headless
+python scripts/eval.py --checkpoint $CKPT --terrain roughness_up_35deg_20cm
+
+# Visual — watch what 20 cm roughness looks like at 35°
+python scripts/eval.py --checkpoint $CKPT --visual --terrain roughness_up_35deg_20cm
+python scripts/eval.py --checkpoint $CKPT --visual --terrain roughness_down_35deg_20cm
+```
+
+---
+
 ### Rocky slope capability eval (Phase 8c/d — uphill and downhill boulder slopes)
 
 Runs `scripts/eval.py` on the **10 new rocky slope eval variants**
@@ -1974,4 +2011,4 @@ ls logs/rsl_rl/go2w_velocity_steep_slope/<date>_<time>/*.pt | sort -V | tail -3
 
 ---
 
-*Last updated: 2026-06-30 · REXMI Project · Phase 8i complete — model_13994.pt is PRODUCTION POLICY; model_8996 neutral gait broke the 22° ceiling that blocked 5 prior phases; up_35°: 0.42→0.57 (+0.15), down_35°: 0.79→0.91 (+0.12); both uphill AND downhill improved; crater bowl demo ready*
+*Last updated: 2026-06-30 · REXMI Project · Phase 8i complete — model_13994.pt is PRODUCTION POLICY; roughness generalisation eval added (3/10/15/20 cm at 35°); training dist max=6 cm; 20 cm is extreme OOD (unlikely in real crater); crater bowl demo ready*

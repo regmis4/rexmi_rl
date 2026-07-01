@@ -924,7 +924,7 @@ def lunar_crater_demo_bowl(difficulty: float, cfg) -> np.ndarray:
     # ==================================================================
     roughness_map = np.full_like(h, 0.040)           # 4 cm background
     roughness_map += 0.040 * (R < r_floor + 1.0)     # 8 cm on crater floor
-    roughness_map -= 0.020 * ((R > r_floor) & (R < r_rim))  # 2 cm on bare rock wall
+    roughness_map += 0.010 * ((R > r_floor) & (R < r_rim))  # 5 cm on wall (was 2 cm — too slippery for uphill climbing)
     roughness_map += 0.020 * m_env                   # extra near mountain (loose talus)
     roughness_map = np.clip(roughness_map, 0.010, 0.090)
     noise = rng.uniform(-0.5, 0.5, h.shape) * roughness_map

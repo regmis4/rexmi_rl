@@ -60,8 +60,8 @@ python scripts/play.py \
 ```bash
 # Single-robot recording (best for investor video)
 python scripts/play.py \
-    --task RexmiRl-Go2w-Crater-Bowl-SteepSlope-Record-v0 \
-    --load_run 2026-06-20_15-37-32
+    --task RexmiRl-Go2w-Crater-Bowl-RockySlope-Record-v0 \
+    --load_run 2026-06-30_09-31-48
 ```
 
 ```bash

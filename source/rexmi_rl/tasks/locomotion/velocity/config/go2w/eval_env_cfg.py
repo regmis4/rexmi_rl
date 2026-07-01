@@ -479,3 +479,81 @@ for _d in [15, 20, 25, 30, 35]:
 # the crater bowl demo; these variants quantify exactly where braking fails.
 for _d in [15, 20, 25, 30, 35]:
     EVAL_VARIANTS.append((f"rocky_slope_down_{_d}deg", lambda d=_d: rocky_slope_down_cfg(d)))
+
+
+# ============================================================================
+# Roughness sweep factory functions — Phase 8i generalisation test
+# ============================================================================
+# Tests model_13994.pt at FIXED 35° slope with increasing surface roughness.
+# The training distribution had roughness 1–6 cm.  This sweep goes up to 20 cm
+# to probe out-of-distribution generalisation.
+#
+# Roughness interpretation:
+#   3 cm  — standard eval baseline (training max at hard rows: 6 cm)
+#  10 cm  — moderate OOD: cobblestone-like bumps, within boulder height
+#  15 cm  — severe OOD: bumps equal to boulder height (10 cm boulder + 15 cm texture)
+#  20 cm  — extreme OOD: ±10 cm surface noise + 10 cm boulders = deeply uneven
+
+def rocky_slope_roughness_up_cfg(slope_deg: int, roughness_cm: int) -> Go2wRockyEvalEnvCfg:
+    """
+    Uphill rocky slope at fixed slope_deg with variable surface roughness.
+
+    Boulders fixed at 12 rocks, 10 cm height.
+    Roughness is the surface noise amplitude (not boulder height).
+
+    slope_deg    : slope angle in degrees
+    roughness_cm : surface roughness amplitude in centimetres
+    """
+    roughness_m = roughness_cm / 100.0
+    cfg = Go2wRockyEvalEnvCfg()
+    cfg.scene.terrain.terrain_generator = _single_terrain_gen(
+        RockyPyramidSlopeCfg(
+            proportion=1.0,
+            slope_min_deg=float(slope_deg),
+            slope_max_deg=float(slope_deg),
+            boulder_count_min=12,     boulder_count_max=12,
+            boulder_height_min=0.10,  boulder_height_max=0.10,
+            boulder_radius_min=0.15,  boulder_radius_max=0.50,
+            roughness_min_m=roughness_m,
+            roughness_max_m=roughness_m,
+        )
+    )
+    return cfg
+
+
+def rocky_slope_roughness_down_cfg(slope_deg: int, roughness_cm: int) -> Go2wRockyEvalEnvCfg:
+    """
+    Downhill rocky slope at fixed slope_deg with variable surface roughness.
+    """
+    roughness_m = roughness_cm / 100.0
+    cfg = Go2wRockyEvalEnvCfg()
+    cfg.scene.terrain.terrain_generator = _single_terrain_gen(
+        RockyPyramidSlopeDownCfg(
+            proportion=1.0,
+            slope_min_deg=float(slope_deg),
+            slope_max_deg=float(slope_deg),
+            boulder_count_min=12,     boulder_count_max=12,
+            boulder_height_min=0.10,  boulder_height_max=0.10,
+            boulder_radius_min=0.15,  boulder_radius_max=0.50,
+            roughness_min_m=roughness_m,
+            roughness_max_m=roughness_m,
+        )
+    )
+    return cfg
+
+
+# -- Roughness sweep uphill @ 35° (4 variants) --  Phase 8i generalisation test
+# Training max roughness was 6 cm. Variants at 3/10/15/20 cm test generalisation.
+# Group name: "roughness_up_35deg"
+for _r in [3, 10, 15, 20]:
+    EVAL_VARIANTS.append((
+        f"roughness_up_35deg_{_r}cm",
+        lambda r=_r: rocky_slope_roughness_up_cfg(35, r),
+    ))
+
+# -- Roughness sweep downhill @ 35° (4 variants) --  Phase 8i generalisation test
+for _r in [3, 10, 15, 20]:
+    EVAL_VARIANTS.append((
+        f"roughness_down_35deg_{_r}cm",
+        lambda r=_r: rocky_slope_roughness_down_cfg(35, r),
+    ))

@@ -188,12 +188,19 @@ if args._single is None and not args.visual:
         [f"rocky_slope_up_{d}deg"   for d in [15, 20, 25, 30, 35]] +
 
         # rocky_slope_down (5) — Phase 8c/d; downhill braking on boulder slope
-        [f"rocky_slope_down_{d}deg" for d in [15, 20, 25, 30, 35]]
+        [f"rocky_slope_down_{d}deg" for d in [15, 20, 25, 30, 35]] +
+
+        # roughness_up_35deg (4) — Phase 8i; 35° uphill, sweep roughness 3/10/15/20 cm
+        [f"roughness_up_35deg_{r}cm"   for r in [3, 10, 15, 20]] +
+
+        # roughness_down_35deg (4) — Phase 8i; 35° downhill, sweep roughness 3/10/15/20 cm
+        [f"roughness_down_35deg_{r}cm" for r in [3, 10, 15, 20]]
     )
     _VALID_GROUPS = [
         "stairs_up", "stairs_down", "boxes", "slope", "rough",
         "steep_slope",
         "rocky_slope_up", "rocky_slope_down",
+        "roughness_up_35deg", "roughness_down_35deg",
     ]
 
     if not os.path.isfile(args.checkpoint):
@@ -325,6 +332,7 @@ if args._single is None and not args.visual:
         "stairs_up", "stairs_down", "boxes", "slope", "rough",
         "steep_slope",
         "rocky_slope_up", "rocky_slope_down",
+        "roughness_up_35deg", "roughness_down_35deg",
     ]
     sep = "─" * 80
 

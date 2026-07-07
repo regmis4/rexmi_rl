@@ -1,0 +1,180 @@
+# Copyright (c) 2026, REXMI Project.
+# SPDX-License-Identifier: BSD-3-Clause
+
+"""
+Recovery FSM — detects stuck conditions and executes escape manoeuvres.
+
+States
+------
+  NAVIGATING  — normal operation
+  STUCK       — robot velocity < threshold for > stuck_timeout seconds
+  REVERSING   — backing up for reverse_duration seconds
+  ROTATING    — rotating in place for rotate_duration seconds
+  BLOCKED     — recovery failed 3 times; signal global replan
+
+Transitions
+-----------
+  NAVIGATING → STUCK      : |v| < stuck_speed for stuck_timeout s
+  STUCK      → REVERSING  : immediately
+  REVERSING  → ROTATING   : after reverse_duration s
+  ROTATING   → NAVIGATING : after rotate_duration s (attempt counter += 1)
+  NAVIGATING → BLOCKED    : attempt counter >= max_attempts
+  BLOCKED    → NAVIGATING : global planner found new path (reset externally)
+"""
+
+from __future__ import annotations
+
+import math
+import time
+from enum import Enum, auto
+
+
+class RecoveryState(Enum):
+    NAVIGATING = auto()
+    STUCK      = auto()
+    REVERSING  = auto()
+    ROTATING   = auto()
+    BLOCKED    = auto()
+
+
+class RecoveryFSM:
+    """
+    Stuck detection and escape behaviour.
+
+    Parameters
+    ----------
+    stuck_speed : float
+        Speed below which the robot is considered possibly stuck (m/s). Default 0.05.
+    stuck_timeout : float
+        Seconds below stuck_speed before triggering recovery. Default 3.0.
+    reverse_duration : float
+        Seconds to reverse during escape. Default 1.5.
+    rotate_duration : float
+        Seconds to rotate during escape. Default 1.8.
+    rotate_speed : float
+        Yaw rate during rotation (rad/s). Default 0.6.
+    max_attempts : int
+        Recovery attempts before declaring BLOCKED. Default 3.
+    """
+
+    def __init__(
+        self,
+        stuck_speed:      float = 0.05,
+        stuck_timeout:    float = 3.0,
+        reverse_duration: float = 3.0,   # was 1.5 — longer reverse to clear boulder
+        rotate_duration:  float = 3.0,   # was 1.8 — 3s × 1.0 rad/s = 171° rotation
+        rotate_speed:     float = 1.0,   # was 0.6 — stronger rotation command
+        max_attempts:     int   = 3,
+    ):
+        self.stuck_speed      = stuck_speed
+        self.stuck_timeout    = stuck_timeout
+        self.reverse_duration = reverse_duration
+        self.rotate_duration  = rotate_duration
+        self.rotate_speed     = rotate_speed
+        self.max_attempts     = max_attempts
+
+        self.state             = RecoveryState.NAVIGATING
+        self._stuck_since:  float | None = None
+        self._action_start: float | None = None
+        self._attempts:     int          = 0
+        self._rotate_dir:   float        = 1.0   # +1 or -1
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    @property
+    def is_blocked(self) -> bool:
+        return self.state == RecoveryState.BLOCKED
+
+    @property
+    def is_recovering(self) -> bool:
+        return self.state in (
+            RecoveryState.STUCK,
+            RecoveryState.REVERSING,
+            RecoveryState.ROTATING,
+        )
+
+    def reset(self) -> None:
+        """Call after global planner finds a new path to clear BLOCKED state."""
+        self.state         = RecoveryState.NAVIGATING
+        self._attempts     = 0
+        self._stuck_since  = None
+        self._action_start = None
+
+    def update(
+        self,
+        speed: float,          # |v| in m/s
+        heading_error: float,  # used to pick rotation direction
+    ) -> tuple[float, float, float]:
+        """
+        Advance the FSM and return the override (vx, vy, omega) command.
+
+        During NAVIGATING the returned command is (0,0,0) — the local planner
+        command is used instead.  During recovery the returned command overrides
+        the local planner.
+
+        Parameters
+        ----------
+        speed : float
+            Current robot speed magnitude (m/s).
+        heading_error : float
+            Current heading error to waypoint (rad). Used to pick rotation dir.
+
+        Returns
+        -------
+        (vx, vy, omega) override.  All zeros when NAVIGATING normally.
+        """
+        now = time.monotonic()
+
+        if self.state == RecoveryState.NAVIGATING:
+            if speed < self.stuck_speed:
+                if self._stuck_since is None:
+                    self._stuck_since = now
+                elif now - self._stuck_since > self.stuck_timeout:
+                    self._transition_to(RecoveryState.STUCK, now)
+            else:
+                self._stuck_since = None
+            return 0.0, 0.0, 0.0
+
+        elif self.state == RecoveryState.STUCK:
+            # Immediately start reversing
+            self._rotate_dir = 1.0 if heading_error >= 0 else -1.0
+            self._transition_to(RecoveryState.REVERSING, now)
+            return -0.2, 0.0, 0.0
+
+        elif self.state == RecoveryState.REVERSING:
+            elapsed = now - self._action_start
+            if elapsed < self.reverse_duration:
+                return -0.2, 0.0, 0.0
+            self._transition_to(RecoveryState.ROTATING, now)
+            return 0.0, 0.0, self.rotate_speed * self._rotate_dir
+
+        elif self.state == RecoveryState.ROTATING:
+            elapsed = now - self._action_start
+            if elapsed < self.rotate_duration:
+                return 0.0, 0.0, self.rotate_speed * self._rotate_dir
+            # Recovery attempt complete
+            self._attempts += 1
+            self._stuck_since = None
+            if self._attempts >= self.max_attempts:
+                self.state = RecoveryState.BLOCKED
+                return 0.0, 0.0, 0.0
+            self.state = RecoveryState.NAVIGATING
+            return 0.0, 0.0, 0.0
+
+        elif self.state == RecoveryState.BLOCKED:
+            return 0.0, 0.0, 0.0   # wait for external reset()
+
+        return 0.0, 0.0, 0.0
+
+    def status_str(self) -> str:
+        return f"{self.state.name} (attempt {self._attempts}/{self.max_attempts})"
+
+    # ------------------------------------------------------------------
+    # Internal
+    # ------------------------------------------------------------------
+
+    def _transition_to(self, new_state: RecoveryState, now: float) -> None:
+        self.state         = new_state
+        self._action_start = now

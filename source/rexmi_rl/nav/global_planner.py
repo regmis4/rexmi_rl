@@ -57,9 +57,26 @@ class GlobalPlanner:
         self._goal_cell = self._map.world_to_cell(goal_x, goal_y)
         self._last_replan_t = 0.0   # force replan next update()
 
-    def update(self, robot_x: float, robot_y: float) -> Optional[tuple[float, float]]:
+    def update(
+        self,
+        robot_x: float,
+        robot_y: float,
+        goal_x: Optional[float] = None,
+        goal_y: Optional[float] = None,
+    ) -> Optional[tuple[float, float]]:
         """
         Update the planner and return the next immediate waypoint in world frame.
+
+        Parameters
+        ----------
+        robot_x, robot_y : float
+            Current robot world-frame position.
+        goal_x, goal_y : float, optional
+            Final mission waypoint world-frame position.  Used to sanity-check
+            the A* lookahead direction: if the lookahead is > 120° away from the
+            direct-to-goal bearing, the direct bearing is used instead.  This
+            prevents confusing commands when the map is mostly unknown and A*
+            returns a winding path through high-cost "unknown" cells.
 
         Returns None if no path exists or goal not set.
         """
@@ -74,7 +91,7 @@ class GlobalPlanner:
         needs_replan = (
             now - self._last_replan_t > self._replan_interval
             or not self._path_cells
-            or self._deviation_exceeds(robot_x, robot_y, 1.0)
+            or self._deviation_exceeds(robot_x, robot_y, 1.5)
         )
 
         if needs_replan:
@@ -88,7 +105,26 @@ class GlobalPlanner:
         self._trim_passed(robot_x, robot_y)
 
         # Pick the lookahead waypoint
-        return self._lookahead_point(robot_x, robot_y)
+        lh = self._lookahead_point(robot_x, robot_y)
+        if lh is None:
+            return None
+
+        # Sanity check: if A* lookahead direction diverges > 120° from the
+        # direct robot→goal bearing, the path is leading the robot away from
+        # the goal (can happen on an unknown map where every cell costs 5.0).
+        # Fall back to direct goal direction in that case.
+        if goal_x is not None and goal_y is not None:
+            direct_angle = math.atan2(goal_y - robot_y, goal_x - robot_x)
+            lh_angle     = math.atan2(lh[1] - robot_y, lh[0] - robot_x)
+            angle_diff   = abs(_wrap_angle(lh_angle - direct_angle))
+            if angle_diff > math.radians(120):
+                # Use a point 4 m ahead along the direct bearing instead
+                lh = (
+                    robot_x + self._lookahead_m * math.cos(direct_angle),
+                    robot_y + self._lookahead_m * math.sin(direct_angle),
+                )
+
+        return lh
 
     def get_path_world(self) -> List[tuple[float, float]]:
         """Return current planned path as world-frame (x, y) list (for dashboard)."""
@@ -145,6 +181,10 @@ class GlobalPlanner:
 
         return []   # unreachable
 
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
     @staticmethod
     def _reconstruct(
         came_from: dict[tuple[int, int], tuple[int, int]],
@@ -198,3 +238,12 @@ class GlobalPlanner:
                 return wx, wy
         # Return last cell if path shorter than lookahead
         return self._map.cell_to_world(*self._path_cells[-1])
+
+
+def _wrap_angle(a: float) -> float:
+    """Wrap angle to [−π, π]."""
+    while a > math.pi:
+        a -= 2 * math.pi
+    while a < -math.pi:
+        a += 2 * math.pi
+    return a

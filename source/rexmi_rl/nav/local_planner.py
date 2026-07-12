@@ -36,6 +36,7 @@ class LocalPlannerOutput:
     heading_error: float      # angle to waypoint (rad)
     best_col_idx: int         # which of 5 candidate headings was selected
     traversable_mask: list    # per-column traversability bool (10 columns)
+    fwd_obstacle_dist: float = math.inf   # nearest forward obstacle (m); inf = clear
 
 
 class LocalPlanner:
@@ -220,6 +221,109 @@ class LocalPlanner:
             heading_error=float(heading_error),
             best_col_idx=int(best_col),
             traversable_mask=traversable,
+        )
+
+
+    def compute_with_forward(
+        self,
+        scan_heights:   list[float],
+        robot_yaw:      float,
+        robot_x:        float,
+        robot_y:        float,
+        waypoint_x:     float,
+        waypoint_y:     float,
+        fwd_hits_world: "np.ndarray | None" = None,   # (N, 3) world-frame forward hits
+        robot_pos_w:    "tuple[float,float,float] | None" = None,
+    ) -> LocalPlannerOutput:
+        """
+        Compute velocity command with optional forward-scanner obstacle awareness.
+
+        Calls ``compute()`` for the full height-scan-based plan, then applies
+        a forward obstacle zone check using the LiDAR-like forward scanner hits:
+
+        Forward danger zone:
+          • Width  : 0.6 m (robot body width + 10 cm clearance each side)
+          • Depth  : 0 – 2.0 m ahead in body frame
+          • Height : any hit > 0.10 m above ground level (i.e. a boulder, wall, or step)
+
+        If an obstacle is detected within the danger zone:
+          • vx is scaled down linearly to zero at 0.5 m, full speed at 2 m
+          • heading candidates that point toward the obstacle sector are flagged
+
+        Parameters
+        ----------
+        fwd_hits_world : np.ndarray shape (N, 3), optional
+            World-frame (x, y, z) forward scanner ray hits for this env.
+            Filtered hits only (no inf/NaN). Pass None to skip forward check.
+        robot_pos_w : (rx, ry, rz), optional
+            Robot world-frame position. Required when fwd_hits_world is provided.
+
+        Returns
+        -------
+        LocalPlannerOutput
+            Same as compute() but fwd_obstacle_dist is set to the nearest
+            obstacle distance (metres) when one is detected.
+        """
+        import numpy as np
+
+        # Base plan from height scan
+        out = self.compute(scan_heights, robot_yaw, robot_x, robot_y,
+                           waypoint_x, waypoint_y)
+
+        if fwd_hits_world is None or robot_pos_w is None or len(fwd_hits_world) == 0:
+            return out
+
+        rx, ry, rz = robot_pos_w
+        cos_yaw = math.cos(robot_yaw)
+        sin_yaw = math.sin(robot_yaw)
+
+        # Transform forward hits to body frame (2D: forward=x_b, lateral=y_b)
+        dx_w = fwd_hits_world[:, 0] - rx
+        dy_w = fwd_hits_world[:, 1] - ry
+        dz_w = fwd_hits_world[:, 2] - rz    # height above robot base
+
+        x_b = dx_w * cos_yaw + dy_w * sin_yaw   # forward in body frame
+        y_b = -dx_w * sin_yaw + dy_w * cos_yaw  # lateral in body frame
+
+        # Forward danger zone: in front of robot, within body width, above ground
+        # dz_w > 0.10 m: filters out ground hits — only raises above terrain count
+        DANGER_DEPTH  = 2.0   # m — look-ahead distance
+        DANGER_WIDTH  = 0.6   # m half-width (±0.3 m each side)
+        OBS_HEIGHT    = 0.10  # m above robot base z to count as obstacle
+
+        in_zone = (
+            (x_b > 0.1)              # ahead of robot
+            & (x_b < DANGER_DEPTH)  # within look-ahead
+            & (np.abs(y_b) < DANGER_WIDTH / 2.0)  # within body width
+            & (dz_w > OBS_HEIGHT)   # above ground (boulder/wall, not flat terrain)
+        )
+
+        if not in_zone.any():
+            return out   # no obstacle in danger zone — return plan unchanged
+
+        # Find nearest obstacle distance
+        nearest_dist = float(np.min(x_b[in_zone]))
+
+        # Scale vx: full speed at DANGER_DEPTH, zero at 0.5 m
+        SLOW_START = DANGER_DEPTH   # m — start slowing here
+        STOP_DIST  = 0.5            # m — stop here
+        if nearest_dist <= STOP_DIST:
+            vx_scaled = 0.0
+        elif nearest_dist < SLOW_START:
+            frac = (nearest_dist - STOP_DIST) / (SLOW_START - STOP_DIST)
+            vx_scaled = float(out.vx * frac)
+        else:
+            vx_scaled = out.vx  # beyond danger zone — no change
+
+        return LocalPlannerOutput(
+            vx=vx_scaled,
+            vy=out.vy,
+            omega=out.omega,
+            slope_ahead=out.slope_ahead,
+            heading_error=out.heading_error,
+            best_col_idx=out.best_col_idx,
+            traversable_mask=out.traversable_mask,
+            fwd_obstacle_dist=nearest_dist,
         )
 
 

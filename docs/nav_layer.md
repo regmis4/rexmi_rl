@@ -1,9 +1,10 @@
 # REXMI Navigation Layer
 
-**Status**: Phase N-1 complete (deterministic nav on sim ground-truth localisation)  
-**Date**: 2026-07-06  
+**Status**: Phase N-1 complete + forward scanner obstacle avoidance  
+**Date**: 2026-07-09  
 **Policies**: `model_1499.pt` (fast_flat) · `model_8996.pt` (rough) · `model_13994.pt` (rocky_slope)  
-**Auto-switching**: terrain-aware PolicySelector picks the right policy every 50 ms
+**Auto-switching**: terrain-aware PolicySelector picks the right policy every 50 ms  
+**New (2026-07-09)**: forward RayCaster sensor (±60°, 5 m) feeds early obstacle warning to `LocalPlanner`
 
 ---
 
@@ -28,6 +29,7 @@ normally generate.
 ┌────────────────────▼────────────────────────────────────────┐
 │  LAYER 2 — Local Planner (50 Hz)                            │
 │  16×10 height scan → traversability → (vx, vy, ωz)         │
+│  + forward scanner (±60°, 5 m) → obstacle zone → vx scale  │
 │  + RecoveryFSM override when stuck                          │
 │  ↳ terrain metrics (slope, max_step, trav_frac)             │
 └────────────┬───────────────────────────────┬────────────────┘
@@ -393,6 +395,66 @@ Best traversable candidate wins. If no heading is traversable → `vx=0` (recove
 - `vx = vx_steep` if `slope > slope_thresh` (0.47 = tan 25°)
 - `vx *= (1 - |omega|/omega_max)` — slow down during hard turns (min 0.4×)
 
+#### Forward scanner obstacle avoidance (`compute_with_forward`)
+
+In addition to `compute()`, the local planner exposes `compute_with_forward()` which
+takes world-frame hits from the **forward RayCaster sensor** and applies a speed
+reduction if an obstacle is detected close ahead.
+
+**Forward sensor spec** (defined in `Go2wRoughEnvCfg`, key `"forward_scanner"`):
+```
+Pattern    : LidarPatternCfg  (5 vertical × 15 horizontal = 75 rays/step)
+Azimuth    : −60° to +60° around robot heading (body frame)
+Elevation  : −20° to 0° (level to slightly downward)
+Range      : 5 m  (max_distance)
+Offset     : 0.5 m above robot base (body height)
+Alignment  : yaw-only (rotates with heading, not pitch/roll)
+```
+
+The sensor gives the nav layer **up to 10 seconds of warning** at 0.5 m/s for an
+obstacle 5 m ahead — far more than the 1.5 m height-scan look-ahead alone.
+
+**Danger zone** (all conditions must be true for a hit to count):
+```
+x_body > 0.1 m           — in front of the robot (not behind)
+x_body < 2.0 m           — within 2 m look-ahead
+|y_body| < 0.30 m        — within body width (0.6 m total)
+dz > 0.10 m above base   — elevated above ground (boulder / wall, not flat terrain)
+```
+
+**Speed response**:
+| Nearest obstacle distance | vx factor |
+|--------------------------|-----------|
+| > 2.0 m (beyond zone)   | 1.0× (no change) |
+| 2.0 m → 0.5 m           | linear ramp 1.0× → 0.0× |
+| ≤ 0.5 m                 | 0.0 (full stop) |
+
+```python
+out = planner.compute_with_forward(
+    scan_heights,          # 160-element height scan (same as compute())
+    robot_yaw,             # rad
+    robot_x, robot_y,
+    waypoint_x, waypoint_y,
+    fwd_hits_world=pts,    # np.ndarray (N, 3) filtered world-frame hits
+    robot_pos_w=(rx, ry, rz),  # robot position for body-frame transform
+)
+# out.fwd_obstacle_dist  ← nearest obstacle in danger zone (m), math.inf if clear
+# out.vx                 ← already scaled by danger-zone proximity
+```
+
+`compute_with_forward()` calls `compute()` first (full height-scan plan), then
+applies the forward-zone check on top.  If `fwd_hits_world=None` (sensor absent or
+flat env), it returns the `compute()` result unchanged — fully backward compatible.
+
+**How the data flows in `navigator.py`**:
+```
+forward_scanner.data.ray_hits_w         # (n_envs, 75, 3)
+  → _get_forward_hits()                 # filter NaN/inf, return (N, 3) or None
+  → omap.update(pts)                    # also feeds OccupancyMap for A* cost
+  → local.compute_with_forward(…)       # speed scaling
+  → _inject_command(out.vx, 0, out.omega)
+```
+
 ---
 
 ### `recovery.py` — Stuck detection FSM
@@ -531,13 +593,14 @@ nav.stop_dashboard()
 **Per-step execution order**:
 1. `SimLocalizer.get_pose()` + `get_velocity()`
 2. Read `height_scanner.data.ray_hits_w` → filter invalid → `OccupancyMap.update()`
-3. Check waypoint arrival → advance `wp_idx` if reached
-4. `GlobalPlanner.update()` → immediate waypoint
-5. `LocalPlanner.compute()` → `(vx, vy, omega)` + terrain metrics
-6. `PolicySelector.update(slope, max_step, trav_frac)` → commit policy switch if hold counter reaches 25
-7. `RecoveryFSM.update()` → override command if stuck
-8. `command_manager.get_command("base_velocity")[env_idx] = cmd`
-9. Write shared state for dashboard (cost grid updated every 10 steps)
+3. Read `forward_scanner.data.ray_hits_w` → filter invalid → `OccupancyMap.update()` (also stored for local planner)
+4. Check waypoint arrival → advance `wp_idx` if reached
+5. `GlobalPlanner.update()` → immediate waypoint
+6. `LocalPlanner.compute_with_forward()` → `(vx, vy, omega)` + terrain metrics + forward obstacle check
+7. `PolicySelector.update(slope, max_step, trav_frac)` → commit policy switch if hold counter reaches 25
+8. `RecoveryFSM.update()` → override command if stuck
+9. `command_manager.get_command("base_velocity")[env_idx] = cmd`
+10. Write shared state for dashboard (cost grid updated every 5 steps)
 
 **Command injection** — writes directly into the Isaac Lab command tensor:
 ```python
@@ -629,6 +692,7 @@ offsets when the sensor range is this short.  5 candidates runs in ~0.01 ms vs.
 |---------|--------|-------------|
 | Policy switching (terrain-aware) | ✅ **Done** | `policy_selector.py` — 3 policies, 25-step hysteresis |
 | Any crater size | ✅ **Done** | Pass `--r_rim` / `--r_floor`; all missions auto-scale |
+| Forward scanner obstacle avoidance | ✅ **Done** | `forward_scanner` sensor in `Go2wRoughEnvCfg`; `compute_with_forward()` in `LocalPlanner`; `_get_forward_hits()` in `Navigator` |
 | Real SLAM | Phase N-2 | Add `SLAMLocalizer(ros_topic=…)`, no other changes needed |
 | Multi-robot | Phase N-2 | Instantiate `Navigator` per robot with separate `env_idx` |
 | D* Lite replanning | Phase N-3 | Drop-in replacement for `GlobalPlanner._astar()` |
@@ -672,3 +736,27 @@ Check the checkpoint was saved by RSL-RL's `OnPolicyRunner`.
 **`command_manager.get_command` raises AttributeError**  
 Isaac Lab version mismatch.  Check: `env.unwrapped.command_manager` exists.  
 Fallback: directly write to `env.unwrapped.scene["robot"].data` if needed.
+
+**Forward scanner not slowing the robot near boulders**  
+Check the env is based on `Go2wRoughEnvCfg` (not `Go2wFlatEnvCfg`). The
+`forward_scanner` sensor is only registered in rough/crater envs.  
+Verify with:
+```python
+print(list(env.unwrapped.scene.keys()))  # should include "forward_scanner"
+```
+If the key is missing, the nav layer silently skips forward obstacle checking
+(`_get_forward_hits()` returns `None`) and falls back to height-scan-only mode.
+
+**Robot stops `0.5 m` in front of a wall and doesn't resume**  
+The forward danger zone stops at `x_body = 0.5 m` and only scales vx — it does
+not override omega.  If the wall spans all 5 heading candidates in the height
+scan too, the recovery FSM will trigger after 3 s and rotate away.  This is
+correct behaviour.  If you want more clearance, increase `STOP_DIST` in
+`LocalPlanner.compute_with_forward()` (currently 0.5 m).
+
+**Forward scanner hits the robot's own legs**  
+The sensor fires from `offset=(0, 0, 0.5)` with `elevation −20° to 0°`.  At
+0.5 m body height and −20° elevation, rays hit the ground at `r = 0.5/tan(20°) ≈ 1.37 m`
+— well beyond the robot's leg reach (~0.35 m).  If the robot has extended calves
+pointing forward, a ray can still clip them.  The `x_body > 0.1 m` filter in the
+danger zone removes hits within 10 cm, which is sufficient for normal stances.

@@ -86,13 +86,20 @@ class Navigator:
         self._env     = env
         self._env_idx = env_idx
 
-        # Resolve robot articulation and height scanner from env
+        # Resolve robot articulation and sensors from env
         unwrapped = env.unwrapped
         self._robot   = unwrapped.scene["robot"]
         try:
             self._scanner = unwrapped.scene["height_scanner"]
         except KeyError:
             self._scanner = None
+        # Forward scanner: fires ±60° ahead at body height, 5 m range.
+        # Read alongside the downward height scanner to give the nav layer
+        # early warning of rocks, walls, and crater rims ahead.
+        try:
+            self._fwd_scanner = unwrapped.scene["forward_scanner"]
+        except KeyError:
+            self._fwd_scanner = None
 
         # Nav modules
         self._localizer = SimLocalizer(self._robot, env_idx)
@@ -120,6 +127,7 @@ class Navigator:
             self._global.set_goal(wp.x, wp.y)
 
         # Shared state for dashboard (written every step, read by dashboard thread)
+        empty = np.array([], dtype=np.float32)
         self.shared: dict = {
             "pose":             Pose(0, 0, 0, 0),
             "speed":            0.0,
@@ -130,7 +138,8 @@ class Navigator:
             "recovery_status":  "NAVIGATING",
             "mission":          mission.value,
             "cmd":              (0.0, 0.0, 0.0),
-            "cloud_xyz":        (np.array([]), np.array([]), np.array([])),
+            "cloud_xyz":        (empty, empty, empty),       # downward scan (viridis)
+            "fwd_cloud_xyz":    (empty, empty, empty),       # forward scan (orange)
             "cost_grid":        None,
             "step_count":       0,
         }
@@ -156,6 +165,7 @@ class Navigator:
         speed = math.hypot(vx_w, vy_w)
 
         # 2. Update occupancy map from raw scanner hits
+        #    2a. Downward height scanner (1.6 m × 1.0 m, 160 rays, fine detail)
         if self._scanner is not None:
             try:
                 hits_w = self._scanner.data.ray_hits_w   # (n_envs, N_rays, 3)
@@ -164,6 +174,49 @@ class Navigator:
                 valid = np.isfinite(pts[:, 2]) & (pts[:, 2] < 1e5)
                 if valid.any():
                     self._omap.update(pts[valid])
+            except Exception:
+                pass
+
+        #    2b. Forward scanner (±60° ahead, 5 m range, 75 rays)
+        #    Feeds occupancy map for A* cost.
+        #    Also stored directly in shared["fwd_cloud_xyz"] as the CURRENT frame
+        #    only (no history) — dashboard renders it orange immediately ahead of
+        #    the robot.  Using current-frame only avoids the trailing-cloud artefact
+        #    that appeared when old forward hits (now behind the robot) were kept.
+        _fwd_cloud_this_step: "tuple[np.ndarray, np.ndarray, np.ndarray] | None" = None
+        if self._fwd_scanner is not None:
+            try:
+                fwd_hits_w = self._fwd_scanner.data.ray_hits_w  # (n_envs, N_rays, 3)
+                fwd_pts = fwd_hits_w[self._env_idx].cpu().numpy()
+                valid_fwd = (
+                    np.isfinite(fwd_pts[:, 2])
+                    & (fwd_pts[:, 2] < 1e5)
+                    & (np.isfinite(fwd_pts[:, 0]))
+                )
+                if valid_fwd.any():
+                    raw_fwd = fwd_pts[valid_fwd]
+
+                    # Body-frame forward filter: keep only hits that are
+                    # genuinely AHEAD of the robot (x_body > 0.1 m).
+                    # This eliminates any rear-facing rays or sensor-mount
+                    # artifacts that make the orange cloud appear behind.
+                    cos_yaw = math.cos(pose.yaw)
+                    sin_yaw = math.sin(pose.yaw)
+                    dx_w = raw_fwd[:, 0] - pose.x
+                    dy_w = raw_fwd[:, 1] - pose.y
+                    # x_body = forward component in robot frame
+                    x_body = dx_w * cos_yaw + dy_w * sin_yaw
+                    front_mask = x_body > 0.1   # must be at least 10 cm ahead
+                    clean_fwd = raw_fwd[front_mask]
+
+                    if len(clean_fwd) > 0:
+                        self._omap.update(clean_fwd)   # grid update (A* cost)
+                        # Store current frame as (xs, ys, zs) for dashboard
+                        _fwd_cloud_this_step = (
+                            clean_fwd[:, 0].astype(np.float32),
+                            clean_fwd[:, 1].astype(np.float32),
+                            clean_fwd[:, 2].astype(np.float32),
+                        )
             except Exception:
                 pass
 
@@ -176,17 +229,29 @@ class Navigator:
             return
 
         # 4. Global planner → immediate waypoint
+        # Pass the mission waypoint as goal_x/goal_y so the sanity check in
+        # GlobalPlanner.update() can detect when A* is pointing the wrong way
+        # and fall back to a direct bearing on an unknown map.
         current_wp = self._waypoints[self._wp_idx]
-        imm_wp = self._global.update(pose.x, pose.y)
+        imm_wp = self._global.update(
+            pose.x, pose.y,
+            goal_x=current_wp.x, goal_y=current_wp.y,
+        )
         if imm_wp is None:
             imm_wp = (current_wp.x, current_wp.y)
 
         # 5. Local planner → (vx, vy, omega)
+        #    Use compute_with_forward so the forward scanner provides early
+        #    obstacle warning and speed reduction before contact.
         scan_heights = self._get_scan_heights()
-        local_out = self._local.compute(
+        fwd_pts = self._get_forward_hits()
+        robot_pos = (pose.x, pose.y, pose.z)
+        local_out = self._local.compute_with_forward(
             scan_heights, pose.yaw,
             pose.x, pose.y,
             imm_wp[0], imm_wp[1],
+            fwd_hits_world=fwd_pts,
+            robot_pos_w=robot_pos,
         )
 
         # 6. Policy selector — choose which RL policy runs this step
@@ -210,9 +275,10 @@ class Navigator:
             )
             policy_status = self.policy_selector.status_str()
 
-        # 7. Recovery FSM
+        # 7. Recovery FSM — pass current distance to waypoint for progress tracking
+        dist_to_wp = math.hypot(pose.x - current_wp.x, pose.y - current_wp.y)
         rec_vx, rec_vy, rec_omega = self._recovery.update(
-            speed, local_out.heading_error
+            speed, local_out.heading_error, waypoint_dist=dist_to_wp
         )
 
         if self._recovery.is_blocked:
@@ -242,10 +308,14 @@ class Navigator:
                 "cmd":             cmd,
                 "step_count":      step_n,
             })
-            # Update point cloud and cost grid every 5 steps for responsive dashboard
+            # Update point clouds and cost grid every 5 steps for responsive dashboard
+            # Forward cloud: always write the current frame (no deque — no trail)
+            if _fwd_cloud_this_step is not None:
+                self.shared["fwd_cloud_xyz"] = _fwd_cloud_this_step
+            # Downward cloud and cost grid update every 5 steps (heavier ops)
             if step_n % 5 == 0:
-                self.shared["cloud_xyz"] = self._omap.get_point_cloud()
-                self.shared["cost_grid"] = self._omap.get_cost_grid()
+                self.shared["cloud_xyz"]  = self._omap.get_point_cloud()
+                self.shared["cost_grid"]  = self._omap.get_cost_grid()
 
     # ------------------------------------------------------------------
     # Dashboard control
@@ -306,6 +376,30 @@ class Navigator:
             return [z - robot_z for z in z_hits]
         except Exception:
             return [0.0] * 160
+
+    def _get_forward_hits(self) -> "np.ndarray | None":
+        """
+        Return filtered world-frame hits from the forward scanner as (N, 3) array.
+
+        Returns None if the forward scanner is unavailable or has no valid hits.
+        The LocalPlanner uses these to detect obstacles in the forward danger zone
+        and scale vx accordingly before contact.
+        """
+        if self._fwd_scanner is None:
+            return None
+        try:
+            hits_w = self._fwd_scanner.data.ray_hits_w  # (n_envs, N_rays, 3)
+            pts = hits_w[self._env_idx].cpu().numpy()   # (N_rays, 3)
+            valid = (
+                np.isfinite(pts[:, 2])
+                & (pts[:, 2] < 1e5)
+                & np.isfinite(pts[:, 0])
+            )
+            if valid.any():
+                return pts[valid]
+        except Exception:
+            pass
+        return None
 
     def _inject_command(self, vx: float, vy: float, omega: float) -> None:
         """

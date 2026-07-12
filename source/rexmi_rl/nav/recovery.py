@@ -59,12 +59,14 @@ class RecoveryFSM:
 
     def __init__(
         self,
-        stuck_speed:      float = 0.05,
-        stuck_timeout:    float = 3.0,
-        reverse_duration: float = 3.0,   # was 1.5 — longer reverse to clear boulder
-        rotate_duration:  float = 3.0,   # was 1.8 — 3s × 1.0 rad/s = 171° rotation
-        rotate_speed:     float = 1.0,   # was 0.6 — stronger rotation command
-        max_attempts:     int   = 3,
+        stuck_speed:       float = 0.03,  # m/s — only nearly-stationary counts
+        stuck_timeout:     float = 5.0,   # s — must be near-stationary for 5s
+        reverse_duration:  float = 2.0,
+        rotate_duration:   float = 3.0,   # 3s × 1.0 rad/s = 171° rotation
+        rotate_speed:      float = 1.0,
+        max_attempts:      int   = 3,
+        progress_thresh:   float = 1.0,   # m — must close 1m to count as progress
+        progress_timeout:  float = 20.0,  # s — 20s without 1m progress → stuck
     ):
         self.stuck_speed      = stuck_speed
         self.stuck_timeout    = stuck_timeout
@@ -72,12 +74,19 @@ class RecoveryFSM:
         self.rotate_duration  = rotate_duration
         self.rotate_speed     = rotate_speed
         self.max_attempts     = max_attempts
+        self.progress_thresh  = progress_thresh
+        self.progress_timeout = progress_timeout
 
         self.state             = RecoveryState.NAVIGATING
         self._stuck_since:  float | None = None
         self._action_start: float | None = None
         self._attempts:     int          = 0
         self._rotate_dir:   float        = 1.0   # +1 or -1
+
+        # Progress tracking: best (closest) distance to waypoint seen so far
+        # and the last time we beat it.  Reset when waypoint changes.
+        self._best_dist:          float       = math.inf
+        self._last_progress_time: float | None = None
 
     # ------------------------------------------------------------------
     # Public API
@@ -97,15 +106,18 @@ class RecoveryFSM:
 
     def reset(self) -> None:
         """Call after global planner finds a new path to clear BLOCKED state."""
-        self.state         = RecoveryState.NAVIGATING
-        self._attempts     = 0
-        self._stuck_since  = None
-        self._action_start = None
+        self.state                = RecoveryState.NAVIGATING
+        self._attempts            = 0
+        self._stuck_since         = None
+        self._action_start        = None
+        self._best_dist           = math.inf
+        self._last_progress_time  = None
 
     def update(
         self,
-        speed: float,          # |v| in m/s
-        heading_error: float,  # used to pick rotation direction
+        speed:         float,            # |v| in m/s
+        heading_error: float,            # used to pick rotation direction
+        waypoint_dist: float = math.inf, # current distance to active waypoint (m)
     ) -> tuple[float, float, float]:
         """
         Advance the FSM and return the override (vx, vy, omega) command.
@@ -120,6 +132,12 @@ class RecoveryFSM:
             Current robot speed magnitude (m/s).
         heading_error : float
             Current heading error to waypoint (rad). Used to pick rotation dir.
+        waypoint_dist : float
+            Current Euclidean distance to the active mission waypoint (m).
+            Used for progress-based stuck detection: if the robot hasn't closed
+            the gap by ``progress_thresh`` metres in ``progress_timeout`` seconds
+            it is declared stuck — even if speed is non-zero (e.g. slipping in
+            place on a frictionless slope).
 
         Returns
         -------
@@ -128,13 +146,32 @@ class RecoveryFSM:
         now = time.monotonic()
 
         if self.state == RecoveryState.NAVIGATING:
+            # --- speed-based stuck check (catches hard stops) ---
+            speed_stuck = False
             if speed < self.stuck_speed:
                 if self._stuck_since is None:
                     self._stuck_since = now
                 elif now - self._stuck_since > self.stuck_timeout:
-                    self._transition_to(RecoveryState.STUCK, now)
+                    speed_stuck = True
             else:
                 self._stuck_since = None
+
+            # --- progress-based stuck check (catches slipping/oscillating) ---
+            progress_stuck = False
+            if waypoint_dist < math.inf:
+                if self._last_progress_time is None:
+                    self._last_progress_time = now
+                    self._best_dist = waypoint_dist
+                elif waypoint_dist < self._best_dist - self.progress_thresh:
+                    # Made meaningful progress — reset progress timer
+                    self._best_dist          = waypoint_dist
+                    self._last_progress_time = now
+                elif now - self._last_progress_time > self.progress_timeout:
+                    progress_stuck = True
+
+            if speed_stuck or progress_stuck:
+                self._transition_to(RecoveryState.STUCK, now)
+
             return 0.0, 0.0, 0.0
 
         elif self.state == RecoveryState.STUCK:
@@ -157,6 +194,10 @@ class RecoveryFSM:
             # Recovery attempt complete
             self._attempts += 1
             self._stuck_since = None
+            # Alternate rotation direction for the next attempt so the robot
+            # tries both sides of the obstacle instead of always spinning the
+            # same way and landing in the same stuck orientation.
+            self._rotate_dir *= -1.0
             if self._attempts >= self.max_attempts:
                 self.state = RecoveryState.BLOCKED
                 return 0.0, 0.0, 0.0

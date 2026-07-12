@@ -60,13 +60,12 @@ class OccupancyMap:
             for _ in range(self.n_cells)
         ]
 
-        # Full cumulative terrain point cloud for 3D dashboard rendering.
-        # This grows forever (capped at 200k for matplotlib performance) so
-        # the 3D plot shows ALL terrain the robot has ever scanned, not just
-        # a sliding window.  Old points are never dropped — downsampling
-        # happens at render time in Dashboard._redraw().
-        self._cloud_xyz: list = []
-        self._cloud_max: int  = 200_000
+        # Terrain point cloud — ring buffer (deque) so recent points are always
+        # present and old points are gradually replaced.  maxlen=100k keeps
+        # ~30-60 s of downward scan visible at 50 Hz with 160 rays/step.
+        # Downsampling to 8k at render time keeps matplotlib fast.
+        self._cloud_xyz: "deque[tuple[float,float,float]]" = deque(maxlen=100_000)
+
 
     # ------------------------------------------------------------------
     # Coordinate helpers
@@ -109,14 +108,10 @@ class OccupancyMap:
         if ray_hits_w.shape[0] == 0:
             return
 
-        # Accumulate into cumulative terrain point cloud for 3D dashboard.
-        # Cap at _cloud_max (200k) to avoid matplotlib OOM.  Points are NEVER
-        # dropped — if cap is hit, new points are simply not added.
-        # Downsampling at render time ensures performance stays acceptable.
-        if len(self._cloud_xyz) < self._cloud_max:
-            remaining = self._cloud_max - len(self._cloud_xyz)
-            for pt in ray_hits_w[:remaining]:
-                self._cloud_xyz.append((float(pt[0]), float(pt[1]), float(pt[2])))
+        # Accumulate into ring buffer — deque(maxlen=100k) automatically drops
+        # the oldest points when full, so the cloud always reflects recent terrain.
+        for pt in ray_hits_w:
+            self._cloud_xyz.append((float(pt[0]), float(pt[1]), float(pt[2])))
 
         # Update grid cells
         # Group hits by cell, then compute step (z range) and slope
@@ -187,9 +182,15 @@ class OccupancyMap:
         return grid
 
     def get_point_cloud(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """Return (xs, ys, zs) arrays for 3D matplotlib scatter."""
+        """
+        Return (xs, ys, zs) arrays for 3D matplotlib scatter (downward scan).
+
+        The deque contains up to 100k recent points; the dashboard subsamples
+        to 8k for speed.
+        """
         if not self._cloud_xyz:
             empty = np.array([], dtype=np.float32)
             return empty, empty, empty
         arr = np.array(self._cloud_xyz, dtype=np.float32)
         return arr[:, 0], arr[:, 1], arr[:, 2]
+

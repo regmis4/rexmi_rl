@@ -529,6 +529,42 @@ class Go2wRoughEnvCfg(Go2wFlatEnvCfg):
         )
 
         # ==================================================================
+        # B2. FORWARD SCANNER — obstacle detection ahead of the robot
+        # ==================================================================
+        # A second RayCaster that fires rays forward at body height (0.5 m above
+        # base) covering ±60° horizontal and 0° to -20° vertical, at 5 m range.
+        # This lets the nav layer see rocks, walls, and crater rims up to 5 m
+        # ahead — giving ~3-12 seconds of warning at normal travel speed.
+        #
+        # Sensor layout:
+        #   origin  : 0.5 m above robot base (body height), same prim as height_scanner
+        #   rays    : 15 horizontal × 7 vertical = 105 rays per step
+        #   azimuth : -60° to +60° (forward ±60°, body frame)
+        #   elevation: 0° to -20° (level to slightly downward — sees boulders at distance)
+        #   range   : 5 m
+        #
+        # The nav layer reads this sensor as "forward_scanner" in navigator.py and
+        # feeds its world-frame hits into OccupancyMap.update() alongside the
+        # downward height scan.  It does NOT feed into the RL policy observation.
+        self.scene.forward_scanner = RayCasterCfg(
+            prim_path="{ENV_REGEX_NS}/Robot/base",
+            offset=RayCasterCfg.OffsetCfg(pos=(0.0, 0.0, 0.5)),   # body height
+            ray_alignment="yaw",
+            # LidarPatternCfg: forward-facing ±60° horizontal, 0° to -20° vertical.
+            # channels=5 vertical beams, horizontal_res=8° → 15 horizontal columns.
+            # Total: 5 × 15 = 75 rays per step (lightweight, 50 Hz is fine).
+            pattern_cfg=patterns.LidarPatternCfg(
+                channels=5,                         # 5 vertical beams (0° to -20° in 5° steps)
+                vertical_fov_range=(-20.0, 0.0),    # -20° to 0° (level to slightly down)
+                horizontal_fov_range=(-60.0, 60.0), # ±60° forward arc (body frame)
+                horizontal_res=8.0,                 # 8° between columns → 15 cols
+            ),
+            debug_vis=False,
+            mesh_prim_paths=["/World/ground"],
+            max_distance=5.0,              # 5 m range — good warning distance
+        )
+
+        # ==================================================================
         # C. HEIGHT SCAN OBSERVATION — add 160 height values to policy input
         # ==================================================================
         # The base class already has height_scan defined; Go2wFlatEnvCfg set it

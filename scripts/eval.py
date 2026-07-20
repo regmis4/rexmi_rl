@@ -194,13 +194,27 @@ if args._single is None and not args.visual:
         [f"roughness_up_35deg_{r}cm"   for r in [3, 10, 15, 20]] +
 
         # roughness_down_35deg (4) — Phase 8i; 35° downhill, sweep roughness 3/10/15/20 cm
-        [f"roughness_down_35deg_{r}cm" for r in [3, 10, 15, 20]]
+        [f"roughness_down_35deg_{r}cm" for r in [3, 10, 15, 20]] +
+
+        # spin_rotation (6) — Phase 9 spin policy eval
+        #   cmd: vx=0, vy=0, omega=+1 rad/s on 6 terrain types
+        #   metrics: track_ang_vel_z (spin tracking) + moving_frac (drift proxy)
+        #     spin_flat_0deg   — flat terrain (sanity check, should be easiest)
+        #     spin_slope_Ndeg  — rocky slopes 10/15/20/25/30/35° (match training terrain)
+        #   Pass criteria (before nav integration):
+        #     flat:  tracking ≥ 0.90, moving_frac ≤ 0.05 (< 5% drift steps)
+        #     15°:   tracking ≥ 0.80
+        #     25°:   tracking ≥ 0.70
+        #     35°:   tracking ≥ 0.60 (steepest expected in crater)
+        ["spin_flat_0deg"] +
+        [f"spin_slope_{d}deg" for d in [10, 15, 20, 25, 30, 35]]
     )
     _VALID_GROUPS = [
         "stairs_up", "stairs_down", "boxes", "slope", "rough",
         "steep_slope",
         "rocky_slope_up", "rocky_slope_down",
         "roughness_up_35deg", "roughness_down_35deg",
+        "spin_rotation",
     ]
 
     if not os.path.isfile(args.checkpoint):
@@ -333,6 +347,7 @@ if args._single is None and not args.visual:
         "steep_slope",
         "rocky_slope_up", "rocky_slope_down",
         "roughness_up_35deg", "roughness_down_35deg",
+        "spin_rotation",
     ]
     sep = "─" * 80
 

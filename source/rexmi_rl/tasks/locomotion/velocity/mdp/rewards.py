@@ -369,6 +369,123 @@ def joint_deviation_threshold(
     return excess.sum(dim=-1)
 
 
+def wheel_velocity_penalty(
+    env: ManagerBasedRLEnv,
+    asset_cfg=None,
+    omega_threshold: float = 0.3,
+) -> torch.Tensor:
+    """
+    Penalise wheel angular velocity — but ONLY when a spin command is active.
+
+    Used exclusively in the spin-in-place training environment to enforce
+    the legged-pivot turning strategy:
+
+      Goal: lock wheels (Kd × ω braking = active hold) while the policy
+      uses hip/thigh/calf leg dynamics to rotate the body around its own
+      vertical axis.  The wheels are ANCHORS, not actuators, during a spin.
+
+    Why the omega_cmd gate is critical (v4 fix)
+    -------------------------------------------
+    v3 used weight=-2.0 with NO gate.  model_13994 had strong wheel-drive priors
+    from rocky-slope training (normal driving speed ω ≈ 6 rad/s per wheel).
+    At episode start the penalty was:
+        -2.0 × (6² × 4) = -288/step
+    This completely overwhelmed every positive signal (+3.0 ang_vel max,
+    +0.2 is_alive) from the first step.  The policy discovered:
+        "fall over fast = shorter episode = less total wheel_brake penalty"
+    Result: 96.7% base_contact termination, ~18-step episodes, exploding value
+    function loss (50–91).
+
+    The gate ``|omega_cmd| > omega_threshold`` ensures:
+    • The penalty only fires when the spin command is active (|ω_cmd| > 0.3 rad/s).
+    • During normal stance/balance (omega_cmd ≈ 0) wheels can spin freely for
+      posture adjustment — no penalty.
+    • The policy first learns to survive on the slope (positive reward landscape),
+      THEN gradually learns to lock wheels while spinning as the gate activates.
+
+    Weight -0.05 (reduced from v3's -2.0)
+    --------------------------------------
+    At ω=6 rad/s with gate active: -0.05 × (6² × 4) = -7.2/step
+    Angular tracking reward (perfect):                 +3.0/step
+    is_alive reward (per step):                        +0.2/step
+
+    Net at episode start (mostly falling, ω≈6): ≈ -7.2 + 0.016 + 0.003 ≈ -7.2
+    But the policy can earn positive reward by surviving (is_alive × steps).
+    At 1000 steps: +0.2 × 1000 = +200 per episode — a reachable positive target.
+    The policy is not trapped in a death spiral.
+
+    As training progresses (policy locks wheels → ω → 0):
+        wheel_brake contribution → 0
+        angular tracking rises   → +3.0/step at 1000 steps = +3000/episode
+    The policy naturally converges to: lock wheels, use legs.
+
+    Gradient curriculum effect:
+    ----------------------------
+    Early training: gate rarely fires (policy exploring, omega_cmd drawn ∈ ±1.0
+    but robot falls before executing many spin steps).
+    Mid training: policy stays alive longer, gate fires more, wheel_brake grows,
+    policy learns to reduce wheel velocity under spin command.
+    Late training: wheels locked under spin → penalty → 0 → full angular reward.
+
+    Sim → Real mapping
+    ------------------
+    On the real Unitree Go2W (QDD motors):
+      • ``damping`` maps to motor Kd — higher Kd = stronger active braking
+      • ``stiffness=0`` = velocity mode (no position restoring force)
+    Commanding target_ω = 0 on a real QDD produces Kd × ω resistive torque.
+    This penalty enforces what the real motor should do: brake wheels when
+    spinning is commanded, use legs for rotation.
+
+    No ``friction`` added — joint friction is always-on passive drag that would
+    hurt normal forward driving.  Active Kd braking (commanded ω=0) is the
+    correct, hardware-equivalent approach.
+
+    Parameters
+    ----------
+    asset_cfg       : SceneEntityCfg with joint_ids resolved to wheel joint indices.
+                      Use joint_names=[".*_foot_joint"] in the RewardTermCfg params.
+    omega_threshold : Only penalise when |omega_cmd| exceeds this value (rad/s).
+                      Default 0.3 rad/s — below this the spin command is negligible
+                      and the robot should be free to use wheels for balance.
+
+    Returns
+    -------
+    Tensor shape (num_envs,).
+    Sum of squared wheel velocities × spin-command gate.
+    Multiply by a small negative weight (-0.05 recommended) in RewardTermCfg.
+
+    Example RewardTermCfg (in spin_env_cfg.py)::
+
+        from isaaclab.managers import SceneEntityCfg
+        self.rewards.wheel_brake = RewTerm(
+            func=wheel_velocity_penalty,
+            weight=-0.05,
+            params={
+                "asset_cfg": SceneEntityCfg("robot", joint_names=[".*_foot_joint"]),
+                "omega_threshold": 0.3,
+            },
+        )
+    """
+    if asset_cfg is None:
+        raise ValueError(
+            "wheel_velocity_penalty requires asset_cfg with joint_names=['.*_foot_joint']"
+        )
+
+    robot = env.scene[asset_cfg.name]
+
+    # Gate: only penalise when a meaningful spin command is active.
+    # omega_cmd is index 2 of the (vx, vy, omega) base_velocity command vector.
+    omega_cmd: torch.Tensor = env.command_manager.get_command("base_velocity")[:, 2]
+    spin_gate: torch.Tensor = (omega_cmd.abs() > omega_threshold).float()  # (num_envs,)
+
+    # Wheel joint angular velocities: (num_envs, 4)
+    wheel_vel: torch.Tensor = robot.data.joint_vel[:, asset_cfg.joint_ids]
+
+    # L2 norm squared across all 4 wheels — penalises wheel spin under spin command.
+    # Gated: zero cost when omega_cmd is small (robot using wheels for balance/stance).
+    return spin_gate * wheel_vel.pow(2).sum(dim=-1)  # (num_envs,)
+
+
 def uphill_lean_reward(env: ManagerBasedRLEnv) -> torch.Tensor:
     """
     Reward nose-down body pitch while the robot is actively climbing ascending terrain.
@@ -428,6 +545,96 @@ def uphill_lean_reward(env: ManagerBasedRLEnv) -> torch.Tensor:
     fwd_lean: torch.Tensor = grav_fwd.clamp(min=0.0)  # ignore nose-up (negative) lean
 
     return climbing * fwd_lean
+
+
+def position_drift_penalty(
+    env: ManagerBasedRLEnv,
+    drift_threshold: float = 0.10,
+) -> torch.Tensor:
+    """
+    Penalise horizontal displacement of the robot base from its spawn position.
+
+    Designed for the SpinStatic training environment (Stage 1 of the two-stage
+    spin curriculum) where the robot should stand completely still while learning
+    to lock its wheels via Kd braking.
+
+    MOTIVATION — why we need this for Stage 1:
+    -------------------------------------------
+    model_9995.pt was trained on pyramid slope terrain.  When placed on flat
+    terrain with vx=0, vy=0, omega=0 commands, the robot's learned priors will
+    still produce residual wheel torques that cause small drifts.  Without a
+    position-hold signal, the policy has no gradient to eliminate this drift —
+    is_alive alone only penalises falling, not wandering.
+
+    The drift threshold (default 0.10 m) creates a dead zone: the robot is free
+    to make micro-adjustments (stance width, weight shifting) within 10 cm of
+    spawn without penalty.  Drift beyond 10 cm earns a penalty proportional to
+    the excess distance — forcing the policy to actively resist its wheel-drive
+    priors.
+
+    DEAD ZONE CALIBRATION:
+    ----------------------
+    0.10 m covers:
+      • Normal stance sway from balance corrections: ±0.03–0.05 m  < threshold ✓
+      • Random push event displacement: ±0.05–0.08 m               < threshold ✓  
+      • Gravity-induced micro-drift on flat: ≈0 (no slope)         < threshold ✓
+      • Wheel-drive prior residual drift: 0.10–0.30 m/s over time  > threshold ✗ → penalised ✓
+
+    SPAWN POSITION TRACKING:
+    -------------------------
+    Isaac Lab resets each env independently and initialises `root_state_w` at
+    the start of each episode.  We read the CURRENT root position and subtract
+    the INITIAL position stored in `default_root_state`.
+
+    Note: `default_root_state` is the per-env spawn position set by the terrain
+    curriculum, not a fixed world origin.  This correctly handles the case where
+    different envs spawn at different terrain tiles.
+
+    COMBINATION WITH TRACK_LIN_VEL_XY_EXP (weight = -1.0):
+    --------------------------------------------------------
+    `track_lin_vel_xy_exp` penalises nonzero velocity (good for instantaneous
+    velocity control).  `position_drift_penalty` penalises accumulated displacement
+    (good for eliminating slow persistent drift that has near-zero instantaneous
+    velocity but grows over time).  Both signals together provide:
+      • Immediate feedback: don't start moving      (velocity penalty)
+      • Long-term feedback: return if you did move  (position penalty)
+
+    Parameters
+    ----------
+    env             : the running ManagerBasedRLEnv
+    drift_threshold : horizontal displacement (m) below which no penalty is applied.
+                      Default 0.10 m — covers normal balance corrections.
+
+    Returns
+    -------
+    Tensor shape (num_envs,), value ≥ 0.0.
+    Excess horizontal drift beyond threshold (metres).
+    Multiply by a negative weight (−1.0 recommended) in RewardTermCfg.
+
+    Example RewardTermCfg (in spin_static_env_cfg.py)::
+
+        self.rewards.position_drift = RewTerm(
+            func=position_drift_penalty,
+            weight=-1.0,
+            params={"drift_threshold": 0.10},
+        )
+    """
+    robot = env.scene["robot"]
+
+    # Current XY position in world frame: (num_envs, 3) → take first two dims
+    pos_w: torch.Tensor = robot.data.root_pos_w[:, :2]  # (num_envs, 2)
+
+    # Spawn XY position: default_root_state stores the per-env initial pose.
+    # Shape: (num_envs, 13) — [x, y, z, qx, qy, qz, qw, vx, vy, vz, wx, wy, wz]
+    spawn_xy: torch.Tensor = robot.data.default_root_state[:, :2]  # (num_envs, 2)
+
+    # Horizontal displacement from spawn
+    displacement: torch.Tensor = (pos_w - spawn_xy).norm(dim=-1)  # (num_envs,)
+
+    # Dead zone: no penalty within drift_threshold metres of spawn.
+    excess: torch.Tensor = (displacement - drift_threshold).clamp(min=0.0)
+
+    return excess
 
 
 def joint_group_symmetry_penalty(

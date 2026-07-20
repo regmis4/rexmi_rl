@@ -59,14 +59,17 @@ class RecoveryFSM:
 
     def __init__(
         self,
-        stuck_speed:       float = 0.03,  # m/s — only nearly-stationary counts
-        stuck_timeout:     float = 5.0,   # s — must be near-stationary for 5s
+        stuck_speed:       float = 0.05,  # m/s — robot at 0.04 m/s against a wall IS stuck
+        stuck_timeout:     float = 5.0,   # s — 5s wall time: enough for slow slope steps,
+                                          # fast enough to escape a boulder press quickly.
+                                          # Was 8s (too long — 8s of vx=0.40 against boulder),
+                                          # was 4s (too short — triggered on slow crater descent).
         reverse_duration:  float = 2.0,
         rotate_duration:   float = 3.0,   # 3s × 1.0 rad/s = 171° rotation
         rotate_speed:      float = 1.0,
         max_attempts:      int   = 3,
-        progress_thresh:   float = 1.0,   # m — must close 1m to count as progress
-        progress_timeout:  float = 20.0,  # s — 20s without 1m progress → stuck
+        progress_thresh:   float = 0.5,   # m — 0.5 m progress counts (not 1.0 m)
+        progress_timeout:  float = 60.0,  # s — raised: slow descent on crater wall takes ~60 s/metre
     ):
         self.stuck_speed      = stuck_speed
         self.stuck_timeout    = stuck_timeout
@@ -103,6 +106,21 @@ class RecoveryFSM:
             RecoveryState.REVERSING,
             RecoveryState.ROTATING,
         )
+
+    @property
+    def is_rotating(self) -> bool:
+        """
+        True when the FSM is actively executing a rotation manoeuvre.
+
+        Used by Navigator.step() to force PolicyMode.TURN so the dedicated
+        turn policy (vx=0, omega=±1) is active during recovery rotation,
+        rather than rough/rocky_slope which stall at vx=0.
+
+        Also True during REVERSING — the robot is backing away from an obstacle
+        and will transition to ROTATING immediately after.  Using the turn policy
+        during reverse avoids a policy switch mid-manoeuvre.
+        """
+        return self.state in (RecoveryState.REVERSING, RecoveryState.ROTATING)
 
     def reset(self) -> None:
         """Call after global planner finds a new path to clear BLOCKED state."""
@@ -146,19 +164,36 @@ class RecoveryFSM:
         now = time.monotonic()
 
         if self.state == RecoveryState.NAVIGATING:
+            # ------------------------------------------------------------------
+            # TURNING EXEMPTION: if the robot is executing a large heading
+            # correction (|he| > 60°), it is intentionally turning — not stuck.
+            # Speed will be low (vx≈0 during point turns) and waypoint distance
+            # will grow (robot pivots without advancing).  Both stuck detectors
+            # would fire spuriously.  Suppress them until the robot has roughly
+            # aligned with its goal (|he| < 60°).
+            # ------------------------------------------------------------------
+            turning = abs(heading_error) > math.radians(60)
+
             # --- speed-based stuck check (catches hard stops) ---
             speed_stuck = False
-            if speed < self.stuck_speed:
-                if self._stuck_since is None:
-                    self._stuck_since = now
-                elif now - self._stuck_since > self.stuck_timeout:
-                    speed_stuck = True
+            if not turning:
+                if speed < self.stuck_speed:
+                    if self._stuck_since is None:
+                        self._stuck_since = now
+                    elif now - self._stuck_since > self.stuck_timeout:
+                        speed_stuck = True
+                else:
+                    self._stuck_since = None
             else:
+                # Reset stuck timer while turning so it doesn't accumulate
                 self._stuck_since = None
 
             # --- progress-based stuck check (catches slipping/oscillating) ---
+            # Suppressed during large turns: the robot is expected to pivot in
+            # place, temporarily increasing waypoint distance, which would
+            # falsely trigger progress_stuck within seconds.
             progress_stuck = False
-            if waypoint_dist < math.inf:
+            if not turning and waypoint_dist < math.inf:
                 if self._last_progress_time is None:
                     self._last_progress_time = now
                     self._best_dist = waypoint_dist
@@ -168,6 +203,10 @@ class RecoveryFSM:
                     self._last_progress_time = now
                 elif now - self._last_progress_time > self.progress_timeout:
                     progress_stuck = True
+            elif turning:
+                # Reset progress timer during turns so it doesn't expire
+                self._last_progress_time = now
+                self._best_dist = min(self._best_dist, waypoint_dist)
 
             if speed_stuck or progress_stuck:
                 self._transition_to(RecoveryState.STUCK, now)
@@ -176,6 +215,12 @@ class RecoveryFSM:
 
         elif self.state == RecoveryState.STUCK:
             # Immediately start reversing
+            # Negate: policy convention is ang_vel_z positive = CW (right turn).
+            # SIGN CONVENTION (same as local_planner.py — verified from logs):
+            #   ang_vel_z > 0 → yaw increases (CCW = left turn)
+            #   ang_vel_z < 0 → yaw decreases (CW  = right turn)
+            # heading_error > 0 → goal is LEFT  → need CCW → positive omega
+            # heading_error < 0 → goal is RIGHT → need CW  → negative omega
             self._rotate_dir = 1.0 if heading_error >= 0 else -1.0
             self._transition_to(RecoveryState.REVERSING, now)
             return -0.2, 0.0, 0.0
@@ -194,9 +239,14 @@ class RecoveryFSM:
             # Recovery attempt complete
             self._attempts += 1
             self._stuck_since = None
+            # Reset progress tracking so the robot gets a fresh 60 s window
+            # to make progress from its new post-recovery position.
+            # Without this, progress_stuck fires immediately on return to
+            # NAVIGATING because the timer was never reset.
+            self._last_progress_time = None
+            self._best_dist          = math.inf
             # Alternate rotation direction for the next attempt so the robot
-            # tries both sides of the obstacle instead of always spinning the
-            # same way and landing in the same stuck orientation.
+            # tries both sides of the obstacle.
             self._rotate_dir *= -1.0
             if self._attempts >= self.max_attempts:
                 self.state = RecoveryState.BLOCKED

@@ -496,6 +496,56 @@ gym.register(
     },
 )
 
+# ---------------------------------------------------------------------------
+# Turn-in-place terrain (pure yaw-rate tracking, blank-slate design)
+# ---------------------------------------------------------------------------
+# Trains the robot to turn without translating — fixes the ~1°/s turn rate seen
+# when existing policies (trained at vx>0) receive vx=0 turn commands at runtime.
+#
+# BLANK SLATE: inherits from rough env (NOT rocky_slope). Spin and SpinStatic
+# both failed (see docs/spin_policy_postmortem.md); deleted 2026-07-19.
+#
+# Train (start from rough model_8996.pt):
+#   conda activate env_isaacsim
+#   python scripts/train.py --task RexmiRl-Go2w-Velocity-Turn-v0 --headless \
+#       --load_run go2w_velocity_rough/2026-06-14_20-03-41 \
+#       --checkpoint model_8996.pt --max_iterations 1500
+# Play training terrain:
+#   python scripts/play.py --task RexmiRl-Go2w-Velocity-Turn-Play-v0 \
+#       --load_run go2w_velocity_turn/<date>
+# Logs: logs/rsl_rl/go2w_velocity_turn/
+# Nav integration: python scripts/navigate.py --ckpt_turn logs/.../model_<N>.pt
+
+gym.register(
+    id="RexmiRl-Go2w-Velocity-Turn-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w"
+            ".turn_env_cfg:Go2wTurnEnvCfg"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wTurnPPORunnerCfg"
+        ),
+    },
+)
+
+gym.register(
+    id="RexmiRl-Go2w-Velocity-Turn-Play-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w"
+            ".turn_env_cfg:Go2wTurnEnvCfg_PLAY"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wTurnPPORunnerCfg"
+        ),
+    },
+)
+
 gym.register(
     id="RexmiRl-Go2w-Crater-Bowl-RockySlope-Record-v0",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",

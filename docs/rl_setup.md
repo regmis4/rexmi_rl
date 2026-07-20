@@ -1,14 +1,15 @@
 # REXMI RL — Complete Developer Reference
 
-> **Current status: Phase 8i COMPLETE — model_13994.pt is the PRODUCTION POLICY**
+> **Current status: Phase 8i COMPLETE + SPIN policy in training**
 >
-> Phases 1–8i complete. Crater bowl demo ready.
+> Phases 1–8i complete. Crater bowl demo ready. Spin policy adds clean in-place rotation for nav.
 >
 > | Policy | Checkpoint | Use |
 > |--------|-----------|-----|
 > | `model_8996.pt` (Phase 7) | `go2w_velocity_rough/2026-06-14_20-03-41` | Rough terrain generalist — **frozen** |
 > | `model_5998.pt` (Phase 8) | `go2w_velocity_steep_slope/2026-06-20_15-37-32` | Steep-slope descent — **frozen** |
 > | **`model_13994.pt` (Phase 8i)** | **`go2w_velocity_rocky_slope/2026-06-30_09-31-48`** | **Rocky slope uphill+downhill — PRODUCTION** |
+> | `model_<N>.pt` (Phase 9) | `go2w_velocity_spin/<date>` | **Spin-in-place (vx=0, omega=±1) — train first, then integrate into nav** |
 >
 > **Phase 8i key result**: Restarting from model_8996 (neutral gait) broke the 22° uphill ceiling
 > that blocked 5 consecutive phases (8d–8h). The model_12495 lineage was descent-dominant (gait basin
@@ -305,6 +306,7 @@ A thin re-export of all 4 config classes from `rough_env_cfg.py`.
 | `Go2wRoughPPORunnerCfg` | Rough (Phase 7 frozen) | [512,256,128] | 3000 | ~220 |
 | `Go2wSteepSlopePPORunnerCfg` | Steep-slope (Phase 8, **frozen**) | [512,256,128] | 3000 | ~220 |
 | `Go2wRockySlopePPORunnerCfg` | **Rocky-slope (Phase 8c, current)** | [512,256,128] | **2000** | **~220** |
+| `Go2wSpinPPORunnerCfg` | **Spin-in-place (Phase 9)** | [512,256,128] | **1000** | **~220** |
 
 Key differences: `empirical_normalization=True` for rough/steep-slope/rocky-slope terrain — height
 scan values span ±0.5 m, which would dominate the network input without normalisation.
@@ -592,6 +594,55 @@ tensorboard --logdir logs/rsl_rl/go2w_velocity_steep_slope
 # Evaluate steep-slope policy on the 5 steep-slope variants
 CKPT_STEEP=logs/rsl_rl/go2w_velocity_steep_slope/<date>_<time>/model_<iter>.pt
 python scripts/eval.py --checkpoint $CKPT_STEEP --group steep_slope
+
+# ── Spin-in-place policy (Phase 9 — nav turning fix) ──────────────────────
+# Problem: rough/rocky_slope policies output ~0 torque at vx=0 → robot barely
+# spins (~1°/s actual vs 57°/s commanded). Spin policy fixes this.
+#
+# Commands: vx=0, vy=0, omega ∈ (-1.0, +1.0) rad/s
+# Reward:   track_ang_vel_z_exp (weight=3.0) + track_lin_vel_xy_exp (weight=-1.0)
+# Terrain:  rocky slopes 15°–35° (same as rocky_slope env)
+# Start:    model_8996.pt (neutral gait — not contaminated by forward training)
+# Expected: 300–500 iters to convergence, track_ang_vel_z_exp > 0.85
+
+# Train spin policy (~8 min, 1000 iters)
+python scripts/train.py --task RexmiRl-Go2w-Velocity-Spin-v0 --headless \
+    --load_run go2w_velocity_rough/2026-06-14_20-03-41 \
+    --checkpoint model_8996.pt \
+    --max_iterations 1000
+
+# Watch TensorBoard while training
+tensorboard --logdir logs/rsl_rl/go2w_velocity_spin
+
+# Play — visual sanity check (50 robots spinning on rocky slopes)
+# What to look for:
+#   - Left wheels spin forward, right wheels spin backward (left turn)
+#   - Body stays nearly level despite slope (< 5° tilt change)
+#   - Minimal forward/lateral drift (< 0.1 m/s)
+#   - Rotation rate tracks ±1 rad/s command
+python scripts/play.py --task RexmiRl-Go2w-Velocity-Spin-Play-v0 \
+    --load_run go2w_velocity_spin/<date> \
+    --checkpoint model_<N>.pt
+
+# Eval — headless metrics on spin group (flat + 5 slope angles)
+CKPT_SPIN=logs/rsl_rl/go2w_velocity_spin/<date>/model_<N>.pt
+python scripts/eval.py --checkpoint $CKPT_SPIN --group spin_rotation
+
+# Eval — visual mode on steepest slope (35°) to check drift
+python scripts/eval.py --checkpoint $CKPT_SPIN \
+    --terrain spin_slope_35deg --visual
+
+# Eval — full sweep (spin group + all standard terrain groups)
+python scripts/eval.py --checkpoint $CKPT_SPIN
+
+# Pass spin eval? Integrate into crater navigate:
+python scripts/navigate.py \
+    --task           RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0 \
+    --ckpt_fast_flat logs/rsl_rl/go2w_velocity_fast_flat/2026-06-17_20-08-58/model_1499.pt \
+    --ckpt_rough     logs/rsl_rl/go2w_velocity_rough/2026-06-14_20-03-41/model_8996.pt \
+    --ckpt_rocky     logs/rsl_rl/go2w_velocity_rocky_slope/2026-06-30_09-31-48/model_13994.pt \
+    --ckpt_spin      logs/rsl_rl/go2w_velocity_spin/<date>/model_<N>.pt \
+    --mission traverse
 ```
 
 > **Note on run.sh**: `run.sh` is a convenience wrapper but has historically had a

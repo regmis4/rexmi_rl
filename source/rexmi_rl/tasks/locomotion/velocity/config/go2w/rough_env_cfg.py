@@ -565,6 +565,48 @@ class Go2wRoughEnvCfg(Go2wFlatEnvCfg):
         )
 
         # ==================================================================
+        # B3. FULL 360° LIDAR — Unitree L1 simulation (chin-mounted)
+        # ==================================================================
+        # The real Go2W carries a Unitree 4D LiDAR L1 in its chin.
+        # Specs (from Unitree product page):
+        #   18 vertical channels, vertical FOV -45° to +7° (52° total)
+        #   360° horizontal, ~10 Hz rotation rate, 30 m range
+        #   Chin mount: approx +0.29 m forward, 0 m lateral, -0.04 m below base
+        #
+        # Simulation approximation:
+        #   18 channels × 180 pts (2° horiz res) = 3,240 pts/scan
+        #   update_period = 0.1 s (10 Hz)  — only 5 of 50 sim steps update
+        #   yaw-only alignment: scan rotates with robot heading, stays level
+        #   This matches real L1 behaviour (spinning around vertical axis)
+        #
+        # Purpose (nav layer ONLY — not in RL policy observation):
+        #   • 3D voxel SLAM — builds a 3D map of the crater as robot explores
+        #   • Dense OccupancyMap update — 3240 pts/scan vs 160 from height scan
+        #   • Long-range path planning — sees 30 m vs 1.6 m from height scan
+        #   • Demo visual — SLAM map builds up in real-time (investor impact)
+        #
+        # The nav layer reads this as "lidar" in navigator.py.
+        # If the sensor is absent, the nav layer silently falls back to the
+        # existing forward+downward scanner pipeline (backward compatible).
+        self.scene.lidar = RayCasterCfg(
+            prim_path="{ENV_REGEX_NS}/Robot/base",
+            # Chin mount: +0.29 m forward (body frame x), -0.04 m below base (z)
+            # This matches the physical L1 placement on the real Go2W.
+            offset=RayCasterCfg.OffsetCfg(pos=(0.29, 0.0, -0.04)),
+            ray_alignment="yaw",   # spins around vertical axis (matches real L1)
+            pattern_cfg=patterns.LidarPatternCfg(
+                channels=18,                          # 18 vertical scan lines (L1 spec)
+                vertical_fov_range=(-45.0, 7.0),      # -45° to +7° (sim subset of real -90°..+7°)
+                horizontal_fov_range=(-180.0, 180.0), # full 360° horizontal
+                horizontal_res=2.0,                   # 2° → 180 pts/scan line → 3240 pts/scan
+            ),
+            update_period=0.1,              # 10 Hz (matches real L1 rotation rate)
+            debug_vis=False,
+            mesh_prim_paths=["/World/ground"],
+            max_distance=30.0,              # 30 m range (real L1 spec)
+        )
+
+        # ==================================================================
         # C. HEIGHT SCAN OBSERVATION — add 160 height values to policy input
         # ==================================================================
         # The base class already has height_scan defined; Go2wFlatEnvCfg set it

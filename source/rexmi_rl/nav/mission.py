@@ -43,9 +43,10 @@ from typing import List
 
 
 class Mission(Enum):
-    TRAVERSE    = "traverse"
-    SURVEY      = "survey"
-    RIM_CIRCUIT = "rim_circuit"
+    TRAVERSE       = "traverse"
+    SURVEY         = "survey"
+    RIM_CIRCUIT    = "rim_circuit"
+    VELOCITY_GOAL  = "velocity_goal"   # single user-specified waypoint — flat terrain debug
 
 
 @dataclass
@@ -101,14 +102,30 @@ class MissionPlanner:
     # Public API
     # ------------------------------------------------------------------
 
-    def get_waypoints(self, mission: Mission) -> List[Waypoint]:
-        """Return the ordered waypoint list for the given mission."""
+    def get_waypoints(
+        self,
+        mission: Mission,
+        goal_x: float = 0.0,
+        goal_y: float = 0.0,
+        goal_radius: float = 1.5,
+    ) -> List[Waypoint]:
+        """Return the ordered waypoint list for the given mission.
+
+        Parameters
+        ----------
+        goal_x, goal_y : float
+            Used only for Mission.VELOCITY_GOAL — the single target position.
+        goal_radius : float
+            Arrival radius for velocity_goal waypoint (m). Default 1.5 m.
+        """
         if mission == Mission.TRAVERSE:
             return self._traverse()
         elif mission == Mission.SURVEY:
             return self._survey()
         elif mission == Mission.RIM_CIRCUIT:
             return self._rim_circuit()
+        elif mission == Mission.VELOCITY_GOAL:
+            return self._velocity_goal(goal_x, goal_y, goal_radius)
         else:
             raise ValueError(f"Unknown mission: {mission}")
 
@@ -128,13 +145,17 @@ class MissionPlanner:
         approach_y = self.cy
 
         return [
-            Waypoint(approach_x, approach_y, 4.0, "approach"),
-            # rim_entry/rim_exit use a large arrival radius (3.5 m) because the
-            # robot approaches at a y-offset and may never pass within 1.5 m of
-            # the exact rim point.  We only need to confirm it has crossed the rim.
-            Waypoint(self._entry_x, self._entry_y, 3.5, "rim_entry"),
+            # arrival_radius=2.0 m: robot must actually drive to within 2 m.
+            # Previously 4.0 m — too large; robot spawning at x=+13 with approach
+            # at x=+12 was within 4 m at spawn and immediately skipped the waypoint.
+            # The closest-approach gate in _advance_waypoint() also prevents spawn-skip,
+            # but tight radii give the correct behaviour even without that gate.
+            Waypoint(approach_x, approach_y, 2.0, "approach"),
+            # rim_entry/rim_exit: 2.0 m radius — tight enough to require genuine
+            # rim crossing, wide enough for slight lateral offset.
+            Waypoint(self._entry_x, self._entry_y, 2.0, "rim_entry"),
             Waypoint(self.cx, self.cy, 2.0, "floor_centre"),
-            Waypoint(self._exit_x, self._exit_y, 3.5, "rim_exit"),
+            Waypoint(self._exit_x, self._exit_y, 2.0, "rim_exit"),
             # Continue 7 m beyond the far rim
             Waypoint(self._exit_x - 7.0 * math.cos(self.entry_az),
                      self._exit_y - 7.0 * math.sin(self.entry_az),
@@ -196,3 +217,25 @@ class MissionPlanner:
             label = f"rim_{i % n_points}"
             wps.append(Waypoint(x, y, 2.0, label))
         return wps
+
+    def _velocity_goal(
+        self,
+        goal_x: float,
+        goal_y: float,
+        arrival_radius: float = 1.5,
+    ) -> List[Waypoint]:
+        """
+        Single-waypoint mission for flat-terrain motion debugging.
+
+        The robot drives directly to (goal_x, goal_y) — no crater geometry,
+        no intermediate waypoints.  Use this to:
+          • Verify the turn-then-drive sequence on flat ground
+          • Measure straight-line tracking accuracy
+          • Isolate steering vs. locomotion issues before adding terrain complexity
+
+        Usage (navigate.py):
+            --mission velocity_goal --goal_x 5.0 --goal_y 0.0
+        """
+        return [
+            Waypoint(goal_x, goal_y, arrival_radius, "velocity_goal"),
+        ]

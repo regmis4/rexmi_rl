@@ -37,12 +37,22 @@ class GlobalPlanner:
     def __init__(
         self,
         omap: OccupancyMap,
-        replan_interval_s: float = 2.0,
-        lookahead_m: float = 4.0,
+        replan_interval_s: float = 3.0,
+        lookahead_m: float = 4.0,   # 4 m lookahead: snappier path tracking.
+                                    # 8 m was too long — on a 14 m approach the 8 m
+                                    # reference barely moves as the robot drifts,
+                                    # giving a sluggish heading response.  4 m gives
+                                    # a tighter, more responsive steering signal while
+                                    # still smoothing out minor path oscillations.
+                                    # that causes the robot to spiral away from the
+                                    # goal.  8 m keeps the reference stable while
+                                    # still allowing A* to route around boulders.
+        direct_bearing_thresh_deg: float = 30.0,
     ):
         self._map = omap
         self._replan_interval = replan_interval_s
         self._lookahead_m = lookahead_m
+        self._direct_bearing_thresh = math.radians(direct_bearing_thresh_deg)
 
         self._last_replan_t: float = 0.0
         self._path_cells: List[tuple[int, int]] = []   # cell indices on current path
@@ -67,18 +77,25 @@ class GlobalPlanner:
         """
         Update the planner and return the next immediate waypoint in world frame.
 
-        Parameters
-        ----------
-        robot_x, robot_y : float
-            Current robot world-frame position.
-        goal_x, goal_y : float, optional
-            Final mission waypoint world-frame position.  Used to sanity-check
-            the A* lookahead direction: if the lookahead is > 120° away from the
-            direct-to-goal bearing, the direct bearing is used instead.  This
-            prevents confusing commands when the map is mostly unknown and A*
-            returns a winding path through high-cost "unknown" cells.
+        Strategy (direct-bearing first):
+        ──────────────────────────────────
+        The RL policy (rocky_slope) is trained to handle steep, boulder-covered
+        terrain directly.  A* on an unknown map routes through cost=5 "unknown"
+        cells in arbitrary directions, causing the robot to orbit the crater
+        instead of descending.
 
-        Returns None if no path exists or goal not set.
+        New strategy:
+          1. Always start with a direct lookahead toward the goal.
+          2. Only deviate from direct bearing if A* finds a significantly
+             lower-cost route AND that route has NO cells with cost > 6
+             (i.e., genuine traversable terrain, not unknown default cost).
+          3. A* is still run in the background and its path is shown on the
+             dashboard — it just doesn't steer the robot unless it is genuinely
+             better than straight-line.
+
+        This means the robot steers directly toward each mission waypoint and
+        lets the RL policy handle all terrain details.  A* overrides only when
+        there is a real obstacle (boulder, cliff) that requires a detour.
         """
         if self._goal_cell is None:
             return None
@@ -87,44 +104,82 @@ class GlobalPlanner:
         if start_cell is None:
             return None
 
+        # Always compute the direct-bearing lookahead first.
+        #
+        # Key fix: clamp the lookahead point to the actual goal when the robot
+        # is within lookahead_m of the goal.  Without this, on a 14 m approach
+        # with an 8 m lookahead, the reference point is 8 m ahead in the goal
+        # direction — which is fine.  But as the robot drifts laterally the
+        # reference drifts too, creating an unstable heading error.  Clamping
+        # to the goal when close (dist < lookahead_m) gives a fixed target.
+        if goal_x is not None and goal_y is not None:
+            dist_to_goal = math.hypot(goal_x - robot_x, goal_y - robot_y)
+            direct_angle = math.atan2(goal_y - robot_y, goal_x - robot_x)
+            if dist_to_goal <= self._lookahead_m:
+                # Within lookahead range — aim directly at the goal itself
+                direct_lh = (goal_x, goal_y)
+            else:
+                # Far from goal — place lookahead point on direct ray
+                direct_lh = (
+                    robot_x + self._lookahead_m * math.cos(direct_angle),
+                    robot_y + self._lookahead_m * math.sin(direct_angle),
+                )
+        else:
+            dist_to_goal = math.inf
+            direct_lh = None
+
+        # Run A* periodically for obstacle-aware routing
         now = time.monotonic()
         needs_replan = (
             now - self._last_replan_t > self._replan_interval
             or not self._path_cells
-            or self._deviation_exceeds(robot_x, robot_y, 1.5)
+            or self._deviation_exceeds(robot_x, robot_y, 2.0)
         )
 
         if needs_replan:
             self._path_cells = self._astar(start_cell, self._goal_cell)
             self._last_replan_t = now
 
+        # If no A* path, use direct bearing
         if not self._path_cells:
-            return None   # no path found
+            return direct_lh
 
         # Trim already-passed cells
         self._trim_passed(robot_x, robot_y)
 
-        # Pick the lookahead waypoint
-        lh = self._lookahead_point(robot_x, robot_y)
-        if lh is None:
-            return None
+        # Get A* lookahead
+        astar_lh = self._lookahead_point(robot_x, robot_y)
 
-        # Sanity check: if A* lookahead direction diverges > 120° from the
-        # direct robot→goal bearing, the path is leading the robot away from
-        # the goal (can happen on an unknown map where every cell costs 5.0).
-        # Fall back to direct goal direction in that case.
+        # Use A* only if it meaningfully deviates from direct bearing AND
+        # the deviation is because of real obstacles (high-cost cells on
+        # the direct path).  Otherwise, always use direct bearing.
+        #
+        # Check whether the direct-bearing path has any blocked cells:
+        # sample 5 points along the direct ray and check their cost.
+        direct_blocked = False
         if goal_x is not None and goal_y is not None:
-            direct_angle = math.atan2(goal_y - robot_y, goal_x - robot_x)
-            lh_angle     = math.atan2(lh[1] - robot_y, lh[0] - robot_x)
-            angle_diff   = abs(_wrap_angle(lh_angle - direct_angle))
-            if angle_diff > math.radians(120):
-                # Use a point 4 m ahead along the direct bearing instead
-                lh = (
-                    robot_x + self._lookahead_m * math.cos(direct_angle),
-                    robot_y + self._lookahead_m * math.sin(direct_angle),
-                )
+            for frac in [0.25, 0.4, 0.55, 0.7, 0.85]:
+                sample_x = robot_x + frac * self._lookahead_m * math.cos(direct_angle)
+                sample_y = robot_y + frac * self._lookahead_m * math.sin(direct_angle)
+                cell = self._map.world_to_cell(sample_x, sample_y)
+                if cell is not None:
+                    cost = self._map.traversal_cost(cell[0], cell[1])
+                    if cost == math.inf:   # hard obstacle on direct path
+                        direct_blocked = True
+                        break
 
-        return lh
+        if direct_blocked and astar_lh is not None:
+            # There's a real obstacle — use A* to route around it
+            if not getattr(self, "_using_astar", False):
+                print(f"[GlobalPlanner] Direct path blocked — following A* route")
+                self._using_astar = True
+            return astar_lh
+        else:
+            # Direct path is clear (or unknown) — go straight toward goal
+            if getattr(self, "_using_astar", False):
+                print(f"[GlobalPlanner] Direct path clear — resuming direct bearing")
+                self._using_astar = False
+            return direct_lh if direct_lh is not None else astar_lh
 
     def get_path_world(self) -> List[tuple[float, float]]:
         """Return current planned path as world-frame (x, y) list (for dashboard)."""
@@ -202,10 +257,16 @@ class GlobalPlanner:
     # ------------------------------------------------------------------
 
     def _deviation_exceeds(self, rx: float, ry: float, threshold_m: float) -> bool:
-        """True if robot is more than threshold_m from every cell in current path."""
+        """True if robot is more than threshold_m from every cell in current path.
+
+        Checks all cells within 8 m of the robot (not just the first 10) so
+        that normal path tracking at 0.3–0.5 m/s doesn't trigger spurious
+        replans when the robot is moving along a valid but curved path.
+        """
         if not self._path_cells:
             return True
-        for r, c in self._path_cells[:10]:   # check first 10 cells
+        lookahead_cells = int(8.0 / self._map.cell_size)  # 8 m ÷ 0.2 m = 40 cells
+        for r, c in self._path_cells[:lookahead_cells]:
             wx, wy = self._map.cell_to_world(r, c)
             if math.hypot(rx - wx, ry - wy) < threshold_m:
                 return False
@@ -240,10 +301,5 @@ class GlobalPlanner:
         return self._map.cell_to_world(*self._path_cells[-1])
 
 
-def _wrap_angle(a: float) -> float:
-    """Wrap angle to [−π, π]."""
-    while a > math.pi:
-        a -= 2 * math.pi
-    while a < -math.pi:
-        a += 2 * math.pi
-    return a
+# _wrap_angle lives in local_planner.py — import from there if ever needed here.
+# Removed duplicate 2026-07-19.

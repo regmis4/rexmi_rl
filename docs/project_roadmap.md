@@ -1,6 +1,6 @@
 # REXMI RL — Project Roadmap & Strategic Plan
 
-> **Last updated: 2026-06-20**
+> **Last updated: 2026-07-11**
 >
 > **End goal**: A Go2W wheeled-hybrid quadruped that demonstrates autonomous,
 > insane-terrain navigation capability on a simulated lunar surface — suitable

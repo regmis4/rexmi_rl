@@ -9,4 +9,6 @@ from .rewards import (  # noqa: F401
     hip_crossing_penalty,
     joint_deviation_threshold,
     joint_group_symmetry_penalty,
+    wheel_velocity_penalty,
+    position_drift_penalty,
 )

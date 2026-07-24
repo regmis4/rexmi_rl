@@ -621,20 +621,704 @@ def position_drift_penalty(
     """
     robot = env.scene["robot"]
 
-    # Current XY position in world frame: (num_envs, 3) → take first two dims
+    # Current XY position in world frame
     pos_w: torch.Tensor = robot.data.root_pos_w[:, :2]  # (num_envs, 2)
 
-    # Spawn XY position: default_root_state stores the per-env initial pose.
-    # Shape: (num_envs, 13) — [x, y, z, qx, qy, qz, qw, vx, vy, vz, wx, wy, wz]
-    spawn_xy: torch.Tensor = robot.data.default_root_state[:, :2]  # (num_envs, 2)
+    # ------------------------------------------------------------------
+    # SPAWN POSITION — tracked via env.extras on the first step of each episode.
+    #
+    # WHY NOT default_root_state[:, :2]:
+    #   default_root_state is the asset's canonical pose from the URDF definition
+    #   (often the world origin [0, 0]). The terrain curriculum spawns the robot
+    #   at different tile positions across the terrain grid — potentially 5-20 m
+    #   from the URDF origin. Using default_root_state causes the penalty to fire
+    #   at full strength from step 1 even on a perfectly stationary robot.
+    #
+    # CORRECT APPROACH — record actual spawn position on first step:
+    #   episode_length_buf == 1 → first step of new episode → record root_pos_w.
+    #   Subsequent steps → measure drift from the recorded spawn position.
+    #   This correctly handles per-env per-episode spawn at arbitrary terrain tiles.
+    # ------------------------------------------------------------------
+    is_first_step: torch.Tensor = (env.episode_length_buf == 1)  # (num_envs,) bool
 
-    # Horizontal displacement from spawn
+    if "drift_spawn_xy" not in env.extras:
+        # Lazy initialisation on very first call (before any episode runs)
+        env.extras["drift_spawn_xy"] = pos_w.clone()
+
+    spawn_xy: torch.Tensor = env.extras["drift_spawn_xy"]  # (num_envs, 2)
+
+    # On first step of each episode: update spawn position for those envs.
+    # Other envs keep their existing spawn position from this episode's first step.
+    spawn_xy = torch.where(
+        is_first_step.unsqueeze(1).expand_as(spawn_xy),
+        pos_w,
+        spawn_xy,
+    )
+    env.extras["drift_spawn_xy"] = spawn_xy
+
+    # Horizontal displacement from this episode's actual spawn position
     displacement: torch.Tensor = (pos_w - spawn_xy).norm(dim=-1)  # (num_envs,)
 
     # Dead zone: no penalty within drift_threshold metres of spawn.
     excess: torch.Tensor = (displacement - drift_threshold).clamp(min=0.0)
 
     return excess
+
+
+def base_height_penalty(
+    env: ManagerBasedRLEnv,
+    min_height: float = 0.28,
+) -> torch.Tensor:
+    """
+    Penalise the robot for lowering its body below a minimum standing height.
+
+    PURPOSE — closing the crawl-spin exploit
+    -----------------------------------------
+    In turn training run 7, the robot discovered that lowering its body
+    nose-down to ~0.10 m (from normal standing ~0.35 m) reduces rotational
+    inertia around the vertical axis.  It then pivots around its nose with
+    rear knees dragging on the ground.  This IS genuine rotation (heading_progress
+    is real) but the posture is completely wrong for real-world slope operation.
+
+    The body height is the most direct measurement of this posture:
+      Normal standing:    base_z ≈ 0.35 m above terrain
+      Crawl-spin posture: base_z ≈ 0.08–0.15 m above terrain
+
+    This penalty fires when base height drops below min_height, with cost
+    proportional to the excess drop — similar to the dead-zone threshold
+    pattern used in hip_crossing_penalty.
+
+    HEIGHT MEASUREMENT:
+    -------------------
+    base_z = robot.data.root_pos_w[:, 2] — world-frame Z of the base link
+    terrain_z = estimated from root_pos_w at spawn (default_root_state[:, 2])
+
+    For flat terrain: root_pos_w[:, 2] directly gives height above ground
+    (terrain is at Z=0 or terrain_z = default_root_state[:, 2]).
+
+    For slope terrain: the base height above LOCAL terrain is more complex.
+    We use root_pos_w[:, 2] directly — this is the absolute world-frame Z,
+    which is sufficient to detect the crawl posture because:
+      - On flat terrain: normal standing Z ≈ 0.35 m, crawl Z ≈ 0.10 m
+      - On 35° slope: spawn Z is higher than flat, but relative to terrain
+        the body height is still measurable via the gravity-projected height
+    For simplicity on flat terrain (Phase A training): raw world Z works.
+    For slope-turn (Phase B): min_height can be reduced to 0.20 m.
+
+    WEIGHT CALIBRATION:
+    -------------------
+    At normal standing (Z=0.35 m, threshold=0.28 m): excess = 0 → zero cost
+    At mild stoop (Z=0.22 m): excess = 0.06 m → at weight=-20: cost=-1.2/step
+    At crawl posture (Z=0.10 m): excess = 0.18 m → at weight=-20: cost=-3.6/step
+
+    heading_progress at perfect 10°/s: ~0.175/step × weight=80 = 14/step
+    crawl saves inertia but costs -3.6/step → still profitable at large weight
+
+    COMBINE WITH flat_orientation_l2=-3.0:
+    The body pitched 60° nose-down also triggers orientation penalty heavily:
+      -3.0 × (60° in rad)² = -3.0 × 1.097 = -3.29/step
+    Combined with base_height at -3.6/step: total posture penalty = -6.9/step
+    heading_progress at perfect = 14/step → crawl gives 14 - 6.9 = +7.1/episode
+    upright gives 14 - 0 = 14/episode → upright is 2× more profitable ✓
+
+    Parameters
+    ----------
+    env        : the running ManagerBasedRLEnv
+    min_height : minimum acceptable base height above terrain (metres).
+                 Default 0.28 m — below normal standing (0.35 m) but well
+                 above crawl posture (0.10 m).
+
+    Returns
+    -------
+    Tensor shape (num_envs,), value ≥ 0.0.
+    Excess height drop below threshold (metres).
+    Multiply by a negative weight (-20.0 recommended) in RewardTermCfg.
+    """
+    robot = env.scene["robot"]
+
+    # World-frame base Z height
+    base_z: torch.Tensor = robot.data.root_pos_w[:, 2]  # (num_envs,)
+
+    # ------------------------------------------------------------------
+    # TERRAIN Z REFERENCE — tracked via env.extras on the first step.
+    #
+    # WHY NOT default_root_state[:, 2]:
+    #   Same bug as position_drift_penalty: default_root_state is the URDF
+    #   canonical pose (Z=0 or asset origin), not the per-episode spawn Z.
+    #   On sloped terrain the robot spawns at elevated Z (e.g., 2-5 m above
+    #   the URDF origin). Using default_root_state would give
+    #   height_above_terrain = base_z - 0.0 = base_z (world Z), which for
+    #   a robot spawned at tile Z=3.0 m never triggers min_height=0.28 m.
+    #
+    # CORRECT APPROACH — record actual spawn Z on first step:
+    #   The terrain surface under the robot at spawn is approximately
+    #   root_pos_w[:, 2] - standing_height (≈ 0.35 m). But since we want
+    #   the height ABOVE the terrain at any point (not just spawn), and the
+    #   terrain is roughly flat within a tile, we use spawn_z as the reference:
+    #     height_above_terrain ≈ base_z - spawn_z + 0.35
+    #   where 0.35 is the normal standing height at spawn.
+    #
+    #   Simpler: just measure height_above_terrain = base_z - spawn_z + spawn_height
+    #   where spawn_height = root_pos_w[:, 2] at first step (which already includes
+    #   the 0.35 m standing height from the ground).
+    #
+    #   Actually simplest: record base_z at spawn (first step), treat that as the
+    #   reference height for normal standing. Then penalise when current base_z
+    #   drops more than (spawn_z - min_height) below spawn.
+    #
+    #   Concretely: excess = (spawn_base_z - min_height) - base_z, clamped ≥ 0.
+    #   This fires when base_z drops more than (0.35 - 0.28) = 0.07 m below spawn.
+    # ------------------------------------------------------------------
+    is_first_step: torch.Tensor = (env.episode_length_buf == 1)  # (num_envs,) bool
+
+    if "height_spawn_z" not in env.extras:
+        env.extras["height_spawn_z"] = base_z.clone()
+
+    spawn_base_z: torch.Tensor = env.extras["height_spawn_z"]  # (num_envs,)
+
+    # Update on first step of each episode
+    spawn_base_z = torch.where(is_first_step, base_z, spawn_base_z)
+    env.extras["height_spawn_z"] = spawn_base_z
+
+    # Height below the spawn standing height (positive = robot has dropped)
+    height_drop: torch.Tensor = spawn_base_z - base_z  # (num_envs,) ≥ 0 when dropped
+
+    # Dead zone: no cost for drops ≤ (standing_height - min_height) = ~0.07 m
+    # At normal stepping, body may dip 2-3 cm → no cost.
+    # At crawl posture, body drops ~0.25 m → large cost.
+    allowed_drop = 0.35 - min_height  # ~0.07 m dead zone
+    excess_drop: torch.Tensor = (height_drop - allowed_drop).clamp(min=0.0)
+
+    return excess_drop
+
+
+def foot_alternation_reward(
+    env: ManagerBasedRLEnv,
+    asset_cfg=None,
+    omega_threshold: float = 0.05,
+    contact_threshold: float = 1.0,
+) -> torch.Tensor:
+    """
+    Reward lifting 1-2 feet off the ground during an active turn command.
+
+    PURPOSE — breaking the "all-4-wheels-glued" binding exploit
+    -----------------------------------------------------------
+    After 10 training runs, the robot consistently "arcs and binds" during
+    pivot turn commands — it twists the body at the hip/torso while keeping
+    all 4 wheels on the ground. This is because:
+
+    1. The rough policy prior says "4 wheels on ground = stable = good"
+    2. Every reward term in the current structure is either neutral or
+       negative about foot lift. Nothing DIRECTLY rewards it.
+    3. Foot lift during a step causes transient body tilt, which fires
+       flat_orientation_l2 even at weight=-0.3.
+
+    For a genuine pivot turn, the robot MUST lift 1-2 feet at a time and
+    swing them in arcs. This is the physically correct gait — same as a
+    dog turning in place. The smooth stepping gait requires:
+      - Lift one foot (or a diagonal pair)
+      - Swing it in the turn direction
+      - Plant it, then lift the next
+
+    This function directly rewards the correct intermediate states:
+
+      feet_off_ground = 0  (binding — all wheels glued during turn):
+          Returns -1.0 → at weight=+1.5: -1.5/step  [punish binding]
+
+      feet_off_ground = 1  (single foot lifted — correct single-step):
+          Returns +1.0 → at weight=+1.5: +1.5/step  [reward stepping]
+
+      feet_off_ground = 2  (diagonal pair lifted — trot stepping):
+          Returns +0.5 → at weight=+1.5: +0.75/step [reward trot gait]
+
+      feet_off_ground >= 3 (too many feet up — unstable):
+          Returns -2.0 → at weight=+1.5: -3.0/step  [punish instability]
+
+      omega_cmd < threshold (no turn command active):
+          Returns  0.0 → [don't interfere with standing/walking gaits]
+
+    CONTACT SENSOR USAGE:
+    ---------------------
+    Uses the existing `contact_forces` sensor (already in the scene for
+    `undesired_contacts`). For each foot link, checks if the contact force
+    magnitude exceeds `contact_threshold` (default 1.0 N). Below threshold
+    = foot is off the ground (or just brushing).
+
+    The asset_cfg should specify the FOOT links (wheel hubs), not the
+    calf/thigh/hip links used by undesired_contacts.
+
+    WEIGHT CALIBRATION:
+    -------------------
+    At weight=+1.5:
+      - Binding (all 4 wheels down) during turn: -1.5/step
+      - Single foot lifted: +1.5/step
+      - Perfect pivot (alternating single lifts): +1.5/step average
+      - heading_progress at perfect: ~0.22/step × 80 = ~17.6/step (dominant)
+      - foot_alternation adds +1.5/step = +8.5% improvement to dominant signal
+
+    The weight is intentionally moderate — foot_alternation is a SHAPING
+    signal, not the primary objective. heading_progress remains dominant.
+
+    WHY THIS WASN'T NEEDED FOR LATERAL WALKING:
+    --------------------------------------------
+    For vy commands (lateral stepping), foot lift is implicitly required —
+    the robot physically cannot step sideways without lifting a foot first.
+    The reward signal for "match vy_cmd" already creates the gradient.
+    For pivot turns (vx=0, vy=0, omega_cmd), there IS no translation
+    command — the robot can satisfy "no drift" by staying still with all
+    4 wheels planted and just twisting. This function adds the missing
+    gradient that says "during a turn, MOVE YOUR FEET."
+
+    Parameters
+    ----------
+    asset_cfg        : SceneEntityCfg with body_names resolved to foot links.
+                       Use body_names=[".*_foot"] for the wheel hub links.
+    omega_threshold  : minimum |omega_cmd| to activate the reward (rad/s).
+                       Default 0.05 — ignores near-zero yaw commands.
+    contact_threshold: contact force (N) below which foot is "off ground".
+                       Default 1.0 N — filters out brush contacts.
+
+    Returns
+    -------
+    Tensor shape (num_envs,).
+    Values: -2.0 (too many feet up), +1.0 (one foot up), +0.5 (two up),
+            -1.0 (zero feet up / binding), 0.0 (no turn command).
+    Multiply by a POSITIVE weight (+1.5 recommended) in RewardTermCfg.
+    """
+    if asset_cfg is None:
+        raise ValueError(
+            "foot_alternation_reward requires asset_cfg with body_names=['.*_foot']"
+        )
+
+    # --- Gate: only active during turn commands ---
+    omega_cmd: torch.Tensor = env.command_manager.get_command("base_velocity")[:, 2]
+    turn_active: torch.Tensor = (omega_cmd.abs() > omega_threshold)  # (num_envs,) bool
+
+    # --- Count feet on the ground via contact_forces sensor ---
+    # Isaac Lab ContactSensor: env.scene["contact_forces"]
+    # asset_cfg is SceneEntityCfg("contact_forces", body_names=[...])
+    # After env startup, asset_cfg.body_ids contains the resolved body indices.
+    # net_forces_w shape: (num_envs, num_bodies, 3) — ALL bodies in the sensor.
+    # We slice to just the foot body indices.
+    contact_sensor = env.scene[asset_cfg.name]  # ContactSensor
+
+    # net_forces_w: (num_envs, num_bodies, 3) — world-frame contact force per body
+    foot_forces: torch.Tensor = contact_sensor.data.net_forces_w[
+        :, asset_cfg.body_ids, :
+    ]  # (num_envs, 4, 3)
+
+    # Force magnitude per foot: (num_envs, 4)
+    foot_force_mag: torch.Tensor = foot_forces.norm(dim=-1)
+
+    # Binary: foot on ground = force > threshold
+    foot_on_ground: torch.Tensor = (foot_force_mag > contact_threshold).float()  # (num_envs, 4)
+
+    # Number of feet on the ground (0-4)
+    feet_on_ground: torch.Tensor = foot_on_ground.sum(dim=-1)  # (num_envs,)
+    feet_off: torch.Tensor = 4.0 - feet_on_ground  # (num_envs,)
+
+    # --- Reward signal based on feet off ground ---
+    # Binding (0 off): -1.0
+    binding = (feet_off == 0).float()
+    # Single step (1 off): +1.0
+    single_lift = (feet_off == 1).float()
+    # Trot pair (2 off): +0.5
+    trot_lift = (feet_off == 2).float()
+    # Unstable (3+ off): -2.0
+    unstable = (feet_off >= 3).float()
+
+    reward: torch.Tensor = (
+        -1.0 * binding
+        + 1.0 * single_lift
+        + 0.5 * trot_lift
+        - 2.0 * unstable
+    )  # (num_envs,)
+
+    # Zero out when no turn command is active
+    reward = reward * turn_active.float()
+
+    return reward
+
+
+def yaw_stagnation_penalty(
+    env: ManagerBasedRLEnv,
+    window_steps: int = 100,
+    min_yaw_deg: float = 5.0,
+    min_cmd: float = 0.1,
+) -> torch.Tensor:
+    """
+    Penalise the robot when it fails to accumulate meaningful yaw over a rolling window.
+
+    PURPOSE — closing the asymmetric rocking exploit (run 11)
+    ----------------------------------------------------------
+    Run 11 discovered that the robot satisfies heading_progress by rocking
+    its body asymmetrically: it oscillates slightly more in the commanded
+    turn direction than back. Per-step Δyaw is tiny (~0.002 rad/step) but
+    positive, so heading_progress collects reward. Over 1000 steps this
+    produces only ~2 rad (114°) of apparent yaw progress — but because
+    oscillations partially cancel, the ACTUAL net rotation may be much less.
+
+    This function measures total yaw accumulated over the last `window_steps`
+    steps. If the robot has genuinely turned, total_yaw_accumulated will be
+    near window_steps × cmd_rate × dt = 100 × 0.5 × 0.02 = 1.0 rad in 2 seconds.
+    If it's rocking, most of the yaw cancels and total_yaw_accumulated ≈ 0.1 rad.
+
+    The penalty fires when total yaw accumulated falls below min_yaw_deg
+    (in degrees) after window_steps steps of a turn command. This directly
+    makes the rocking exploit unprofitable: the robot must accumulate real
+    monotonic yaw, not just instantaneous Δyaw that partially cancels.
+
+    IMPLEMENTATION — rolling yaw accumulator:
+    -----------------------------------------
+    We store a running sum of per-step Δyaw in `env.extras["yaw_window_sum"]`
+    and a step counter in `env.extras["yaw_window_count"]`. Every step:
+      1. Compute Δyaw (same as heading_progress — actual quaternion yaw change)
+      2. Add to running sum (separate per env)
+      3. Every window_steps steps: check if sum > min_yaw_threshold
+         - If NO: return penalty (-1.0) for EACH step in that window
+         - If YES: return 0 (no penalty)
+         - Reset sum to 0 and counter to 0
+
+    WEIGHT CALIBRATION:
+    -------------------
+    At weight=-2.0 and firing every step of a 100-step window:
+      Total penalty per window if stagnating: -2.0 × 100 = -200
+      heading_progress at rocking: +0.30 × 100 = +30 (rough upper bound)
+      Net at rocking: +30 - 200 = -170/window → rocking is VERY unprofitable
+
+      heading_progress at genuine turn: +0.30 × 100 = +30
+      yaw_stagnation at genuine turn: 0 (threshold met)
+      Net at genuine turn: +30/window → strongly positive
+
+    The asymmetry (−170 vs +30) makes rocking completely non-viable.
+
+    GATING:
+    -------
+    Only fires when |omega_cmd| > min_cmd (default 0.1 rad/s).
+    At omega=0 (no turn command) the robot should stand still —
+    no penalty for zero yaw accumulation when not commanded to turn.
+
+    Parameters
+    ----------
+    window_steps : number of steps over which to measure yaw accumulation.
+                   Default 100 = 2 seconds at 50 Hz.
+    min_yaw_deg  : minimum yaw accumulated in window_steps to avoid penalty.
+                   Default 5.0° = 0.0873 rad.
+                   At perfect 0.5 rad/s × 2s = 1.0 rad accumulated.
+                   5° threshold accepts 5% efficiency (rocking achieves ~0-2%).
+    min_cmd      : minimum |omega_cmd| to activate the penalty (rad/s).
+
+    Returns
+    -------
+    Tensor shape (num_envs,), value 0.0 or 1.0.
+    Returns 1.0 when stagnating (yaw < threshold after window).
+    Multiply by a NEGATIVE weight (-2.0 recommended).
+    """
+    robot = env.scene["robot"]
+
+    # --- Current yaw from quaternion ---
+    quat = robot.data.root_quat_w  # (N, 4) [w, x, y, z]
+    w, x, y, z = quat[:, 0], quat[:, 1], quat[:, 2], quat[:, 3]
+    yaw_now: torch.Tensor = torch.atan2(
+        2.0 * (w * z + x * y),
+        1.0 - 2.0 * (y * y + z * z),
+    )  # (N,) in [-π, π]
+
+    # --- Omega command gate ---
+    omega_cmd: torch.Tensor = env.command_manager.get_command("base_velocity")[:, 2]
+    turn_active: torch.Tensor = (omega_cmd.abs() > min_cmd).float()  # (N,)
+
+    # --- Threshold in radians ---
+    min_yaw_rad = min_yaw_deg * (torch.pi / 180.0)
+
+    # --- Initialize extras on first call ---
+    is_first_step: torch.Tensor = (env.episode_length_buf == 1)  # (N,) bool
+
+    if "yaw_stag_prev_yaw" not in env.extras:
+        env.extras["yaw_stag_prev_yaw"] = yaw_now.clone()
+        env.extras["yaw_stag_sum"] = torch.zeros(
+            env.num_envs, device=yaw_now.device, dtype=yaw_now.dtype
+        )
+        env.extras["yaw_stag_count"] = torch.zeros(
+            env.num_envs, device=yaw_now.device, dtype=torch.long
+        )
+
+    prev_yaw: torch.Tensor = env.extras["yaw_stag_prev_yaw"]
+    yaw_sum: torch.Tensor = env.extras["yaw_stag_sum"]
+    step_count: torch.Tensor = env.extras["yaw_stag_count"]
+
+    # Reset on first step of each episode
+    yaw_sum = torch.where(is_first_step, torch.zeros_like(yaw_sum), yaw_sum)
+    step_count = torch.where(is_first_step, torch.zeros_like(step_count), step_count)
+    prev_yaw = torch.where(is_first_step, yaw_now, prev_yaw)
+
+    # --- Per-step Δyaw in correct-direction ---
+    delta_yaw = yaw_now - prev_yaw
+    # wrap to [-π, π]
+    delta_yaw = (delta_yaw + torch.pi) % (2 * torch.pi) - torch.pi
+    # signed progress in commanded direction (positive = correct direction)
+    signed_progress = delta_yaw * omega_cmd.sign()
+    # only accumulate when turn is active
+    signed_progress = signed_progress * turn_active
+
+    # --- Update rolling window ---
+    yaw_sum = yaw_sum + signed_progress
+    step_count = step_count + turn_active.long()
+
+    # --- Check window every window_steps ---
+    window_done: torch.Tensor = (step_count >= window_steps)  # (N,) bool
+
+    # Penalty fires when window complete AND yaw sum below threshold
+    stagnating: torch.Tensor = (
+        window_done & (yaw_sum < min_yaw_rad)
+    ).float()  # (N,)
+
+    # Reset window when done
+    yaw_sum = torch.where(window_done, torch.zeros_like(yaw_sum), yaw_sum)
+    step_count = torch.where(window_done, torch.zeros_like(step_count), step_count)
+
+    # --- Save state ---
+    env.extras["yaw_stag_prev_yaw"] = yaw_now.clone()
+    env.extras["yaw_stag_sum"] = yaw_sum
+    env.extras["yaw_stag_count"] = step_count
+
+    # --- Diagnostic: track cumulative net yaw per episode ---
+    # Logged to env.extras["net_yaw_deg"] for tensorboard visibility.
+    # This is the ONLY metric that cannot be gamed by joint-winding:
+    # - Genuine spin 0.3 rad/s × 20s × (180/π) = 344° per 1000-step episode
+    # - Joint-wind / static: <20° per episode (joint limits prevent more)
+    # Isaac Lab logs env.extras["net_yaw_deg"] automatically as
+    # Episode_Extras/net_yaw_deg in tensorboard.
+    if "net_yaw_episode" not in env.extras:
+        env.extras["net_yaw_episode"] = torch.zeros(
+            env.num_envs, device=yaw_now.device, dtype=yaw_now.dtype
+        )
+    net_yaw: torch.Tensor = env.extras["net_yaw_episode"]
+    # Accumulate per-step yaw (use the same signed_progress already computed above)
+    net_yaw = torch.where(is_first_step, torch.zeros_like(net_yaw), net_yaw + signed_progress.abs())
+    env.extras["net_yaw_episode"] = net_yaw
+    # Expose as degrees for human readability
+    env.extras["net_yaw_deg"] = (net_yaw * (180.0 / torch.pi)).mean().item()
+
+    return stagnating
+
+
+def trunk_stability_penalty(
+    env: ManagerBasedRLEnv,
+    max_tilt_deg: float = 15.0,
+) -> torch.Tensor:
+    """
+    Penalise trunk pitch and roll beyond a tight dead-zone during a turn command.
+
+    PURPOSE — eliminate the trunk-wind / nose-dive exploit
+    -------------------------------------------------------
+    Runs 12-16 all show the same exploit: the robot winds its hip joints to
+    rotate the trunk (base link) into a severely tilted pose — nose-down, or
+    rolled 40-70° sideways. The trunk rotation registers as yaw on the IMU
+    (track_ang_vel_z_exp fires) and as quaternion yaw change (heading_progress
+    fires), but the FEET DO NOT MOVE. The robot is not spinning its heading —
+    it's deforming its body shape.
+
+    The existing `flat_orientation_l2` term uses L2 over the full gravity
+    projection, which is quadratic and costs very little at moderate tilt.
+    At weight=-0.3, a 60° tilt only costs -0.33/step — far less than the
+    +1.44/step gained from `track_ang_vel_z_exp`. The twisted pose is profitable.
+
+    This function adds a THRESHOLD-based penalty that:
+      - Is completely FREE within ±max_tilt_deg (15°) of upright
+      - Costs steeply beyond the threshold
+      - Only fires during active turn commands (not during walking/standing)
+
+    At weight=-5.0:
+      Normal step swing (10° tilt): excess = 0 → zero cost ✓
+      Moderate lean (20° tilt):     excess = 5° = 0.087 rad → -0.44/step
+      Nose-down twist (60° tilt):   excess = 45° = 0.785 rad → -3.93/step
+
+    Combined with flat_orientation_l2=-3.0 at 60° tilt:
+      Total posture penalty = -3.29 + -3.93 = -7.22/step
+      track_ang_vel_z_exp gain at twisted pose ≈ +1.44/step
+      Net = -5.78/step → COMPLETELY UNPROFITABLE ✓
+
+    Upright genuine spin:
+      flat_orientation_l2 ≈ 0, trunk_stability ≈ 0
+      track_ang_vel_z_exp = +2.0/step at perfect 0.3 rad/s
+      Net = +2.0/step → clearly the winning strategy ✓
+
+    IMPLEMENTATION:
+    ---------------
+    `projected_gravity_b` is a unit vector of (0,0,-1) projected into the
+    body frame. When the body is perfectly upright:
+        projected_gravity_b = [0, 0, -1]  → no tilt
+    When the body tilts nose-down by θ:
+        projected_gravity_b[0] = sin(θ)   → forward component
+    When the body rolls right by θ:
+        projected_gravity_b[1] = sin(θ)   → lateral component
+
+    The tilt angle magnitude is:
+        sin(total_tilt) ≈ sqrt(grav_xy_sq) for small angles
+        total_tilt_rad = arcsin(sqrt(grav_b[:,0]² + grav_b[:,1]²))
+
+    We use the sin directly (grav_b[:,0]² + grav_b[:,1]²) as the tilt
+    magnitude squared, which is simpler and differentiable everywhere.
+
+    Dead zone in radians:
+        max_tilt_rad = max_tilt_deg × π/180
+        sin(15°) = 0.259
+    Beyond the threshold, penalty = sqrt(grav_xy_sq) - sin(max_tilt_rad), clamped ≥ 0.
+
+    Parameters
+    ----------
+    env          : the running ManagerBasedRLEnv
+    max_tilt_deg : trunk tilt (degrees) below which no penalty is applied.
+                   Default 15° — covers normal stepping tilt (±10°) with 5° margin.
+                   Nose-down/side-over exploits are 40-70° — clearly above threshold.
+
+    Returns
+    -------
+    Tensor shape (num_envs,), value ≥ 0.0.
+    Excess trunk tilt beyond threshold (in sin units, ≈ radians for small angles).
+    Multiply by a negative weight (-5.0 recommended) in RewardTermCfg.
+
+    Example RewardTermCfg (in turn_env_cfg.py)::
+
+        self.rewards.trunk_stability = RewTerm(
+            func=trunk_stability_penalty,
+            weight=-5.0,
+            params={"max_tilt_deg": 15.0},
+        )
+    """
+    robot = env.scene["robot"]
+
+    # projected_gravity_b: (num_envs, 3) — gravity in body frame
+    # [0] = forward/pitch component (nose-down = positive)
+    # [1] = lateral/roll component (roll right = positive)
+    # [2] = vertical component (≈ -1 when upright)
+    grav_b: torch.Tensor = robot.data.projected_gravity_b  # (N, 3)
+
+    # XY magnitude = sin(tilt_angle) ≈ tilt_angle in radians for small angles
+    grav_xy_sq: torch.Tensor = grav_b[:, 0].pow(2) + grav_b[:, 1].pow(2)  # (N,)
+    tilt_sin: torch.Tensor = grav_xy_sq.sqrt()  # (N,) = sin(tilt_angle)
+
+    # Threshold in sin units
+    max_tilt_rad = max_tilt_deg * (torch.pi / 180.0)
+    max_tilt_sin = torch.sin(torch.tensor(max_tilt_rad, device=tilt_sin.device))
+
+    # Dead-zone: no cost within ±max_tilt_deg
+    excess: torch.Tensor = (tilt_sin - max_tilt_sin).clamp(min=0.0)  # (N,)
+
+    # Gate: only penalise during active turn commands
+    omega_cmd: torch.Tensor = env.command_manager.get_command("base_velocity")[:, 2]
+    turn_active: torch.Tensor = (omega_cmd.abs() > 0.05).float()
+
+    return excess * turn_active
+
+
+def heading_progress(
+    env: ManagerBasedRLEnv,
+    min_cmd: float = 0.05,
+) -> torch.Tensor:
+    """
+    Reward actual heading displacement in the commanded yaw direction.
+
+    PURPOSE — closing the body-rocking exploit
+    -------------------------------------------
+    ``track_ang_vel_z_exp`` rewards INSTANTANEOUS yaw rate from the IMU.
+    A robot can satisfy this by rocking its body side-to-side, generating
+    oscillating ±ω_z IMU readings without ever moving its feet.  Net heading
+    change over any window = zero.  The exploit looks perfect in the stats
+    (high track_ang_vel_z_exp, low bad_orientation) but visually the robot
+    never actually spins.
+
+    This function rewards the ACTUAL change in heading angle:
+        Δyaw = sign(omega_cmd) × (current_yaw − prev_yaw)
+    Rocking: current_yaw oscillates ±, so Δyaw alternates ±0.0035 → clamped to 0
+             half the time → ~0.5× the maximum reward.
+    Genuine turn: current_yaw monotonically increases → Δyaw always positive
+                  → full reward every step.
+
+    The function uses ``env.episode_length_buf`` to detect episode reset
+    (length == 1 = first step of new episode) and skips the Δyaw computation
+    on that step to avoid stale prev_yaw values.
+
+    STATELESS IMPLEMENTATION (no persistent tensors):
+    --------------------------------------------------
+    We cannot store state in the function itself (called fresh each step).
+    Instead we store ``prev_yaw`` in ``env.extras`` — a dict that persists
+    within an episode and is accessible across reward function calls.
+    Isaac Lab's ManagerBasedRLEnv initialises env.extras = {} at startup;
+    we lazily initialise our key on first call.
+
+    MATH:
+        quaternion → yaw via atan2(2(wz+xy), 1−2(y²+z²))
+        Δyaw = sign(omega_cmd) × wrap_to_pi(yaw_now − yaw_prev)
+        reward = clamp(Δyaw, min=0.0)   [only reward correct-direction turning]
+
+    wrap_to_pi handles the ±π discontinuity: if the robot crosses the ±180°
+    boundary the naive difference is ±2π; wrapping gives the correct small Δ.
+
+    Parameters
+    ----------
+    env       : the running ManagerBasedRLEnv
+    min_cmd   : minimum |omega_cmd| to activate the reward (rad/s).
+                Default 0.05 — ignores tiny residual commands from the
+                command sampler near zero.
+
+    Returns
+    -------
+    Tensor shape (num_envs,), value ≥ 0.0.
+    Expected magnitude: ~0.0035 rad per step at 10°/s (0.175 rad/s ÷ 50 Hz).
+    Multiply by a large positive weight (+50.0 recommended) in RewardTermCfg
+    so the per-step contribution (~0.175) competes with track_ang_vel_z_exp
+    (~2.7/step at convergence).
+    """
+    robot = env.scene["robot"]
+
+    # --- Extract current yaw from base quaternion (world frame) ---
+    # root_quat_w: (num_envs, 4) as [w, x, y, z] in Isaac Lab convention
+    quat = robot.data.root_quat_w  # (N, 4)
+    w = quat[:, 0]
+    x = quat[:, 1]
+    y = quat[:, 2]
+    z = quat[:, 3]
+    yaw_now: torch.Tensor = torch.atan2(
+        2.0 * (w * z + x * y),
+        1.0 - 2.0 * (y * y + z * z),
+    )  # (N,) in [-π, π]
+
+    # --- Omega command gate ---
+    omega_cmd: torch.Tensor = env.command_manager.get_command("base_velocity")[:, 2]
+    active: torch.Tensor = (omega_cmd.abs() > min_cmd).float()  # (N,)
+
+    # --- First step of episode: initialise prev_yaw, return zero reward ---
+    is_first_step: torch.Tensor = (env.episode_length_buf == 1)  # (N,) bool
+
+    if "turn_prev_yaw" not in env.extras:
+        # Lazy initialisation on very first call (before any episode runs)
+        env.extras["turn_prev_yaw"] = yaw_now.clone()
+
+    prev_yaw: torch.Tensor = env.extras["turn_prev_yaw"]  # (N,)
+
+    # --- Compute heading displacement ---
+    # wrap_to_pi: keep difference in [-π, π] to handle the ±180° crossing
+    delta_yaw = yaw_now - prev_yaw
+    delta_yaw = (delta_yaw + torch.pi) % (2 * torch.pi) - torch.pi  # wrap to [-π, π]
+
+    # Signed heading progress: positive when turning in commanded direction
+    signed_progress: torch.Tensor = delta_yaw * omega_cmd.sign()
+
+    # Only reward correct-direction turning (clamp negatives to 0)
+    reward: torch.Tensor = signed_progress.clamp(min=0.0)
+
+    # Zero out on first step (prev_yaw not valid yet)
+    reward = reward * (~is_first_step).float()
+
+    # Apply gate: only reward when command is active
+    reward = reward * active
+
+    # --- Update prev_yaw: use yaw_now for all envs; first-step envs also update ---
+    env.extras["turn_prev_yaw"] = yaw_now.clone()
+
+    return reward
 
 
 def joint_group_symmetry_penalty(

@@ -497,25 +497,95 @@ gym.register(
 )
 
 # ---------------------------------------------------------------------------
-# Turn-in-place terrain (pure yaw-rate tracking, blank-slate design)
+# Turn-in-place — CURVED-PATH CURRICULUM (runs 18-20)
 # ---------------------------------------------------------------------------
-# Trains the robot to turn without translating — fixes the ~1°/s turn rate seen
-# when existing policies (trained at vx>0) receive vx=0 turn commands at runtime.
+# Trains the robot to turn without translating via a 3-phase curriculum:
+#   Phase A: vx=(0.3,0.5) + omega=(0.15,0.3) → wide arc (R=1-3m)
+#            Robot uses existing walking prior + slight differential turning.
+#            Warm-start: model_8996.pt (rough walking)
+#   Phase B: vx=(0.0,0.2) + omega=(0.15,0.3) → tight arc (R=0-1.3m)
+#            Near-pivot. Warm-start from Phase A checkpoint.
+#   Phase C: vx=0 + omega=(0.15,0.3) → pure pivot (R=0)
+#            Warm-start from Phase B checkpoint.
+#            This is Go2wTurnEnvCfg (existing Turn-v0 task).
 #
-# BLANK SLATE: inherits from rough env (NOT rocky_slope). Spin and SpinStatic
-# both failed (see docs/spin_policy_postmortem.md); deleted 2026-07-19.
-#
-# Train (start from rough model_8996.pt):
-#   conda activate env_isaacsim
-#   python scripts/train.py --task RexmiRl-Go2w-Velocity-Turn-v0 --headless \
+# Phase A training:
+#   python scripts/train.py --task RexmiRl-Go2w-Velocity-Turn-A-v0 --headless \
 #       --load_run go2w_velocity_rough/2026-06-14_20-03-41 \
-#       --checkpoint model_8996.pt --max_iterations 1500
-# Play training terrain:
-#   python scripts/play.py --task RexmiRl-Go2w-Velocity-Turn-Play-v0 \
-#       --load_run go2w_velocity_turn/<date>
-# Logs: logs/rsl_rl/go2w_velocity_turn/
-# Nav integration: python scripts/navigate.py --ckpt_turn logs/.../model_<N>.pt
+#       --checkpoint model_8996.pt --max_iterations 9500
+# Phase B training:
+#   python scripts/train.py --task RexmiRl-Go2w-Velocity-Turn-B-v0 --headless \
+#       --load_run go2w_velocity_turn_a/<date> \
+#       --checkpoint model_9500.pt --max_iterations 10000
+# Phase C (pure pivot):
+#   python scripts/train.py --task RexmiRl-Go2w-Velocity-Turn-v0 --headless \
+#       --load_run go2w_velocity_turn_b/<date> \
+#       --checkpoint model_10000.pt --max_iterations 10500
+# Logs: logs/rsl_rl/go2w_velocity_turn_a/, go2w_velocity_turn_b/, go2w_velocity_turn/
 
+# Phase A: wide-arc turning
+gym.register(
+    id="RexmiRl-Go2w-Velocity-Turn-A-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w"
+            ".turn_env_cfg:Go2wTurnAEnvCfg"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wTurnAPPORunnerCfg"
+        ),
+    },
+)
+
+gym.register(
+    id="RexmiRl-Go2w-Velocity-Turn-A-Play-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w"
+            ".turn_env_cfg:Go2wTurnAEnvCfg_PLAY"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wTurnAPPORunnerCfg"
+        ),
+    },
+)
+
+# Phase B: tight-arc to near-pivot
+gym.register(
+    id="RexmiRl-Go2w-Velocity-Turn-B-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w"
+            ".turn_env_cfg:Go2wTurnBEnvCfg"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wTurnBPPORunnerCfg"
+        ),
+    },
+)
+
+gym.register(
+    id="RexmiRl-Go2w-Velocity-Turn-B-Play-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w"
+            ".turn_env_cfg:Go2wTurnBEnvCfg_PLAY"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wTurnBPPORunnerCfg"
+        ),
+    },
+)
+
+# Phase C: pure pivot (final turn policy)
 gym.register(
     id="RexmiRl-Go2w-Velocity-Turn-v0",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
@@ -542,6 +612,52 @@ gym.register(
         ),
         "rsl_rl_cfg_entry_point": (
             f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wTurnPPORunnerCfg"
+        ),
+    },
+)
+
+# ---------------------------------------------------------------------------
+# Slope-turn terrain (Phase B turning — pivot on slopes up to 35°)
+# ---------------------------------------------------------------------------
+# Two-phase turn training:
+#   Phase A: RexmiRl-Go2w-Velocity-Turn-v0       (flat, learns basic pivot)
+#   Phase B: RexmiRl-Go2w-Velocity-SlopeTurn-v0  (slopes 15°–35°, adapts pivot)
+#
+# Train Phase B (warm-start from flat-turn checkpoint):
+#   ls logs/rsl_rl/go2w_velocity_turn/ | sort | tail -1
+#   python scripts/train.py --task RexmiRl-Go2w-Velocity-SlopeTurn-v0 --headless \
+#       --load_run go2w_velocity_turn/<latest> --checkpoint model_<N>.pt
+# Play:
+#   python scripts/play.py --task RexmiRl-Go2w-Velocity-SlopeTurn-Play-v0 \
+#       --load_run go2w_velocity_slope_turn/<date>
+# Logs: logs/rsl_rl/go2w_velocity_slope_turn/
+
+gym.register(
+    id="RexmiRl-Go2w-Velocity-SlopeTurn-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w"
+            ".slope_turn_env_cfg:Go2wSlopeTurnEnvCfg"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wSlopeTurnPPORunnerCfg"
+        ),
+    },
+)
+
+gym.register(
+    id="RexmiRl-Go2w-Velocity-SlopeTurn-Play-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w"
+            ".slope_turn_env_cfg:Go2wSlopeTurnEnvCfg_PLAY"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wSlopeTurnPPORunnerCfg"
         ),
     },
 )

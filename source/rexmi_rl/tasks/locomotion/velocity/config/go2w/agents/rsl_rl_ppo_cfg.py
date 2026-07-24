@@ -238,3 +238,91 @@ class Go2wTurnPPORunnerCfg(Go2wRoughPPORunnerCfg):
     experiment_name = "go2w_velocity_turn"
     max_iterations  = 1500
     save_interval   = 50
+
+
+# ==============================================================================
+# Slope-turn PPO config — pivot turning on slopes up to 35°
+# ==============================================================================
+
+@configclass
+class Go2wSlopeTurnPPORunnerCfg(Go2wTurnPPORunnerCfg):
+    """
+    PPO runner configuration for the Go2W slope-turn policy (Phase B turning).
+
+    INHERITS FROM: Go2wTurnPPORunnerCfg
+    ------------------------------------
+    Identical network [512, 256, 128] and algorithm hyperparameters.
+    Warm-start from the converged flat-turn checkpoint.
+
+    Purpose
+    -------
+    Phase B of the two-phase turn training:
+      Phase A (Go2wTurnPPORunnerCfg): flat terrain, learns basic pivot mechanics
+      Phase B (this):                 slopes 15°–35°, adapts pivot to gravity
+
+    The flat-turn policy already knows: lock wheels, step legs, rotate body.
+    This training adapts that gait to tilted terrain where gravity creates
+    asymmetric ground reaction forces during each leg step.
+
+    Key differences from Go2wTurnPPORunnerCfg:
+      1. experiment_name → "go2w_velocity_slope_turn"
+         Logs → logs/rsl_rl/go2w_velocity_slope_turn/ — separate experiment.
+      2. max_iterations = 1500 — slopes require more adaptation than flat.
+
+    Training command (warm-start from flat-turn checkpoint):
+        # Find latest flat-turn checkpoint:
+        ls logs/rsl_rl/go2w_velocity_turn/ | sort | tail -1
+
+        conda activate env_isaacsim
+        python scripts/train.py --task RexmiRl-Go2w-Velocity-SlopeTurn-v0 --headless \\
+            --load_run go2w_velocity_turn/<latest_run> \\
+            --checkpoint model_<N>.pt \\
+            --max_iterations 1500
+
+    Nav integration:
+        The slope-turn policy is the PRODUCTION turn policy for the crater demo.
+        PolicySelector loads it instead of flat-turn when slopes are detected.
+        Use --ckpt_turn pointing to a slope_turn checkpoint in navigate.py.
+    """
+
+    experiment_name = "go2w_velocity_slope_turn"
+    max_iterations  = 1500
+    save_interval   = 50
+
+
+# ==============================================================================
+# Curved-path curriculum turn PPO configs (runs 18-20)
+# ==============================================================================
+
+@configclass
+class Go2wTurnAPPORunnerCfg(Go2wTurnPPORunnerCfg):
+    """
+    PPO runner for Turn Phase A — wide-arc turning (vx=0.3-0.5, omega=0.15-0.3).
+
+    Logs to go2w_velocity_turn_a/ — separate from the pure-pivot experiment.
+    Warm-start from model_8996.pt (rough walking policy).
+    Expected convergence: ~500 iterations (robot already knows forward walking).
+
+    max_iterations=500: this is a brand-new run starting from iter 0.
+    The --load_run/--checkpoint flags transfer weights only — the iteration
+    counter resets. 500 total iterations ≈ 25 minutes.
+    """
+
+    experiment_name = "go2w_velocity_turn_a"
+    max_iterations  = 500
+    save_interval   = 50
+
+
+@configclass
+class Go2wTurnBPPORunnerCfg(Go2wTurnPPORunnerCfg):
+    """
+    PPO runner for Turn Phase B — tight-arc to near-pivot (vx=0-0.2, omega=0.15-0.3).
+
+    Logs to go2w_velocity_turn_b/ — separate from Phase A and pure-pivot.
+    Warm-start from Phase A checkpoint (best model from go2w_velocity_turn_a/).
+    Expected convergence: ~500 iterations.
+    """
+
+    experiment_name = "go2w_velocity_turn_b"
+    max_iterations  = 500
+    save_interval   = 50

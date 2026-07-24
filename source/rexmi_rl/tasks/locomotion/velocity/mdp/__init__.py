@@ -10,5 +10,11 @@ from .rewards import (  # noqa: F401
     joint_deviation_threshold,
     joint_group_symmetry_penalty,
     wheel_velocity_penalty,
+    uphill_lean_reward,
     position_drift_penalty,
+    base_height_penalty,
+    foot_alternation_reward,
+    yaw_stagnation_penalty,
+    heading_progress,
+    trunk_stability_penalty,
 )

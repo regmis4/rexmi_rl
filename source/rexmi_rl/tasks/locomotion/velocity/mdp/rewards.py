@@ -15,6 +15,7 @@ from __future__ import annotations
 import torch
 
 from isaaclab.envs import ManagerBasedRLEnv
+from isaaclab.utils.math import quat_apply_inverse
 
 
 def climb_progress(
@@ -1321,6 +1322,135 @@ def heading_progress(
     return reward
 
 
+def pivot_step_coordination(
+    env: ManagerBasedRLEnv,
+    contact_cfg=None,
+    robot_body_cfg=None,
+    min_swing_vel: float = 0.03,
+) -> torch.Tensor:
+    """
+    Reward feet that step in the correct lateral direction for a pivot turn.
+
+    PURPOSE — the missing coordination signal
+    ------------------------------------------
+    foot_alternation_reward rewards HOW MANY feet are lifted, but has zero
+    knowledge of WHICH direction each foot moves. The robot can earn the full
+    foot_alternation reward by lifting a foot and wiggling it randomly.
+
+    A natural pivot turn requires:
+      Left turn (omega > 0):
+        Front feet (FL, FR) → step RIGHTWARD (+y in body frame)
+        Rear feet  (RL, RR) → step LEFTWARD  (-y in body frame)
+      Right turn (omega < 0): signs reversed.
+
+    This is the scissor/tank-tread pattern. It generates yaw rotation entirely
+    within normal joint range — no joint limits needed. The robot is currently
+    using a "torque wind-up" exploit (arch body to max limits, release) because
+    there is no reward signal that says "move this specific foot in this direction."
+
+    IMPLEMENTATION:
+    ---------------
+    Two separate SceneEntityCfg are required:
+      contact_cfg    → contact_forces sensor, body_names=foot links (for swing detection)
+      robot_body_cfg → robot articulation, body_names=foot links (for body velocity)
+    Both must list feet in the SAME order: [FL_foot, FR_foot, RL_foot, RR_foot].
+
+    For each foot in SWING phase (off ground, detected via contact_forces):
+      Measure its lateral velocity in the BODY FRAME.
+      Front feet: reward if vy_b × sign(omega_cmd) > 0  (stepping outward)
+      Rear feet:  reward if vy_b × sign(omega_cmd) < 0  (stepping outward from rear)
+
+    The sign convention for "correct lateral step":
+      foot_sign = [+1, +1, -1, -1] for [FL, FR, RL, RR] during left turn
+    So correct_swing = foot_vy_b × foot_sign × sign(omega_cmd) > min_swing_vel
+
+    GATING:
+    -------
+    - Only fires when |omega_cmd| > 0.05 (turn command active)
+    - Only rewards feet actually in swing (contact force < 1N)
+    - Only rewards velocity exceeding min_swing_vel (filters micro-vibration)
+
+    WEIGHT CALIBRATION:
+    -------------------
+    At weight=+2.0, perfect coordination (2 feet in swing at correct vel):
+      +2.0 × (2 × 1.0) = +4.0/step — comparable to heading_progress at +0.48
+
+    Parameters
+    ----------
+    contact_cfg   : SceneEntityCfg("contact_forces", body_names=[...]) for swing detection.
+    robot_body_cfg: SceneEntityCfg("robot", body_names=[...]) for foot body velocities.
+    min_swing_vel : minimum lateral velocity (m/s) to count as an intentional step.
+
+    Returns
+    -------
+    Tensor shape (num_envs,), value ≥ 0.0.
+    """
+    if contact_cfg is None or robot_body_cfg is None:
+        raise ValueError(
+            "pivot_step_coordination requires both contact_cfg and robot_body_cfg"
+        )
+
+    robot = env.scene["robot"]
+    contact_sensor = env.scene[contact_cfg.name]
+
+    # --- Gate: only active during turn commands ---
+    omega_cmd: torch.Tensor = env.command_manager.get_command("base_velocity")[:, 2]
+    turn_active: torch.Tensor = (omega_cmd.abs() > 0.05)  # (N,) bool
+    omega_sign: torch.Tensor = omega_cmd.sign()  # +1 left, -1 right, 0 neutral
+
+    # --- Identify swing feet via contact sensor ---
+    foot_forces: torch.Tensor = contact_sensor.data.net_forces_w[
+        :, contact_cfg.body_ids, :
+    ]  # (N, 4, 3)
+    foot_force_mag: torch.Tensor = foot_forces.norm(dim=-1)  # (N, 4)
+    in_swing: torch.Tensor = (foot_force_mag < 1.0).float()  # (N, 4)
+
+    # --- Lateral velocity of each foot in body frame ---
+    # body_lin_vel_w: world-frame linear velocity of each rigid body in the articulation.
+    # Indexed by robot body indices (different from contact sensor body indices).
+    foot_vel_w: torch.Tensor = robot.data.body_lin_vel_w[
+        :, robot_body_cfg.body_ids, :
+    ]  # (N, 4, 3)
+
+    # Rotate world-frame foot velocities into robot body frame.
+    base_quat: torch.Tensor = robot.data.root_quat_w  # (N, 4)
+    N = foot_vel_w.shape[0]
+    foot_vel_w_flat = foot_vel_w.reshape(N * 4, 3)
+    base_quat_rep = base_quat.unsqueeze(1).expand(-1, 4, -1).reshape(N * 4, 4)
+    foot_vel_b_flat = quat_apply_inverse(base_quat_rep, foot_vel_w_flat)
+    foot_vel_b = foot_vel_b_flat.reshape(N, 4, 3)
+
+    foot_vy_b: torch.Tensor = foot_vel_b[:, :, 1]  # (N, 4) — lateral body-frame velocity
+
+    # --- Correct direction sign per foot ---
+    # For left turn (omega > 0):
+    #   FL (+1): should step right (+y) → correct if vy_b > 0
+    #   FR (+1): should step right (+y) → correct if vy_b > 0
+    #   RL (-1): should step left  (-y) → correct if vy_b < 0
+    #   RR (-1): should step left  (-y) → correct if vy_b < 0
+    # foot_dir: [FL, FR, RL, RR] = [+1, +1, -1, -1]
+    foot_dir = torch.tensor([1.0, 1.0, -1.0, -1.0],
+                             device=foot_vy_b.device, dtype=foot_vy_b.dtype)  # (4,)
+
+    # Signed correctness: positive = stepping in correct direction
+    # omega_sign: (N,) → expand to (N, 4)
+    correct_vel: torch.Tensor = foot_vy_b * foot_dir.unsqueeze(0) * omega_sign.unsqueeze(1)
+    # (N, 4) — positive when foot moves correctly for commanded turn direction
+
+    # --- Reward: swing feet with correct lateral velocity above threshold ---
+    # Only reward feet that are actually swinging AND moving correctly
+    swing_correct: torch.Tensor = (correct_vel > min_swing_vel).float()  # (N, 4)
+    swing_correct = swing_correct * in_swing  # only count feet that are off ground
+
+    # Sum across all 4 feet — max 4.0 per step (all feet swinging correctly)
+    coord_score: torch.Tensor = swing_correct.sum(dim=-1)  # (N,)
+
+    # Zero out when no turn command is active
+    coord_score = coord_score * turn_active.float()
+
+    return coord_score
+
+
 def joint_group_symmetry_penalty(
     env: ManagerBasedRLEnv,
     threshold_from_mean: float = 0.15,
@@ -1411,3 +1541,145 @@ def joint_group_symmetry_penalty(
     excess: torch.Tensor = (dev_from_mean - threshold_from_mean).clamp(min=0.0)
 
     return excess.sum(dim=-1)
+
+
+def foot_air_time_penalty(
+    env: ManagerBasedRLEnv,
+    asset_cfg=None,
+    max_air_steps: int = 6,
+    omega_threshold: float = 0.05,
+) -> torch.Tensor:
+    """
+    Penalise feet that stay off the ground longer than max_air_steps during a turn.
+
+    PURPOSE — enforce short quick shuffles instead of long lunging strides
+    -----------------------------------------------------------------------
+    Phase B v5 (2026-07-25) confirmed that ``pivot_step_coordination`` successfully
+    teaches the robot to lift feet and move them in the correct lateral direction.
+    However the visual eval showed a new issue: the robot takes LARGE, LONG strides
+    — big arcs with significant air time — rather than quick short shuffles.
+
+    WHY LONG STRIDES HAPPEN:
+    - ``foot_alternation_reward`` rewards COUNT of feet lifted (1=+1.0, 2=+0.5).
+      It does not penalise HOW LONG each foot stays in the air.
+    - ``pivot_step_coord`` rewards foot lateral velocity ≥ min_swing_vel.
+      At higher velocity (fast big swing), the foot satisfies the threshold MORE
+      easily and for more steps → inadvertently biases toward high-velocity lunges.
+    - Without any air-time penalty, the policy has no incentive to plant the foot
+      quickly — it stays up as long as needed for stability recovery.
+
+    WHY SHORT SHUFFLES ARE BETTER:
+    - Short swing time → less body instability during mid-air phase
+    - Less need for aggressive stability compensation → less ``bad_orientation``
+    - More frequent foot contacts → smoother angular velocity → less jerk
+    - More natural quadruped gait (dogs take short quick steps when turning)
+
+    IMPLEMENTATION — per-foot step counter in env.extras:
+    ------------------------------------------------------
+    Each foot has a counter tracking consecutive steps in swing (off ground).
+    - In contact (force ≥ contact_threshold): counter resets to 0
+    - In swing (force < contact_threshold): counter increments by 1
+
+    Penalty fires for each foot where counter > max_air_steps.
+    Penalty is proportional to excess air steps (dead-zone threshold style):
+        excess_air = max(0, air_step_count - max_air_steps)
+
+    DEAD-ZONE CALIBRATION (max_air_steps):
+    ----------------------------------------
+    At 50 Hz simulation:
+      max_air_steps=6 = 0.12s air time free
+      Normal quadruped shuffle at 2 Hz gait: swing phase ≈ 0.25s = 12.5 steps
+      → 6 steps is tight but realistic for REDUCED swing time target
+      Normal quadruped gait at 3 Hz: swing ≈ 0.16s = 8 steps → 6 still reasonable
+
+    A 6-step free zone allows the foot to clear the ground and plant.
+    Each step beyond 6 incurs penalty proportional to excess.
+
+    WEIGHT CALIBRATION:
+    -------------------
+    At weight=-1.0, a foot staying up for 20 steps (0.4s):
+      excess = 20 - 6 = 14 steps
+      penalty = -1.0 × 14 = -14 (over 20 steps = -0.7/step average)
+
+    foot_alternation reward for same period (1 foot up for 20 steps):
+      = +1.0 × 20 = +20 total
+    Net: +20 - 14 = +6 — still positive, but the free-lunge is now costly.
+
+    A 6-step shuffle (barely above threshold, foot comes right back down):
+      excess = 0 → zero penalty
+      foot_alternation: +1.0 × 6 = +6 — full benefit, no cost ✓
+
+    Gate: only fires during turn commands (|omega_cmd| > omega_threshold).
+
+    Parameters
+    ----------
+    asset_cfg      : SceneEntityCfg("contact_forces", body_names=[foot links])
+    max_air_steps  : steps of swing allowed before penalty fires. Default 6 = 0.12s.
+    omega_threshold: minimum |omega_cmd| to activate (rad/s). Default 0.05.
+
+    Returns
+    -------
+    Tensor shape (num_envs,), value ≥ 0.0.
+    Sum of excess air steps across all 4 feet.
+    Multiply by a NEGATIVE weight (-1.0 recommended) in RewardTermCfg.
+
+    Example::
+
+        self.rewards.foot_air_time = RewTerm(
+            func=foot_air_time_penalty,
+            weight=-1.0,
+            params={
+                "asset_cfg": SceneEntityCfg(
+                    "contact_forces",
+                    body_names=["FL_foot", "FR_foot", "RL_foot", "RR_foot"],
+                ),
+                "max_air_steps": 6,
+                "omega_threshold": 0.05,
+            },
+        )
+    """
+    if asset_cfg is None:
+        raise ValueError(
+            "foot_air_time_penalty requires asset_cfg with body_names=[foot links]"
+        )
+
+    contact_sensor = env.scene[asset_cfg.name]
+
+    # --- Gate: only active during turn commands ---
+    omega_cmd: torch.Tensor = env.command_manager.get_command("base_velocity")[:, 2]
+    turn_active: torch.Tensor = (omega_cmd.abs() > omega_threshold).float()  # (N,)
+
+    # --- Contact force magnitude per foot ---
+    foot_forces: torch.Tensor = contact_sensor.data.net_forces_w[
+        :, asset_cfg.body_ids, :
+    ]  # (N, 4, 3)
+    foot_force_mag: torch.Tensor = foot_forces.norm(dim=-1)  # (N, 4)
+    in_swing: torch.Tensor = (foot_force_mag < 1.0)  # (N, 4) bool — off ground
+
+    # --- Per-foot air-step counter (persisted in env.extras) ---
+    is_first_step: torch.Tensor = (env.episode_length_buf == 1)  # (N,) bool
+
+    if "foot_air_count" not in env.extras:
+        env.extras["foot_air_count"] = torch.zeros(
+            env.num_envs, 4, device=foot_force_mag.device, dtype=torch.long
+        )
+
+    air_count: torch.Tensor = env.extras["foot_air_count"]  # (N, 4) long
+
+    # Reset on first step of episode
+    air_count = torch.where(
+        is_first_step.unsqueeze(1).expand_as(air_count),
+        torch.zeros_like(air_count),
+        air_count,
+    )
+
+    # Increment counter for feet in swing, reset for feet in contact
+    air_count = torch.where(in_swing, air_count + 1, torch.zeros_like(air_count))
+    env.extras["foot_air_count"] = air_count
+
+    # --- Penalty: excess air steps beyond threshold ---
+    excess_air: torch.Tensor = (air_count - max_air_steps).clamp(min=0).float()  # (N, 4)
+    penalty: torch.Tensor = excess_air.sum(dim=-1)  # (N,)
+
+    # Only penalise during active turn commands
+    return penalty * turn_active

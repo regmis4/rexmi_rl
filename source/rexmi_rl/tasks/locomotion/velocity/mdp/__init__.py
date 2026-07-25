@@ -17,4 +17,6 @@ from .rewards import (  # noqa: F401
     yaw_stagnation_penalty,
     heading_progress,
     trunk_stability_penalty,
+    pivot_step_coordination,
+    foot_air_time_penalty,
 )

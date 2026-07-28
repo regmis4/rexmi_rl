@@ -241,56 +241,6 @@ class Go2wTurnPPORunnerCfg(Go2wRoughPPORunnerCfg):
 
 
 # ==============================================================================
-# Slope-turn PPO config — pivot turning on slopes up to 35°
-# ==============================================================================
-
-@configclass
-class Go2wSlopeTurnPPORunnerCfg(Go2wTurnPPORunnerCfg):
-    """
-    PPO runner configuration for the Go2W slope-turn policy (Phase B turning).
-
-    INHERITS FROM: Go2wTurnPPORunnerCfg
-    ------------------------------------
-    Identical network [512, 256, 128] and algorithm hyperparameters.
-    Warm-start from the converged flat-turn checkpoint.
-
-    Purpose
-    -------
-    Phase B of the two-phase turn training:
-      Phase A (Go2wTurnPPORunnerCfg): flat terrain, learns basic pivot mechanics
-      Phase B (this):                 slopes 15°–35°, adapts pivot to gravity
-
-    The flat-turn policy already knows: lock wheels, step legs, rotate body.
-    This training adapts that gait to tilted terrain where gravity creates
-    asymmetric ground reaction forces during each leg step.
-
-    Key differences from Go2wTurnPPORunnerCfg:
-      1. experiment_name → "go2w_velocity_slope_turn"
-         Logs → logs/rsl_rl/go2w_velocity_slope_turn/ — separate experiment.
-      2. max_iterations = 1500 — slopes require more adaptation than flat.
-
-    Training command (warm-start from flat-turn checkpoint):
-        # Find latest flat-turn checkpoint:
-        ls logs/rsl_rl/go2w_velocity_turn/ | sort | tail -1
-
-        conda activate env_isaacsim
-        python scripts/train.py --task RexmiRl-Go2w-Velocity-SlopeTurn-v0 --headless \\
-            --load_run go2w_velocity_turn/<latest_run> \\
-            --checkpoint model_<N>.pt \\
-            --max_iterations 1500
-
-    Nav integration:
-        The slope-turn policy is the PRODUCTION turn policy for the crater demo.
-        PolicySelector loads it instead of flat-turn when slopes are detected.
-        Use --ckpt_turn pointing to a slope_turn checkpoint in navigate.py.
-    """
-
-    experiment_name = "go2w_velocity_slope_turn"
-    max_iterations  = 1500
-    save_interval   = 50
-
-
-# ==============================================================================
 # Curved-path curriculum turn PPO configs (runs 18-20)
 # ==============================================================================
 
@@ -326,3 +276,138 @@ class Go2wTurnBPPORunnerCfg(Go2wTurnPPORunnerCfg):
     experiment_name = "go2w_velocity_turn_b"
     max_iterations  = 500
     save_interval   = 50
+
+
+# ==============================================================================
+# Slope-turn PPO configs — pivot turning on slopes (warm-start from flat Phase B)
+# ==============================================================================
+#
+# ENTROPY DIVERGENCE — why slope phases override entropy_coef (v9)
+# ----------------------------------------------------------------
+# The v8 Phase SA run (2026-07-26_18-44-42, resumed from model_11990 for 500
+# iterations) PEAKED at iteration ~12120 and then collapsed monotonically:
+#
+#   iter ~12120:  reward  +8.4   pivot_step_coord 1.08   bad_orientation 72.2%
+#   iter  12489:  reward -12.2   pivot_step_coord 0.65   bad_orientation 84.5%
+#
+# Diagnostic signature over those same iterations:
+#
+#   action noise std   1.07 -> 1.31   (RISING, above its 1.0 init)
+#   entropy loss       21.6 -> 24.9   (RISING)
+#   surrogate loss     ~= 0 throughout (-0.002 .. -0.013)
+#
+# Mechanism: with most rollouts terminating in failure, the advantage signal
+# collapses, so the surrogate-loss gradient (which normally pulls std DOWN
+# toward the useful action distribution) vanishes. The entropy bonus is then
+# the only significant gradient acting on std, and it pushes std UP. Higher
+# std -> more falls -> even weaker advantage signal -> entropy dominates
+# further. Self-reinforcing divergence.
+#
+# entropy_coef=0.01 is fine on FLAT terrain, where the advantage signal stays
+# strong enough to oppose it. On slope it is not.
+#
+# Fix: 0.01 -> 0.002 for slope phases only. Flat phases keep the proven 0.01.
+_SLOPE_ENTROPY_COEF = 0.002
+
+# 500 iters let v8 diverge ~370 iterations past its peak before we could react.
+# 250 keeps the read-evaluate loop tight; warm-start from the previous phase
+# means each run only needs to refine, not learn from scratch.
+_SLOPE_MAX_ITERATIONS = 250
+
+
+def _make_slope_algorithm() -> RslRlPpoAlgorithmCfg:
+    """
+    Build the PPO algorithm cfg for slope-turn phases.
+
+    Identical to Go2wFlatPPORunnerCfg.algorithm EXCEPT entropy_coef, which is
+    lowered to _SLOPE_ENTROPY_COEF (see the divergence analysis above).
+
+    A factory rather than a shared module-level instance so each runner cfg
+    class gets its own object and cannot alias another phase's config.
+
+    Declared as a plain class attribute (the same pattern
+    Go2wRoughPPORunnerCfg uses to override `policy`) rather than mutated in
+    __post_init__: `configclass` wraps any user-defined __post_init__ via
+    _combined_function, so calling super().__post_init__() would run the
+    framework's own post-init twice.
+    """
+    return RslRlPpoAlgorithmCfg(
+        value_loss_coef=1.0,
+        use_clipped_value_loss=True,
+        clip_param=0.2,
+        entropy_coef=_SLOPE_ENTROPY_COEF,   # 0.002 — was 0.01 (diverged)
+        num_learning_epochs=5,
+        num_mini_batches=4,
+        learning_rate=1.0e-3,
+        schedule="adaptive",
+        gamma=0.99,
+        lam=0.95,
+        desired_kl=0.01,
+        max_grad_norm=1.0,
+    )
+
+
+@configclass
+class Go2wSlopeTurnAPPORunnerCfg(Go2wTurnBPPORunnerCfg):
+    """
+    PPO runner for Slope-Turn Phase SA — gentle slopes 5°–20°.
+
+    Inherits from Go2wTurnBPPORunnerCfg (same [512,256,128] network, same obs
+    space — compatible with model_10992.pt for weight transfer).
+
+    Logs to go2w_velocity_slope_turn_a/
+
+    Training command:
+        python scripts/train.py --task RexmiRl-Go2w-Velocity-SlopeTurnA-v0 --headless \\
+            --load_run go2w_velocity_turn_b/2026-07-25_13-51-28 \\
+            --checkpoint model_10992.pt
+    """
+
+    experiment_name = "go2w_velocity_slope_turn_a"
+    max_iterations  = _SLOPE_MAX_ITERATIONS
+    save_interval   = 50
+    algorithm       = _make_slope_algorithm()
+
+
+@configclass
+class Go2wSlopeTurnPPORunnerCfg(Go2wTurnBPPORunnerCfg):
+    """
+    PPO runner for Slope-Turn Phase SB — 20° rocky pyramid slope.
+
+    Terrain: RockyPyramidSlopeDownCfg at 20°, 2cm roughness, no boulders.
+    Warm-start from Phase SA checkpoint.
+
+    Logs to go2w_velocity_slope_turn/
+
+    Training command:
+        python scripts/train.py --task RexmiRl-Go2w-Velocity-SlopeTurn-v0 --headless \\
+            --load_run go2w_velocity_slope_turn_a/<date> \\
+            --checkpoint model_<N>.pt
+    """
+
+    experiment_name = "go2w_velocity_slope_turn"
+    max_iterations  = _SLOPE_MAX_ITERATIONS
+    save_interval   = 50
+    algorithm       = _make_slope_algorithm()
+
+
+@configclass
+class Go2wSlopeTurnCPPORunnerCfg(Go2wTurnBPPORunnerCfg):
+    """
+    PPO runner for Slope-Turn Phase SC — 30° rocky pyramid slope.
+
+    Inherits from Go2wTurnBPPORunnerCfg (same [512,256,128] network and obs space).
+    Warm-start from Phase SB checkpoint.
+
+    Logs to go2w_velocity_slope_turn_c/
+
+    Training command:
+        python scripts/train.py --task RexmiRl-Go2w-Velocity-SlopeTurnC-v0 --headless \\
+            --load_run go2w_velocity_slope_turn/<date> \\
+            --checkpoint model_<N>.pt
+    """
+
+    experiment_name = "go2w_velocity_slope_turn_c"
+    max_iterations  = _SLOPE_MAX_ITERATIONS
+    save_interval   = 50
+    algorithm       = _make_slope_algorithm()

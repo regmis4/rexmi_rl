@@ -556,7 +556,8 @@ def rocky_pyramid_slope_down(difficulty: float, cfg) -> np.ndarray:
     # Surface roughness — use a different seed offset to produce a
     # different boulder/roughness pattern from the uphill companion tile
     # ------------------------------------------------------------------
-    rng = np.random.default_rng(seed=cfg.seed + 1000)
+    _seed = (cfg.seed + 1000) if cfg.seed is not None else None
+    rng = np.random.default_rng(seed=_seed)
     h += rng.uniform(-roughness / 2.0, roughness / 2.0, h.shape)
 
     # ------------------------------------------------------------------

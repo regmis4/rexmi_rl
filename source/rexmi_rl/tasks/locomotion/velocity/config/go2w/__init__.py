@@ -617,21 +617,60 @@ gym.register(
 )
 
 # ---------------------------------------------------------------------------
-# Slope-turn terrain (Phase B turning — pivot on slopes up to 35°)
+# Slope-turn terrain — two-phase curriculum (5°–20° then 15°–35°)
 # ---------------------------------------------------------------------------
-# Two-phase turn training:
-#   Phase A: RexmiRl-Go2w-Velocity-Turn-v0       (flat, learns basic pivot)
-#   Phase B: RexmiRl-Go2w-Velocity-SlopeTurn-v0  (slopes 15°–35°, adapts pivot)
+# Four-phase turn training in total:
+#   Flat Phase A: RexmiRl-Go2w-Velocity-Turn-A-v0   (wide arc, walks + turns)
+#   Flat Phase B: RexmiRl-Go2w-Velocity-Turn-B-v0   (tight arc/near-pivot) ✅ BEST: model_10992.pt
+#   Slope-A:      RexmiRl-Go2w-Velocity-SlopeTurnA-v0 (5°–20°, warm-start from flat B)
+#   Slope-B:      RexmiRl-Go2w-Velocity-SlopeTurn-v0  (15°–35°, warm-start from Slope-A)
 #
-# Train Phase B (warm-start from flat-turn checkpoint):
-#   ls logs/rsl_rl/go2w_velocity_turn/ | sort | tail -1
+# Train Slope-A (warm-start from flat best policy):
+#   python scripts/train.py --task RexmiRl-Go2w-Velocity-SlopeTurnA-v0 --headless \
+#       --load_run go2w_velocity_turn_b/2026-07-25_13-51-28 --checkpoint model_10992.pt
+# Train Slope-B (warm-start from Slope-A):
 #   python scripts/train.py --task RexmiRl-Go2w-Velocity-SlopeTurn-v0 --headless \
-#       --load_run go2w_velocity_turn/<latest> --checkpoint model_<N>.pt
-# Play:
+#       --load_run go2w_velocity_slope_turn_a/<date> --checkpoint model_<N>.pt
+# Play Slope-A:
+#   python scripts/play.py --task RexmiRl-Go2w-Velocity-SlopeTurnA-Play-v0 \
+#       --load_run go2w_velocity_slope_turn_a/<date>
+# Play Slope-B:
 #   python scripts/play.py --task RexmiRl-Go2w-Velocity-SlopeTurn-Play-v0 \
 #       --load_run go2w_velocity_slope_turn/<date>
-# Logs: logs/rsl_rl/go2w_velocity_slope_turn/
+# Logs: logs/rsl_rl/go2w_velocity_slope_turn_a/, go2w_velocity_slope_turn/
 
+# Phase SA: gentle slopes (5°–20°) — warm-start from flat Phase B
+gym.register(
+    id="RexmiRl-Go2w-Velocity-SlopeTurnA-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w"
+            ".slope_turn_env_cfg:Go2wSlopeTurnAEnvCfg"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wSlopeTurnAPPORunnerCfg"
+        ),
+    },
+)
+
+gym.register(
+    id="RexmiRl-Go2w-Velocity-SlopeTurnA-Play-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w"
+            ".slope_turn_env_cfg:Go2wSlopeTurnAEnvCfg_PLAY"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wSlopeTurnAPPORunnerCfg"
+        ),
+    },
+)
+
+# Phase SB: steep slopes (15°–35°) — warm-start from Phase SA
 gym.register(
     id="RexmiRl-Go2w-Velocity-SlopeTurn-v0",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
@@ -658,6 +697,36 @@ gym.register(
         ),
         "rsl_rl_cfg_entry_point": (
             f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wSlopeTurnPPORunnerCfg"
+        ),
+    },
+)
+
+gym.register(
+    id="RexmiRl-Go2w-Velocity-SlopeTurnC-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w"
+            ".slope_turn_env_cfg:Go2wSlopeTurnCEnvCfg"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wSlopeTurnCPPORunnerCfg"
+        ),
+    },
+)
+
+gym.register(
+    id="RexmiRl-Go2w-Velocity-SlopeTurnC-Play-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w"
+            ".slope_turn_env_cfg:Go2wSlopeTurnCEnvCfg_PLAY"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wSlopeTurnCPPORunnerCfg"
         ),
     },
 )

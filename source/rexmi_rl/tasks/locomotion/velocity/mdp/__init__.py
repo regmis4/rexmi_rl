@@ -3,7 +3,13 @@
 
 """Custom MDP terms for REXMI velocity-tracking environments."""
 
+from .commands import (  # noqa: F401
+    RelativeHeadingVelocityCommand,
+    RelativeHeadingVelocityCommandCfg,
+    make_relative_heading_command,
+)
 from .rewards import (  # noqa: F401
+
     climb_progress,
     stagnation_penalty,
     hip_crossing_penalty,

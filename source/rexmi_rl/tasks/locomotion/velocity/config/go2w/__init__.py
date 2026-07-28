@@ -655,6 +655,22 @@ gym.register(
     },
 )
 
+# SA-v12b: symmetric ω mix after negative-yaw repair (warm-start from v12a)
+gym.register(
+    id="RexmiRl-Go2w-Velocity-SlopeTurnA-V12B-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w"
+            ".slope_turn_env_cfg:Go2wSlopeTurnAEnvCfg_V12B"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wSlopeTurnAPPORunnerCfg"
+        ),
+    },
+)
+
 gym.register(
     id="RexmiRl-Go2w-Velocity-SlopeTurnA-Play-v0",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
@@ -663,6 +679,54 @@ gym.register(
         "env_cfg_entry_point": (
             "rexmi_rl.tasks.locomotion.velocity.config.go2w"
             ".slope_turn_env_cfg:Go2wSlopeTurnAEnvCfg_PLAY"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wSlopeTurnAPPORunnerCfg"
+        ),
+    },
+)
+
+# Phase SA diagnostics — PLAY ONLY. Never train on these.
+# D1: fixed one-direction yaw. D2: omega=0 station hold.
+# Baseline checkpoint: go2w_velocity_slope_turn_a/2026-07-26_20-09-34/model_12349.pt
+gym.register(
+    id="RexmiRl-Go2w-Velocity-SlopeTurnA-Play-D1-Pos-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w"
+            ".slope_turn_env_cfg:Go2wSlopeTurnAEnvCfg_PLAY_D1_POS"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wSlopeTurnAPPORunnerCfg"
+        ),
+    },
+)
+
+gym.register(
+    id="RexmiRl-Go2w-Velocity-SlopeTurnA-Play-D1-Neg-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w"
+            ".slope_turn_env_cfg:Go2wSlopeTurnAEnvCfg_PLAY_D1_NEG"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wSlopeTurnAPPORunnerCfg"
+        ),
+    },
+)
+
+gym.register(
+    id="RexmiRl-Go2w-Velocity-SlopeTurnA-Play-D2-Hold-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w"
+            ".slope_turn_env_cfg:Go2wSlopeTurnAEnvCfg_PLAY_D2_HOLD"
         ),
         "rsl_rl_cfg_entry_point": (
             f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wSlopeTurnAPPORunnerCfg"

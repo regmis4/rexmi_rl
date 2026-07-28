@@ -26,3 +26,12 @@ from .rewards import (  # noqa: F401
     pivot_step_coordination,
     foot_air_time_penalty,
 )
+
+from .terminations import (  # noqa: F401
+    bad_pitch,
+    bad_roll,
+    log_abs_pitch,
+    log_abs_roll,
+    log_horizontal_drift,
+)
+

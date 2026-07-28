@@ -218,3 +218,129 @@ resume locomotion policy (rough/steep_rough)
 ```
 
 The `policy_selector.py` already has a slope detection hook. After Phase SB training, point `--ckpt_slope_turn` to the best checkpoint in navigate.py.
+
+
+---
+
+## v11 — Systematic fix from model_12349 (2026-07-27)
+
+**Baseline:** `logs/rsl_rl/go2w_velocity_slope_turn_a/2026-07-26_20-09-34/model_12349.pt`  
+**Symptom:** rotates on 10° sometimes; intermittent somersault / sideways flip; always microstepping; mild position loss.
+
+### Diagnosis (not vibes)
+
+| Hypothesis | Verdict |
+|---|---|
+| Friction too low at 10° | **No** — mu=0.7 holds ~35° |
+| Raise roughness 2→4 cm | **Wrong first move** — more pivot disturbance |
+| Random / absolute heading | **Real** in training; good play diagnostic |
+| Reward shaping | **Yes** — drift threshold 0.8 m, trunk 30° too loose |
+| Microstepping | **Bought** by `pivot_step_coord` / `foot_alternation` — keep |
+
+### Play diagnostics (run BEFORE trusting a retrain)
+
+Always load model_12349:
+
+```bash
+# Baseline (v10e constant sampled yaw ±0.12)
+./run.sh scripts/play.py --task RexmiRl-Go2w-Velocity-SlopeTurnA-Play-v0 \
+  --load_run go2w_velocity_slope_turn_a/2026-07-26_20-09-34 --checkpoint model_12349.pt
+
+# D1: one direction only (+ then -)
+./run.sh scripts/play.py --task RexmiRl-Go2w-Velocity-SlopeTurnA-Play-D1-Pos-v0 \
+  --load_run go2w_velocity_slope_turn_a/2026-07-26_20-09-34 --checkpoint model_12349.pt
+./run.sh scripts/play.py --task RexmiRl-Go2w-Velocity-SlopeTurnA-Play-D1-Neg-v0 \
+  --load_run go2w_velocity_slope_turn_a/2026-07-26_20-09-34 --checkpoint model_12349.pt
+
+# D2: omega=0 station hold
+./run.sh scripts/play.py --task RexmiRl-Go2w-Velocity-SlopeTurnA-Play-D2-Hold-v0 \
+  --load_run go2w_velocity_slope_turn_a/2026-07-26_20-09-34 --checkpoint model_12349.pt
+```
+
+**How to read them**
+
+- D1 flips drop a lot → command reversals / direction-vs-slope asymmetry matters  
+- D1 flips stay → continuous-pivot competence / reward / posture  
+- D2 holds station → grip OK; problem is turn skill  
+- D2 creeps/slides → station-keeping weak even without turning  
+
+Do **not** train on D1/D2 configs. One-sided yaw killed v9-a.
+
+### SA-v11 train (station-keeping only)
+
+One theme. No roughness/friction/omega-range change.
+
+| Change | From → To |
+|---|---|
+| `position_drift` threshold | 0.8 → **0.35 m** |
+| `position_drift` weight | -0.5 → **-1.0** |
+| `trunk_stability` | 30° → **20°** |
+| terminations | + `bad_pitch`, `bad_roll` (1.4 rad) alongside `bad_orientation` |
+
+```bash
+./run.sh scripts/train.py --task RexmiRl-Go2w-Velocity-SlopeTurnA-v0 --headless \
+  --load_run go2w_velocity_slope_turn_a/2026-07-26_20-09-34 \
+  --checkpoint model_12349.pt
+```
+
+**Success (read together):** episode length ↑, `bad_orientation` ↓,  
+`Episode_Termination/bad_pitch` vs `bad_roll` tells somersault vs sideways,  
+`track_ang_vel_z_exp` stays > 0, visual station tighter, microstep OK if controlled.
+
+### Explicitly NOT in v11
+
+- roughness 4 cm  
+- asymmetric ω training  
+- killing `pivot_step_coord`  
+- relative-heading train (only after D1 says reversals matter, and with hold phases)
+
+### Next only if v11 plateaus
+
+1. Relative-heading **train** with mandatory hold gaps  
+2. Wheel-lock gate/weight (careful)  
+3. Roughness 3 cm then 4 cm as grip curriculum  
+4. SB 20° → SC 30°
+
+---
+
+## D1/D2 results on model_12349 (2026-07-27) — DECISIVE
+
+| Test | Command | Result |
+|---|---|---|
+| **D1+** | ω = **+0.12** constant | **PICTURE PERFECT** — continuous spin, acceptable station-keeping, clean slope turn |
+| **D1−** | ω = **−0.12** constant | **MASSIVE FAILURE** — repeatedly falls **back-to-back** (backward pitch / somersault) |
+| **D2** | ω = 0 hold | **Better than baseline** — holds position reasonably, falls sometimes |
+| Baseline | ω ~ U(−0.12, +0.12) | Intermittent flips — now explained as mixture of good (+ω) and bad (−ω) windows |
+
+### What this means
+
+1. **Not friction, not roughness, not “can’t turn on slopes.”**  
+   The policy already has a working slope pivot — **in one direction only**.
+
+2. **Baseline intermittency was direction mixing.**  
+   Random sign every 6 s sometimes drew the competent +ω skill, sometimes the broken −ω skill.
+
+3. **Failure mode on −ω is pitch-backward** (“back to back”), not a generic tip.  
+   TensorBoard `bad_pitch` vs `bad_roll` should confirm this under train.
+
+4. **D2 OK ⇒ grip/physics at 10° are adequate** for standing.  
+   The crisis is **CW / negative-yaw motor skill on slope**, not mu.
+
+5. **v9-a lesson still holds for heading_command=True:**  
+   asymmetric *clip* under heading P-control is unsatisfiable.  
+   With **heading_command=False** (sampled ω), a negative-focused range is valid — ω is the command, not a clip on a signed error.
+
+### v12 training plan (from 12349)
+
+**Do not** ship a forever-+ω-only policy (nav needs both ways).  
+**Do** repair −ω with a focused warm-start, then re-mix.
+
+| Phase | Command | Purpose |
+|---|---|---|
+| **SA-v12a** | `heading_command=False`, ω ∈ **(−0.12, −0.08)** only | Teach the missing CW skill; station-keeping from v11 kept |
+| **SA-v12b** | `heading_command=False`, ω ∈ **(−0.12, +0.12)** symmetric | Re-integrate both directions without absolute-heading teleports |
+| Play demo (optional) | D1+ until v12b is good | Honest demo of current competence |
+
+Also kept from v11: drift 0.35 m / weight −1.0, trunk 20°, bad_pitch/bad_roll.
+
+**Not in v12:** roughness 4 cm, relative-heading play hacks, killing microstep rewards.

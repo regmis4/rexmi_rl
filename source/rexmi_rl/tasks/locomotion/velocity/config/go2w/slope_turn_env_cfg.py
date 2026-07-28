@@ -1,5 +1,5 @@
 """
-Slope Turn Policy — v9b: Z-COMPENSATED SPAWN + RESTORED FORWARD REWARD
+Slope Turn Policy — v12: FIX NEGATIVE-YAW (D1− failure) from model_12349
 
 
 
@@ -188,6 +188,7 @@ import math
 
 import isaaclab.envs.mdp as mdp
 from isaaclab.managers import EventTermCfg as EvtTerm
+from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.terrains import TerrainGeneratorCfg
@@ -199,6 +200,7 @@ from rexmi_rl.tasks.locomotion.velocity.config.go2w.crater_terrain import (
 from rexmi_rl.tasks.locomotion.velocity.config.go2w.turn_env_cfg import (
     Go2wTurnBEnvCfg,
 )
+from rexmi_rl.tasks.locomotion.velocity.mdp import terminations as rexmi_term
 
 
 
@@ -320,34 +322,33 @@ def _apply_slope_spawn(cfg, slope_deg: float) -> None:
 
 def _apply_slope_reward_overrides(cfg) -> None:
     """
-    Apply reward overrides common to ALL slope-turn phases (v7).
+    Apply reward overrides common to ALL slope-turn phases.
 
-    Matches steep_slope / rocky_slope closely:
-      1. flat_orientation_l2 = 0.0    — body IS tilted on slope
-      2. bad_orientation     = 1.4 rad (80°) — same as steep_slope
-      3. ang_vel_xy_l2       = -0.05  — LOCKED (higher kills gait)
-      4. lin_vel_z_l2        = -0.3   — relaxed (body moves vertically on slope)
-      5. is_alive            = 0.8    — stronger survival signal
-      6. position_drift      = 0.8m   — unchanged from v8 (v9-a tried 0.5 and
-                                         reverted; that value was derived from an
-                                         omega range that no longer applies)
-      7. trunk_stability     = 30°    — body naturally tilts on slope
-      8. track_lin_vel_xy_exp = 0.5   — RESTORED to the proven flat Phase B value.
-                                         Previously 0.0 ("pure pivot"), which was an
-                                         UNDOCUMENTED deviation: the slope design doc's
-                                         flat->slope reward table never listed this term.
-                                         Zeroing it left lin_vel_x = 0.05 in the
-                                         observation with no reward backing, so the
-                                         policy was told to creep but never paid for it.
-                                         That creep is what generates the front/rear
-                                         lateral leg coordination the pivot gait needs
-                                         (front feet +y, rear feet -y). Without it the
-                                         gait degenerates into foot-tapping and drift.
+    ---------------------------------------------------------------------------
+    v11 — STATION-KEEPING (from model_12349 baseline)
+    ---------------------------------------------------------------------------
+    model_12349 rotates on 10° but: intermittent somersault/sideways flips,
+    constant microstepping, mild position loss. Diagnosis (2026-07-27):
 
+      * Friction is NOT the bottleneck at 10° (mu=0.7 holds ~35°).
+      * Roughness 2→4 cm is the WRONG first move (more disturbance under pivot).
+      * Microstepping is BOUGHT by pivot_step_coord / foot_alternation — keep it.
+      * Position loss is ALLOWED: slope drift threshold was 0.8 m vs flat-B 0.25 m.
+      * trunk_stability was loosened to 30° — permits lean-into-flip.
+      * Random absolute heading in TRAINING is a real issue, but play diagnostics
+        (D1 one-direction / D2 omega=0) must settle command vs reward first.
 
-    NOTE: No explicit lean reward (rocky_slope Phase 8g lesson).
-    2cm roughness + friction=0.7–0.8 physically force the correct lean posture.
+    v11 changes ONE theme only — station-keeping. No roughness/friction/omega
+    range change. Warm-start from model_12349.
 
+      position_drift threshold  0.8 → 0.35 m   (back toward flat-B discipline)
+      position_drift weight    -0.5 → -1.0     (wander is expensive)
+      trunk_stability          30° → 20°       (still above slope tilt; stops
+                                                extreme lean-into-flip)
+
+    Also wires bad_pitch / bad_roll terminations (same 1.4 rad limit as
+    bad_orientation) so TensorBoard can separate somersault vs sideways falls.
+    bad_orientation is KEPT as the primary combined tripwire.
     """
     if hasattr(cfg.rewards, "flat_orientation_l2"):
         cfg.rewards.flat_orientation_l2.weight = 0.0
@@ -362,79 +363,91 @@ def _apply_slope_reward_overrides(cfg) -> None:
     if hasattr(cfg.rewards, "is_alive"):
         cfg.rewards.is_alive.weight = 0.8
 
-    # Kept at 0.8 (v8 value). v9-a briefly tried 0.5, derived from an orbit
-    # radius that assumed omega in (0.25, 0.35) — but that omega range was
-    # reverted (see _apply_slope_command_overrides), so the derivation no
-    # longer applies. Not changed, to keep this run single-variable.
+    # v11 station-keeping: tighten drift (was 0.8 m — allowed visible wander)
     if hasattr(cfg.rewards, "position_drift"):
-        cfg.rewards.position_drift.params["drift_threshold"] = 0.8
+        cfg.rewards.position_drift.params["drift_threshold"] = 0.35
+        cfg.rewards.position_drift.weight = -1.0
 
+    # v11: 20° still above natural 10° body tilt on a 10° slope; stops extreme lean
     if hasattr(cfg.rewards, "trunk_stability"):
-        cfg.rewards.trunk_stability.params["max_tilt_deg"] = 30.0
+        cfg.rewards.trunk_stability.params["max_tilt_deg"] = 20.0
 
-    # RESTORED to proven flat Phase B value. Was 0.0, which stripped the reward
-    # backing from the lin_vel_x=0.05 creep that drives front/rear leg coordination.
-    # A log showing track_lin_vel_xy_exp == 0.0000 means this mechanism is dead.
+    # RESTORED forward tracking (v9b) — creep drives pivot leg coordination
     if hasattr(cfg.rewards, "track_lin_vel_xy_exp"):
         cfg.rewards.track_lin_vel_xy_exp.weight = 0.5
 
+    # Combined orientation tripwire (unchanged limit)
     cfg.terminations.bad_orientation = DoneTerm(
         func=mdp.bad_orientation,
-        params={"limit_angle": 1.4},   # 80° — headroom for slope-induced sway
+        params={"limit_angle": 1.4},   # 80°
+    )
+    # Split failure modes — same limit, separate counters in TensorBoard
+    cfg.terminations.bad_pitch = DoneTerm(
+        func=rexmi_term.bad_pitch,
+        params={"limit_angle": 1.4},
+    )
+    cfg.terminations.bad_roll = DoneTerm(
+        func=rexmi_term.bad_roll,
+        params={"limit_angle": 1.4},
     )
 
 
 def _apply_slope_command_overrides(cfg) -> None:
     """
-    Command overrides: minimal stability creep, no lateral motion.
+    Command overrides for slope-turn TRAINING.
 
-    ang_vel_z is deliberately NOT set here — it inherits (-0.2, 0.2) from
-    Go2wTurnBEnvCfg, which is the range the warm-start checkpoint was trained
-    on.  See the FAILED EXPERIMENT note below before changing this.
+    ---------------------------------------------------------------------------
+    v12 — D1 DIAGNOSTICS REWROTE THE COMMAND STRATEGY (2026-07-27)
+    ---------------------------------------------------------------------------
+    model_12349 on 10° slope:
+      D1+  ω=+0.12 constant  → picture-perfect spin + station-keeping
+      D1−  ω=−0.12 constant  → catastrophic back-to-back (pitch-backward) falls
+      D2   ω=0 hold          → better than baseline; grip is fine at 10°
 
-    FAILED EXPERIMENT (v9-a, 2026-07-26) — DO NOT REPEAT
-    ---------------------------------------------------
-    Hypothesis: a body with forward velocity v and yaw rate omega orbits at
-    radius r = v/omega, so sampling omega ~= 0 makes r -> infinity and
-    degenerates the orbit into a straight-line downhill creep that topples the
-    robot.  Proposed fix: bound omega away from zero, omega in (0.25, 0.35).
+    So the policy already CAN slope-pivot — only in the +ω direction.
+    Baseline intermittency was random sign mixing a working skill with a
+    broken one. Friction/roughness are not the bottleneck at 10°.
 
-    RESULT: CATASTROPHIC. Ran from model_12100 for 50 iterations:
+    TRAINING COMMAND (not play):
+      heading_command = False
+        → ω is SAMPLED and held, matching the D1 interface that works.
+        → Avoids absolute-heading mid-turn teleports (the old train default).
+      lin_vel_x = 0.05 creep (unchanged — stability + pivot coordination)
+      lin_vel_y = 0
+      ang_vel_z = NEGATIVE WINDOW by default for SA-v12a repair runs
+        → (-0.12, -0.08): focused CW skill, still inside prior magnitude
+        → heading_command=False makes this safe (v9-a only applies when
+          heading_command=True turns ang_vel_z into a signed clip)
 
-        metric                 v8 baseline     v9-a
-        bad_orientation        72-84%          99.9%
-        mean episode length    ~150            52 and falling
-        pivot_step_coord       1.08 peak       0.127 and falling
-        track_ang_vel_z_exp    small           0.008 (robot barely turns)
+    After a successful v12a checkpoint, flip to symmetric mix via
+    `_apply_slope_command_overrides_symmetric` (SA-v12b) — do not stay
+    forever one-sided; nav needs both turn directions.
 
-    WHY IT FAILED — the hypothesis was untested and the range was
-    OUT OF DISTRIBUTION.  Go2wTurnBEnvCfg (the warm-start parent, line ~415)
-    trains omega in (-0.2, 0.2).  Demanding (0.25, 0.35) put EVERY sample
-    above the largest yaw rate the policy had ever experienced, while also
-    removing omega ~= 0 — the near-stationary regime that was the stable
-    majority of its competence.  The policy was asked to do something strictly
-    harder than anything in its history, starting from weights that had never
-    seen it.  It stopped turning altogether and fell essentially every episode.
-
-    (The apparent precedent, Go2wTurnEnvCfg_PLAY at (0.25, 0.3), belongs to a
-    DIFFERENT lineage — the pure-pivot branch with lin_vel_x = 0.0 — not to
-    Phase B.  It does not license this range here.)
-
-    LESSONS
-      1. When warm-starting, keep the command distribution INSIDE the range
-         the checkpoint was trained on.  Widening or shifting it discards the
-         transfer you are warm-starting for.
-      2. Mean reward alone is not progress.  v9-a's reward "improved"
-         -30 -> -2 purely because episodes got SHORTER, so less penalty
-         accumulated.  Always read reward together with episode length.
-      3. Change ONE variable per run.  v9-a moved three at once and could not
-         attribute the failure without a revert.
-
-    If bounding omega away from zero is worth retesting later, do it INSIDE
-    the trained range — e.g. (0.1, 0.2) — and as the only change in that run.
+    FAILED EXPERIMENT (v9-a) — still do not repeat under heading_command=True:
+    asymmetric ang_vel_z clip with heading P-control is unsatisfiable.
     """
+    cfg.commands.base_velocity.heading_command = False
+    cfg.commands.base_velocity.rel_heading_envs = 0.0
+    cfg.commands.base_velocity.resampling_time_range = (6.0, 6.0)
     cfg.commands.base_velocity.ranges.lin_vel_x = (0.05, 0.05)
     cfg.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
+    # SA-v12a default: repair the broken CW / negative-yaw direction.
+    # Magnitudes inside what D1 used successfully on the other sign (0.12).
+    cfg.commands.base_velocity.ranges.ang_vel_z = (-0.12, -0.08)
+
+
+def _apply_slope_command_overrides_symmetric(cfg) -> None:
+    """
+    SA-v12b: both turn directions, still sampled ω (heading_command=False).
+
+    Use only AFTER v12a has produced a checkpoint that survives D1−.
+    """
+    cfg.commands.base_velocity.heading_command = False
+    cfg.commands.base_velocity.rel_heading_envs = 0.0
+    cfg.commands.base_velocity.resampling_time_range = (6.0, 6.0)
+    cfg.commands.base_velocity.ranges.lin_vel_x = (0.05, 0.05)
+    cfg.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
+    cfg.commands.base_velocity.ranges.ang_vel_z = (-0.12, 0.12)
 
 
 def _apply_slope_friction_event(cfg) -> None:
@@ -487,55 +500,15 @@ def _apply_slope_friction_event(cfg) -> None:
 
 def _apply_slope_play_overrides(cfg) -> None:
     """
-    PLAY-ONLY command shaping.  Does NOT affect training.
+    PLAY-ONLY baseline command (v10e / v10b). Does NOT affect training.
 
-    ---------------------------------------------------------------------------
-    v10e — REVERT TO v10b CONSTANT SAMPLED YAW (2026-07-26)
-    ---------------------------------------------------------------------------
-    Relative-heading play (v10c/v10d) was a regression. User report after v10d:
-      "still worse than before when heading targets were not continuous"
-      "not maintaining its position as before and is not rotating as much"
-      "I think its not rotating as it keeps on slipping"
+    Constant sampled yaw — cleaner than training's absolute heading, still
+    symmetric, still in-distribution magnitude. Use this for all baseline
+    visual comparisons against model_12349.
 
-    WHY RELATIVE HEADING FAILED AS A PLAY DEMO
-    ------------------------------------------
-    Training taught the policy a TURN-THEN-HOLD cycle under absolute heading:
-
-        large heading error -> saturated omega -> ROTATE
-        error decays -> omega -> 0 -> HOLD / stabilize on the slope
-        10 s later -> new target -> ROTATE again
-
-    The HOLD phase is load-bearing on a slope: it is when the policy re-plants
-    the wheels as anchors, kills residual lateral velocity, and stops downhill
-    creep. Without it the robot never recovers grip between pivots.
-
-    v10d removed that hold on purpose (settle_margin_s=0, persistent direction,
-    k=2.0) so omega stayed saturated almost forever. Result on a 10 deg slope:
-      * continuous pivot disturbance with no rest
-      * wheels never get a clean re-anchor window
-      * body drifts / slips downhill instead of rotating in place
-      * less visible rotation (energy goes into slip, not yaw)
-
-    That matches the visual exactly. It is NOT a friction bug and NOT a
-    policy-competence bug exposed by a cleaner command — it is a play command
-    that deleted the stabilize phase the checkpoint was trained to use.
-
-    v10b (heading_command=False, constant sampled omega) worked better because:
-      * omega is held CONSTANT for 6 s — clean tracking, no mid-window decay
-      * uniform(-0.12, 0.12) still samples near zero ~often enough to give
-        natural rest windows
-      * no unreachable absolute target, so no mid-turn sign flip
-      * still inside the trained omega magnitude range
-
-    So PLAY goes back to v10b. RelativeHeadingVelocityCommand stays in
-    mdp/commands.py for a FUTURE training experiment (and for the nav
-    interface), but it is not wired into play until a checkpoint is trained
-    against it with explicit hold phases.
-
-    DO NOT re-introduce relative heading into play without retraining.
+    Diagnostic variants (one-direction / hold) live in dedicated PLAY classes
+    below — do not bake those into this baseline.
     """
-    # v10b: sample omega directly. No heading target => nothing unreachable,
-    # no mid-turn sign reversal. Symmetric clip, spans zero, in-distribution.
     cfg.commands.base_velocity.heading_command = False
     cfg.commands.base_velocity.rel_heading_envs = 0.0
     cfg.commands.base_velocity.resampling_time_range = (6.0, 6.0)
@@ -543,6 +516,45 @@ def _apply_slope_play_overrides(cfg) -> None:
     cfg.commands.base_velocity.ranges.lin_vel_x = (0.05, 0.05)
     cfg.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
 
+
+def _apply_slope_play_common(cfg) -> None:
+    """Shared PLAY scene settings (few envs, no noise, no curriculum)."""
+    cfg.scene.num_envs = 16
+    cfg.scene.env_spacing = 8.0
+    cfg.observations.policy.enable_corruption = False
+    cfg.curriculum.terrain_levels = None
+
+
+def _apply_slope_play_diag_one_dir(cfg, omega: float) -> None:
+    """
+    D1 DIAGNOSTIC — fixed one-direction yaw. PLAY ONLY. Do not train on this.
+
+    If flips drop a lot vs baseline → command reversals / slope-direction
+    asymmetry is a major piece of the intermittent failure.
+    If flips stay → continuous-pivot competence / reward / posture.
+    """
+    cfg.commands.base_velocity.heading_command = False
+    cfg.commands.base_velocity.rel_heading_envs = 0.0
+    cfg.commands.base_velocity.resampling_time_range = (10.0, 10.0)
+    cfg.commands.base_velocity.ranges.ang_vel_z = (omega, omega)
+    cfg.commands.base_velocity.ranges.lin_vel_x = (0.05, 0.05)
+    cfg.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
+
+
+def _apply_slope_play_diag_hold(cfg) -> None:
+    """
+    D2 DIAGNOSTIC — omega=0 hold on the slope. PLAY ONLY.
+
+    If the robot holds station → grip/physics OK; problem is turn skill.
+    If it creeps/slides a lot → station-keeping / wheel lock weak even
+    without turning (reward/physics, not heading command).
+    """
+    cfg.commands.base_velocity.heading_command = False
+    cfg.commands.base_velocity.rel_heading_envs = 0.0
+    cfg.commands.base_velocity.resampling_time_range = (20.0, 20.0)
+    cfg.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
+    cfg.commands.base_velocity.ranges.lin_vel_x = (0.05, 0.05)
+    cfg.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
 
 
 # ===========================================================================
@@ -591,15 +603,58 @@ class Go2wSlopeTurnAEnvCfg(Go2wTurnBEnvCfg):
 
 @configclass
 class Go2wSlopeTurnAEnvCfg_PLAY(Go2wSlopeTurnAEnvCfg):
-    """Phase SA play config: fewer envs, no noise, denser + slower turn command."""
+    """Phase SA play baseline (v10e constant sampled yaw)."""
 
     def __post_init__(self):
         super().__post_init__()
-        self.scene.num_envs = 16
-        self.scene.env_spacing = 8.0
-        self.observations.policy.enable_corruption = False
-        self.curriculum.terrain_levels = None
+        _apply_slope_play_common(self)
         _apply_slope_play_overrides(self)
+
+
+@configclass
+class Go2wSlopeTurnAEnvCfg_PLAY_D1_POS(Go2wSlopeTurnAEnvCfg):
+    """D1 diagnostic: constant +0.12 rad/s yaw (left). PLAY ONLY."""
+
+    def __post_init__(self):
+        super().__post_init__()
+        _apply_slope_play_common(self)
+        _apply_slope_play_diag_one_dir(self, +0.12)
+
+
+@configclass
+class Go2wSlopeTurnAEnvCfg_PLAY_D1_NEG(Go2wSlopeTurnAEnvCfg):
+    """D1 diagnostic: constant -0.12 rad/s yaw (right). PLAY ONLY."""
+
+    def __post_init__(self):
+        super().__post_init__()
+        _apply_slope_play_common(self)
+        _apply_slope_play_diag_one_dir(self, -0.12)
+
+
+@configclass
+class Go2wSlopeTurnAEnvCfg_PLAY_D2_HOLD(Go2wSlopeTurnAEnvCfg):
+    """D2 diagnostic: omega=0 station-hold on 10° slope. PLAY ONLY."""
+
+    def __post_init__(self):
+        super().__post_init__()
+        _apply_slope_play_common(self)
+        _apply_slope_play_diag_hold(self)
+
+
+@configclass
+class Go2wSlopeTurnAEnvCfg_V12B(Go2wSlopeTurnAEnvCfg):
+    """
+    SA-v12b: symmetric sampled ω after negative-yaw repair.
+
+    Warm-start from a v12a checkpoint that survives D1−. Same rewards/terrain
+    as SA; only the yaw command range returns to (−0.12, +0.12).
+    """
+
+    def __post_init__(self):
+        super().__post_init__()
+        # Parent already applied v12a negative-only via _apply_slope_command_overrides.
+        # Replace with symmetric mix.
+        _apply_slope_command_overrides_symmetric(self)
 
 
 # ===========================================================================
@@ -636,14 +691,11 @@ class Go2wSlopeTurnEnvCfg(Go2wTurnBEnvCfg):
 
 @configclass
 class Go2wSlopeTurnEnvCfg_PLAY(Go2wSlopeTurnEnvCfg):
-    """Phase SB play config: denser + slower turn command."""
+    """Phase SB play baseline (v10e constant sampled yaw)."""
 
     def __post_init__(self):
         super().__post_init__()
-        self.scene.num_envs = 16
-        self.scene.env_spacing = 8.0
-        self.observations.policy.enable_corruption = False
-        self.curriculum.terrain_levels = None
+        _apply_slope_play_common(self)
         _apply_slope_play_overrides(self)
 
 
@@ -681,12 +733,9 @@ class Go2wSlopeTurnCEnvCfg(Go2wTurnBEnvCfg):
 
 @configclass
 class Go2wSlopeTurnCEnvCfg_PLAY(Go2wSlopeTurnCEnvCfg):
-    """Phase SC play config: denser + slower turn command."""
+    """Phase SC play baseline (v10e constant sampled yaw)."""
 
     def __post_init__(self):
         super().__post_init__()
-        self.scene.num_envs = 16
-        self.scene.env_spacing = 8.0
-        self.observations.policy.enable_corruption = False
-        self.curriculum.terrain_levels = None
+        _apply_slope_play_common(self)
         _apply_slope_play_overrides(self)

@@ -405,3 +405,12 @@ checkpoint is trained against it **with explicit hold phases**.
 Do not re-introduce relative heading into play without retraining. Play-only
 command surgery cannot invent a stabilize skill the weights never learned under
 continuous saturated yaw.
+
+---
+
+## v11 station-keeping (pointer)
+
+Play diagnostics D1/D2 and SA-v11 reward tighten live in
+`docs/slope_turn_policy_development.md` and `slope_turn_env_cfg.py`.
+Relative heading remains **not** wired into play. Baseline play is still
+v10e constant sampled yaw.

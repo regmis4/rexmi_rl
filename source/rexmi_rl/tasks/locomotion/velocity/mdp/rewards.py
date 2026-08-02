@@ -1322,11 +1322,124 @@ def heading_progress(
     return reward
 
 
+
+def heading_error_l1(
+    env: ManagerBasedRLEnv,
+    command_name: str = "base_velocity",
+    deadzone_rad: float = 0.05,
+) -> torch.Tensor:
+    """
+    Penalise |heading_target - heading_now| (error-driven turn pressure).
+
+    PURPOSE (S25-v3 / steep slope)
+    ------------------------------
+    Continuous open-loop ω bursts are the wrong interface on slopes. The
+    viable skill is: hold plant → step to reduce heading error → rebalance
+    when error is small / body is unstable.
+
+    This term makes **waiting with residual heading error expensive**. Error
+    accumulates in the return every step until the policy reduces it. When
+    |error| is inside deadzone, penalty is zero so the robot can rebalance
+    without artificial settle timers.
+
+    Requires heading_command=True command term with ``heading_target``
+    (UniformVelocityCommand / RelativeHeadingVelocityCommand).
+
+    Standing envs (is_standing_env) are zeroed — no goal pressure while
+    explicitly commanded to stand.
+
+    Returns
+    -------
+    (num_envs,) >= 0. Multiply by NEGATIVE weight (e.g. -2.0).
+    """
+    n = env.num_envs
+    device = env.device
+    zero = torch.zeros(n, device=device)
+
+    try:
+        term = env.command_manager.get_term(command_name)
+    except Exception:
+        return zero
+
+    if not getattr(term.cfg, "heading_command", False):
+        return zero
+    if not hasattr(term, "heading_target"):
+        return zero
+
+    robot = env.scene[term.cfg.asset_name]
+    err = term.heading_target - robot.data.heading_w
+    err = (err + torch.pi) % (2.0 * torch.pi) - torch.pi
+    abs_err = err.abs()
+
+    # Deadzone: no pressure when close enough — natural rebalance window
+    excess = (abs_err - float(deadzone_rad)).clamp(min=0.0)
+
+    active = torch.ones(n, device=device)
+    if hasattr(term, "is_standing_env"):
+        active = (~term.is_standing_env).float()
+
+    return excess * active
+
+
+def heading_error_reduction(
+    env: ManagerBasedRLEnv,
+    command_name: str = "base_velocity",
+    deadzone_rad: float = 0.05,
+) -> torch.Tensor:
+    """
+    Reward *reduction* in |heading error| since last step.
+
+    Complements heading_error_l1: paying only when error actually shrinks
+    (real yaw toward target), not when rocking in place (track_ang exploit).
+
+    Returns
+    -------
+    (num_envs,) >= 0. Multiply by POSITIVE weight (e.g. +5.0).
+    """
+    n = env.num_envs
+    device = env.device
+    zero = torch.zeros(n, device=device)
+
+    try:
+        term = env.command_manager.get_term(command_name)
+    except Exception:
+        return zero
+
+    if not getattr(term.cfg, "heading_command", False):
+        return zero
+    if not hasattr(term, "heading_target"):
+        return zero
+
+    robot = env.scene[term.cfg.asset_name]
+    err = term.heading_target - robot.data.heading_w
+    err = (err + torch.pi) % (2.0 * torch.pi) - torch.pi
+    abs_err = err.abs()
+
+    key = "prev_heading_abs_err"
+    if key not in env.extras:
+        env.extras[key] = abs_err.clone()
+
+    prev = env.extras[key]
+    is_first = env.episode_length_buf <= 1
+    reduction = (prev - abs_err).clamp(min=0.0)
+    reduction = reduction * (~is_first).float()
+
+    # No credit inside deadzone churn
+    reduction = reduction * (abs_err > float(deadzone_rad)).float()
+
+    if hasattr(term, "is_standing_env"):
+        reduction = reduction * (~term.is_standing_env).float()
+
+    env.extras[key] = abs_err.clone()
+    return reduction
+
+
 def pivot_step_coordination(
     env: ManagerBasedRLEnv,
     contact_cfg=None,
     robot_body_cfg=None,
     min_swing_vel: float = 0.03,
+    omega_threshold: float = 0.05,
 ) -> torch.Tensor:
     """
     Reward feet that step in the correct lateral direction for a pivot turn.
@@ -1366,7 +1479,8 @@ def pivot_step_coordination(
 
     GATING:
     -------
-    - Only fires when |omega_cmd| > 0.05 (turn command active)
+    - Only fires when |omega_cmd| > omega_threshold (default 0.05; slope-turn
+      overrides use 0.04 so gates still fire at slow ω clips ±0.06 / ±0.08)
     - Only rewards feet actually in swing (contact force < 1N)
     - Only rewards velocity exceeding min_swing_vel (filters micro-vibration)
 
@@ -1380,6 +1494,7 @@ def pivot_step_coordination(
     contact_cfg   : SceneEntityCfg("contact_forces", body_names=[...]) for swing detection.
     robot_body_cfg: SceneEntityCfg("robot", body_names=[...]) for foot body velocities.
     min_swing_vel : minimum lateral velocity (m/s) to count as an intentional step.
+    omega_threshold: minimum |omega_cmd| to activate (rad/s). Default 0.05.
 
     Returns
     -------
@@ -1395,7 +1510,7 @@ def pivot_step_coordination(
 
     # --- Gate: only active during turn commands ---
     omega_cmd: torch.Tensor = env.command_manager.get_command("base_velocity")[:, 2]
-    turn_active: torch.Tensor = (omega_cmd.abs() > 0.05)  # (N,) bool
+    turn_active: torch.Tensor = (omega_cmd.abs() > omega_threshold)  # (N,) bool
     omega_sign: torch.Tensor = omega_cmd.sign()  # +1 left, -1 right, 0 neutral
 
     # --- Identify swing feet via contact sensor ---

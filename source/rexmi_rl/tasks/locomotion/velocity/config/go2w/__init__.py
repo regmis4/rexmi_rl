@@ -795,6 +795,67 @@ gym.register(
     },
 )
 
+# S25: 25° mixed hold + turn bridge (warm-start SB-v2 model_13345)
+gym.register(
+    id="RexmiRl-Go2w-Velocity-SlopeTurnS25-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w"
+            ".slope_turn_env_cfg:Go2wSlopeTurnS25EnvCfg"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wSlopeTurnS25PPORunnerCfg"
+        ),
+    },
+)
+
+gym.register(
+    id="RexmiRl-Go2w-Velocity-SlopeTurnS25-Play-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w"
+            ".slope_turn_env_cfg:Go2wSlopeTurnS25EnvCfg_PLAY"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wSlopeTurnS25PPORunnerCfg"
+        ),
+    },
+)
+
+gym.register(
+    id="RexmiRl-Go2w-Velocity-SlopeTurnS25-Play-Hold-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w"
+            ".slope_turn_env_cfg:Go2wSlopeTurnS25EnvCfg_PLAY_HOLD"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wSlopeTurnS25PPORunnerCfg"
+        ),
+    },
+)
+
+gym.register(
+    id="RexmiRl-Go2w-Velocity-SlopeTurnS25-Play-Turn-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w"
+            ".slope_turn_env_cfg:Go2wSlopeTurnS25EnvCfg_PLAY_TURN"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wSlopeTurnS25PPORunnerCfg"
+        ),
+    },
+)
+
 gym.register(
     id="RexmiRl-Go2w-Crater-Bowl-RockySlope-Record-v0",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",

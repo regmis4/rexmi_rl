@@ -167,9 +167,10 @@ TRAIN COMMANDS
       --load_run go2w_velocity_turn_b/2026-07-25_13-51-28 \\
       --checkpoint model_10992.pt
 
-  # Phase SB (20°)
-  python scripts/train.py --task RexmiRl-Go2w-Velocity-SlopeTurn-v0 --headless \\
-      --load_run go2w_velocity_slope_turn_a/<date> --checkpoint model_<N>.pt
+  # Phase SB (20°) — warm-start from balanced SA-v12b (symmetric ω), NOT v12a
+  #   ./run.sh scripts/train.py --task RexmiRl-Go2w-Velocity-SlopeTurn-v0 --headless \
+  #       --load_run go2w_velocity_slope_turn_a/2026-07-27_19-49-02 \
+  #       --checkpoint model_12847.pt
 
   # Phase SC (30°)
   python scripts/train.py --task RexmiRl-Go2w-Velocity-SlopeTurnC-v0 --headless \\
@@ -201,6 +202,7 @@ from rexmi_rl.tasks.locomotion.velocity.config.go2w.turn_env_cfg import (
     Go2wTurnBEnvCfg,
 )
 from rexmi_rl.tasks.locomotion.velocity.mdp import terminations as rexmi_term
+from rexmi_rl.tasks.locomotion.velocity.mdp.commands import make_relative_heading_command
 
 
 
@@ -307,6 +309,7 @@ def _apply_slope_spawn(cfg, slope_deg: float) -> None:
     Z offset for each phase:
         10° → −0.150 m
         20° → −0.309 m
+        25° → −0.396 m
         30° → −0.491 m
 
     Yaw is FULL RANGE (−π, π): we proved heading was never the failure
@@ -349,6 +352,19 @@ def _apply_slope_reward_overrides(cfg) -> None:
     Also wires bad_pitch / bad_roll terminations (same 1.4 rad limit as
     bad_orientation) so TensorBoard can separate somersault vs sideways falls.
     bad_orientation is KEPT as the primary combined tripwire.
+
+    ---------------------------------------------------------------------------
+    v13 — LOW-ω GATE FIX (SB-v2 / SC-v1, 2026-07-27)
+    ---------------------------------------------------------------------------
+    Turn-B inherited gates used omega_threshold / min_cmd = 0.1.  Once slope
+    training slowed ω to ±0.08 (SB-v2) and ±0.06 (SC), those gates NEVER fire:
+
+      wheel_lock, foot_alternation, yaw_stagnation → Episode_Reward = 0.000
+      (confirmed in SB-v2 logs: foot_alt=0, wheel_lock=0)
+
+    Lower all turn-shaping gates to 0.04 so they stay active under slow clips
+    while still ignoring near-zero residual commands.  pivot_step_coord and
+    foot_air_time also get 0.04 (was hardcoded / 0.05).
     """
     if hasattr(cfg.rewards, "flat_orientation_l2"):
         cfg.rewards.flat_orientation_l2.weight = 0.0
@@ -375,6 +391,21 @@ def _apply_slope_reward_overrides(cfg) -> None:
     # RESTORED forward tracking (v9b) — creep drives pivot leg coordination
     if hasattr(cfg.rewards, "track_lin_vel_xy_exp"):
         cfg.rewards.track_lin_vel_xy_exp.weight = 0.5
+
+    # v13: keep turn-shaping rewards alive under slow ω (±0.06 / ±0.08)
+    _LOW_OMEGA_GATE = 0.04
+    if hasattr(cfg.rewards, "wheel_lock"):
+        cfg.rewards.wheel_lock.params["omega_threshold"] = _LOW_OMEGA_GATE
+    if hasattr(cfg.rewards, "foot_alternation"):
+        cfg.rewards.foot_alternation.params["omega_threshold"] = _LOW_OMEGA_GATE
+    if hasattr(cfg.rewards, "yaw_stagnation"):
+        cfg.rewards.yaw_stagnation.params["min_cmd"] = _LOW_OMEGA_GATE
+    if hasattr(cfg.rewards, "heading_progress_turn"):
+        cfg.rewards.heading_progress_turn.params["min_cmd"] = _LOW_OMEGA_GATE
+    if hasattr(cfg.rewards, "pivot_step_coord"):
+        cfg.rewards.pivot_step_coord.params["omega_threshold"] = _LOW_OMEGA_GATE
+    if hasattr(cfg.rewards, "foot_air_time"):
+        cfg.rewards.foot_air_time.params["omega_threshold"] = _LOW_OMEGA_GATE
 
     # Combined orientation tripwire (unchanged limit)
     cfg.terminations.bad_orientation = DoneTerm(
@@ -436,18 +467,217 @@ def _apply_slope_command_overrides(cfg) -> None:
     cfg.commands.base_velocity.ranges.ang_vel_z = (-0.12, -0.08)
 
 
-def _apply_slope_command_overrides_symmetric(cfg) -> None:
+def _apply_slope_command_overrides_symmetric(cfg, ang_vel_clip: float = 0.12) -> None:
     """
-    SA-v12b: both turn directions, still sampled ω (heading_command=False).
+    Both turn directions, sampled ω (heading_command=False).
 
-    Use only AFTER v12a has produced a checkpoint that survives D1−.
+    ang_vel_clip:
+      0.12 — SA-v12b / default (matched D1 demo rate on 10°)
+      0.08 — SB-v2 slower pivot on 20° so the policy can learn roll
+             balance without as much lateral disturbance per step
+
+    Use only AFTER v12a has produced a checkpoint that survives D1−
+    (for the first jump to symmetric), or warm-start from a prior
+    symmetric ckpt when only changing the clip.
     """
     cfg.commands.base_velocity.heading_command = False
     cfg.commands.base_velocity.rel_heading_envs = 0.0
     cfg.commands.base_velocity.resampling_time_range = (6.0, 6.0)
     cfg.commands.base_velocity.ranges.lin_vel_x = (0.05, 0.05)
     cfg.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
-    cfg.commands.base_velocity.ranges.ang_vel_z = (-0.12, 0.12)
+    w = float(ang_vel_clip)
+    cfg.commands.base_velocity.ranges.ang_vel_z = (-w, w)
+
+
+def _apply_slope_command_overrides_mixed_hold_turn(
+    cfg,
+    ang_vel_clip: float = 0.08,
+    rel_standing_envs: float = 0.35,
+    lin_vel_x_when_turning: float = 0.05,
+) -> None:
+    """
+    S25 mixed hold + turn (2026-07-28).
+
+    Visual on SC 30° (model_13594): robot slips immediately — never plants.
+    Pure hold-only risks erasing turn skill from SB-v2 (model_13345).
+    So bridge at 25° with BOTH:
+      - fraction rel_standing_envs → full stop (ω=0, vx=0) for stance/slip
+      - remaining envs → slow symmetric ω ±ang_vel_clip
+      - lin_vel_x_when_turning: 0.05 (v1) or 0.0 (v2 — no creep while pivoting)
+
+    heading_command=False (sampled ω), same interface as D1/SB-v2.
+    """
+    cfg.commands.base_velocity.heading_command = False
+    cfg.commands.base_velocity.rel_heading_envs = 0.0
+    cfg.commands.base_velocity.rel_standing_envs = float(rel_standing_envs)
+    cfg.commands.base_velocity.resampling_time_range = (6.0, 6.0)
+    # Turn envs: mild creep (standing envs zero all cmds via rel_standing)
+    cfg.commands.base_velocity.ranges.lin_vel_x = (
+        float(lin_vel_x_when_turning),
+        float(lin_vel_x_when_turning),
+    )
+    cfg.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
+    w = float(ang_vel_clip)
+    cfg.commands.base_velocity.ranges.ang_vel_z = (-w, w)
+
+
+
+
+def _apply_slope_command_overrides_lang_a_antifreeze(
+    cfg,
+    *,
+    ang_vel_clip: float = 0.04,
+    rel_standing_envs: float = 0.30,
+    lin_vel_x: float = 0.0,
+    resampling_s: float = 2.0,
+) -> None:
+    """
+    S25 Phase A2 — Language A, SLOW + NON-CONTINUOUS (2026-08-02).
+
+    Visual Phase A (ω±0.08, standing 8%, 5s holds): hold OK; spin → fall (roll).
+    User: mix A1 (slower) + A2 (not continuous). Speed later.
+
+    NOT v2 freeze (standing 35% + ω±0.05 + long windows + high is_alive).
+    NOT Phase A continuous aggressive spin.
+
+    Recipe A2:
+      - heading_command=False (Language A / 13345 dialect)
+      - ω ±0.04 when turning (slow)
+      - resample every 2.0 s → short pulses, not 5–6 s continuous pivot
+      - ~30% standing windows (ω=0 plant / rebalance) interleaved with turns
+      - vx=0
+      - is_alive moderate; heading_progress strong on turn windows
+      - yaw_stag / gates tuned for SHORT slow pulses (min_yaw ~3–4° achievable)
+      - Language B heading_error weights forced 0 if present
+
+    Warm-start: model_13345.pt only.
+    """
+    # --- Language A commands: short slow pulses + plant windows ---
+    cfg.commands.base_velocity.heading_command = False
+    cfg.commands.base_velocity.rel_heading_envs = 0.0
+    cfg.commands.base_velocity.rel_standing_envs = float(rel_standing_envs)
+    cfg.commands.base_velocity.resampling_time_range = (float(resampling_s), float(resampling_s))
+    cfg.commands.base_velocity.ranges.lin_vel_x = (float(lin_vel_x), float(lin_vel_x))
+    cfg.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
+    w = float(ang_vel_clip)
+    cfg.commands.base_velocity.ranges.ang_vel_z = (-w, w)
+
+    # --- Kill Language B reward terms if a prior cfg added them ---
+    for name in ("heading_error", "heading_error_reduction"):
+        if hasattr(cfg.rewards, name):
+            getattr(cfg.rewards, name).weight = 0.0
+
+    # --- Rewards: pay for real yaw in turn pulses; don't make freeze free ---
+    if hasattr(cfg.rewards, "is_alive"):
+        cfg.rewards.is_alive.weight = 0.30
+    if hasattr(cfg.rewards, "heading_progress_turn"):
+        cfg.rewards.heading_progress_turn.weight = 100.0
+        # Must fire at ω=0.04
+        cfg.rewards.heading_progress_turn.params["min_cmd"] = 0.03
+    if hasattr(cfg.rewards, "track_ang_vel_z_exp"):
+        cfg.rewards.track_ang_vel_z_exp.weight = 2.0
+    if hasattr(cfg.rewards, "yaw_stagnation"):
+        # At ω=0.04, ~2s pulse ⇒ max ~4.6°; require modest real yaw, not 12°
+        cfg.rewards.yaw_stagnation.weight = -2.5
+        cfg.rewards.yaw_stagnation.params["min_cmd"] = 0.03
+        cfg.rewards.yaw_stagnation.params["min_yaw_deg"] = 3.5
+        cfg.rewards.yaw_stagnation.params["window_steps"] = 75
+    if hasattr(cfg.rewards, "position_drift"):
+        cfg.rewards.position_drift.params["drift_threshold"] = 0.28
+        cfg.rewards.position_drift.weight = -1.2
+    # Gates must be < ang_vel_clip so shaping fires during ±0.04 pulses
+    _g = 0.03
+    if hasattr(cfg.rewards, "wheel_lock"):
+        cfg.rewards.wheel_lock.params["omega_threshold"] = _g
+    if hasattr(cfg.rewards, "foot_alternation"):
+        cfg.rewards.foot_alternation.params["omega_threshold"] = _g
+    if hasattr(cfg.rewards, "foot_air_time"):
+        cfg.rewards.foot_air_time.params["omega_threshold"] = _g
+    if hasattr(cfg.rewards, "pivot_step_coord"):
+        cfg.rewards.pivot_step_coord.params["omega_threshold"] = _g
+
+
+
+def _apply_slope_command_overrides_micro_turn_rebalance(
+    cfg,
+    *,
+    ang_vel_clip: float = 0.08,
+    heading_delta_deg: tuple = (10.0, 25.0),
+    settle_margin_s: float = 0.0,
+    rel_standing_envs: float = 0.08,
+    direction_flip_prob: float = 0.20,
+    heading_control_stiffness: float = 1.0,
+) -> None:
+    """
+    S25-v3b: ERROR-DRIVEN micro-turn / rebalance (2026-08-02).
+
+    User design (preferred over open-loop bursts):
+      - Command = relative heading GOAL (nav-like), not continuous ω.
+      - Heading ERROR accumulates cost until stepping is worth it.
+      - When error is small, penalty stops → natural rebalance (no fixed settle).
+      - Stability (trunk, drift, falls) makes reckless continuous spin expensive.
+      - Skill emerges: hold → small correction → plant → next correction.
+
+    Command = RelativeHeadingVelocityCommand, settle_margin_s=0 so rebalance
+    length is NOT hard-coded; P-control already drives ω→0 as error→0.
+
+    Rewards:
+      heading_error_l1          — pressure while |err| > deadzone
+      heading_error_reduction   — pay for shrinking error (real yaw)
+      heading_progress_turn     — keep (signed Δyaw)
+      track_ang_vel_z_exp       — weak (lied in S25-v2 freeze)
+      is_alive                  — moderate (not freeze optimum)
+      position_drift / trunk    — station + stability
+    """
+    from isaaclab.managers import RewardTermCfg as RewTerm
+    from rexmi_rl.tasks.locomotion.velocity.mdp.rewards import (
+        heading_error_l1,
+        heading_error_reduction,
+    )
+
+    cfg.commands.base_velocity = make_relative_heading_command(
+        ang_vel_clip=float(ang_vel_clip),
+        heading_delta_deg=heading_delta_deg,
+        lin_vel_x=(0.0, 0.0),
+        settle_margin_s=float(settle_margin_s),
+        rel_standing_envs=float(rel_standing_envs),
+        direction_flip_prob=float(direction_flip_prob),
+        heading_control_stiffness=float(heading_control_stiffness),
+        debug_vis=True,
+    )
+
+    # --- Error-driven turn pressure ---
+    cfg.rewards.heading_error = RewTerm(
+        func=heading_error_l1,
+        weight=-2.5,
+        params={"command_name": "base_velocity", "deadzone_rad": 0.06},
+    )
+    cfg.rewards.heading_error_reduction = RewTerm(
+        func=heading_error_reduction,
+        weight=8.0,
+        params={"command_name": "base_velocity", "deadzone_rad": 0.06},
+    )
+
+    if hasattr(cfg.rewards, "heading_progress_turn"):
+        cfg.rewards.heading_progress_turn.weight = 80.0
+        # Gate on omega still useful during P-control saturation
+        cfg.rewards.heading_progress_turn.params["min_cmd"] = 0.02
+    if hasattr(cfg.rewards, "track_ang_vel_z_exp"):
+        cfg.rewards.track_ang_vel_z_exp.weight = 1.0
+    if hasattr(cfg.rewards, "is_alive"):
+        cfg.rewards.is_alive.weight = 0.30
+    if hasattr(cfg.rewards, "yaw_stagnation"):
+        cfg.rewards.yaw_stagnation.params["min_cmd"] = 0.02
+        cfg.rewards.yaw_stagnation.params["min_yaw_deg"] = 5.0
+        cfg.rewards.yaw_stagnation.params["window_steps"] = 80
+        cfg.rewards.yaw_stagnation.weight = -3.0
+    if hasattr(cfg.rewards, "position_drift"):
+        cfg.rewards.position_drift.params["drift_threshold"] = 0.28
+        cfg.rewards.position_drift.weight = -1.5
+    if hasattr(cfg.rewards, "trunk_stability"):
+        # Keep plant quality while allowing step tilt
+        cfg.rewards.trunk_stability.params["max_tilt_deg"] = 28.0
+
 
 
 def _apply_slope_friction_event(cfg) -> None:
@@ -666,7 +896,17 @@ class Go2wSlopeTurnEnvCfg(Go2wTurnBEnvCfg):
     """
     Phase SB: Pivot turn on a 20° rocky pyramid slope.
 
-    Warm-start from Phase SA. Slope 20° — visible body tilt required.
+    Warm-start from balanced SA-v12b (model_12847.pt), NOT from negative-only v12a.
+
+    SB-v2 (after model_13096 visual): ω = (-0.08, +0.08) symmetric sampled.
+    Rotation on 20° was already good; roll/stabilization was the gap. Slower
+    yaw reduces lateral disturbance so balance can be learned.
+
+    Warm-start: go2w_velocity_slope_turn/2026-07-27_20-15-35/model_13096.pt
+    (or SA-v12b model_12847.pt if restarting the 20° jump).
+
+    Never use _apply_slope_command_overrides (negative-only v12a) on SB.
+    trunk_stability 25° on SB: body already tilts ~slope angle on 20°.
     """
 
     def __post_init__(self):
@@ -683,7 +923,14 @@ class Go2wSlopeTurnEnvCfg(Go2wTurnBEnvCfg):
 
         _apply_slope_friction_event(self)
         _apply_slope_reward_overrides(self)
-        _apply_slope_command_overrides(self)
+        # SB-v2: slower symmetric ω (±0.08). Visual on model_13096: turns OK,
+        # balance/roll hard. One knob only — ease lateral disturbance.
+        # Never the v12a negative-only override on SB.
+        _apply_slope_command_overrides_symmetric(self, ang_vel_clip=0.08)
+
+        # SB: allow natural slope lean without fighting trunk_stability
+        if hasattr(self.rewards, "trunk_stability"):
+            self.rewards.trunk_stability.params["max_tilt_deg"] = 25.0
 
         if hasattr(self.events, "push_robot"):
             self.events.push_robot = None
@@ -691,12 +938,19 @@ class Go2wSlopeTurnEnvCfg(Go2wTurnBEnvCfg):
 
 @configclass
 class Go2wSlopeTurnEnvCfg_PLAY(Go2wSlopeTurnEnvCfg):
-    """Phase SB play baseline (v10e constant sampled yaw)."""
+    """Phase SB play: match SB-v2 train — sampled ω ±0.08."""
 
     def __post_init__(self):
         super().__post_init__()
         _apply_slope_play_common(self)
-        _apply_slope_play_overrides(self)
+        # Match train clip (parent already set train commands; re-assert play schedule)
+        cfg = self
+        cfg.commands.base_velocity.heading_command = False
+        cfg.commands.base_velocity.rel_heading_envs = 0.0
+        cfg.commands.base_velocity.resampling_time_range = (6.0, 6.0)
+        cfg.commands.base_velocity.ranges.ang_vel_z = (-0.08, 0.08)
+        cfg.commands.base_velocity.ranges.lin_vel_x = (0.05, 0.05)
+        cfg.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
 
 
 # ===========================================================================
@@ -708,7 +962,17 @@ class Go2wSlopeTurnCEnvCfg(Go2wTurnBEnvCfg):
     """
     Phase SC: Pivot turn on a 30° rocky pyramid slope.
 
-    Warm-start from Phase SB. Slope 30° — approaching crater wall angles.
+    Warm-start from SB-v2 model_13345.pt (20°, ω±0.08, both directions OK for
+    finite nav-style reorients). Slope 30° — crater-wall class angles.
+
+    SC-v1 lesson from 10→20: jump slope AND keep the same ω → roll deaths.
+    So SC uses SLOWER symmetric ω (±0.06) as the only new disturbance besides
+    the slope angle. trunk_stability 30° matches natural body tilt on a 30° face.
+
+    v13 gate fix (in _apply_slope_reward_overrides): turn-shaping omega gates
+    lowered 0.1 → 0.04 so wheel_lock / foot_alt / yaw_stag still fire at ±0.06.
+
+    Never use negative-only v12a command override on SC.
     """
 
     def __post_init__(self):
@@ -725,7 +989,11 @@ class Go2wSlopeTurnCEnvCfg(Go2wTurnBEnvCfg):
 
         _apply_slope_friction_event(self)
         _apply_slope_reward_overrides(self)
-        _apply_slope_command_overrides(self)
+        # SC-v1: slower than SB-v2 (±0.08) — ease lateral load on steeper face
+        _apply_slope_command_overrides_symmetric(self, ang_vel_clip=0.06)
+
+        if hasattr(self.rewards, "trunk_stability"):
+            self.rewards.trunk_stability.params["max_tilt_deg"] = 30.0
 
         if hasattr(self.events, "push_robot"):
             self.events.push_robot = None
@@ -733,9 +1001,112 @@ class Go2wSlopeTurnCEnvCfg(Go2wTurnBEnvCfg):
 
 @configclass
 class Go2wSlopeTurnCEnvCfg_PLAY(Go2wSlopeTurnCEnvCfg):
-    """Phase SC play baseline (v10e constant sampled yaw)."""
+    """Phase SC play: match SC-v1 train — sampled ω ±0.06."""
 
     def __post_init__(self):
         super().__post_init__()
         _apply_slope_play_common(self)
-        _apply_slope_play_overrides(self)
+        cfg = self
+        cfg.commands.base_velocity.heading_command = False
+        cfg.commands.base_velocity.rel_heading_envs = 0.0
+        cfg.commands.base_velocity.resampling_time_range = (6.0, 6.0)
+        cfg.commands.base_velocity.ranges.ang_vel_z = (-0.06, 0.06)
+        cfg.commands.base_velocity.ranges.lin_vel_x = (0.05, 0.05)
+        cfg.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
+
+
+# ===========================================================================
+# PHASE S25: 25° Language A — Phase A2 SLOW + PULSE (after Phase A roll wall)
+# ===========================================================================
+# Phase A visual: hold OK; continuous ω±0.08 spin → fall (bad_roll ~45%)
+# User: A1 slower + A2 non-continuous. Optimize speed later.
+# Warm-start: go2w_velocity_slope_turn/2026-07-27_20-54-25/model_13345.pt
+# ===========================================================================
+
+@configclass
+class Go2wSlopeTurnS25EnvCfg(Go2wTurnBEnvCfg):
+    """
+    S25 Phase A2: 25° Language A — slow ω pulses + plant windows.
+
+    Warm-start ONLY from SB-v2 model_13345.pt.
+
+    Commands:
+      heading_command=False
+      ang_vel_z ±0.04 (slow)
+      resample 2.0 s (short turn pulses)
+      rel_standing_envs=0.30 (plant / rebalance windows)
+      lin_vel_x=0
+
+    Not v2 freeze: short pulses + strong heading_progress when ω active.
+    Not Phase A: no continuous ±0.08 for 5 s.
+
+    Pass: small visible yaw bursts without instant roll; hold still OK.
+    """
+
+    def __post_init__(self):
+        super().__post_init__()
+
+        self.scene.terrain.terrain_type = "generator"
+        self.scene.terrain.terrain_generator = _make_slope_terrain(25.0)
+        self.scene.env_spacing = 8.0
+        self.curriculum.terrain_levels = None
+        self.sim.gravity = (0.0, 0.0, -9.81)
+
+        _apply_slope_spawn(self, 25.0)
+        _apply_slope_friction_event(self)
+        _apply_slope_reward_overrides(self)
+        # A2 defaults inside helper: ω±0.04, standing 0.30, resample 2s
+        _apply_slope_command_overrides_lang_a_antifreeze(self)
+
+        if hasattr(self.rewards, "trunk_stability"):
+            self.rewards.trunk_stability.params["max_tilt_deg"] = 28.0
+
+        if hasattr(self.events, "push_robot"):
+            self.events.push_robot = None
+
+
+@configclass
+class Go2wSlopeTurnS25EnvCfg_PLAY(Go2wSlopeTurnS25EnvCfg):
+    """S25 Phase A2 play: same slow pulse + plant schedule as train."""
+
+    def __post_init__(self):
+        super().__post_init__()
+        _apply_slope_play_common(self)
+        _apply_slope_command_overrides_lang_a_antifreeze(self)
+
+
+@configclass
+class Go2wSlopeTurnS25EnvCfg_PLAY_HOLD(Go2wSlopeTurnS25EnvCfg):
+    """S25 play: pure hold ω=0. PLAY ONLY."""
+
+    def __post_init__(self):
+        super().__post_init__()
+        _apply_slope_play_common(self)
+        cfg = self
+        cfg.commands.base_velocity.heading_command = False
+        cfg.commands.base_velocity.rel_heading_envs = 0.0
+        cfg.commands.base_velocity.rel_standing_envs = 0.0
+        cfg.commands.base_velocity.resampling_time_range = (20.0, 20.0)
+        cfg.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
+        cfg.commands.base_velocity.ranges.lin_vel_x = (0.0, 0.0)
+        cfg.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
+
+
+@configclass
+class Go2wSlopeTurnS25EnvCfg_PLAY_TURN(Go2wSlopeTurnS25EnvCfg):
+    """
+    S25 Phase A2 play: pulse duty-cycle (not continuous spin).
+
+    standing 0.30 + ω±0.04 + 2s resample so visual shows turn → plant → turn.
+    """
+
+    def __post_init__(self):
+        super().__post_init__()
+        _apply_slope_play_common(self)
+        _apply_slope_command_overrides_lang_a_antifreeze(
+            self,
+            ang_vel_clip=0.04,
+            rel_standing_envs=0.30,
+            lin_vel_x=0.0,
+            resampling_s=2.0,
+        )

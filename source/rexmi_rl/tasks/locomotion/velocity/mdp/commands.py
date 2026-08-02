@@ -228,6 +228,7 @@ def make_relative_heading_command(
     heading_control_stiffness: float = 1.0,
     direction_flip_prob: float = 0.15,
     settle_margin_s: float = 0.0,
+    rel_standing_envs: float = 0.0,
     debug_vis: bool = True,
 ) -> RelativeHeadingVelocityCommandCfg:
     """
@@ -242,8 +243,8 @@ def make_relative_heading_command(
     original failure mode was a resample period that silently became too short
     relative to the clip. Derived, the two can never drift apart.
 
-    WHY settle_margin_s DEFAULTS TO 0
-    ---------------------------------
+    WHY settle_margin_s DEFAULTS TO 0 (flat / continuous spin demos)
+    ----------------------------------------------------------------
     A settle margin is DEAD TIME: the turn has finished, the heading error is
     ~0, so the yaw command is ~0 and the robot just sits there. A 3 s margin on
     a 3.6 s turn is 45% of the demo spent motionless, which reads as "it
@@ -254,6 +255,10 @@ def make_relative_heading_command(
     effectively CONTINUOUS. This is safe here — unlike the original bug — because
     the direction PERSISTS (see `direction_flip_prob`), so an arriving target
     extends the current turn rather than reversing it.
+
+    SLOPE MICRO-TURN / REBALANCE (S25-v3): use settle_margin_s > 0 deliberately.
+    On steep slopes the viable skill is: small yaw burst → ω≈0 rebalance →
+    another small burst. Continuous saturated ω is what caused roll deaths.
 
     Args:
         ang_vel_clip: symmetric yaw-rate clip w. Command becomes (-w, +w).
@@ -281,8 +286,8 @@ def make_relative_heading_command(
     return RelativeHeadingVelocityCommandCfg(
         asset_name="robot",
         resampling_time_range=resampling_time_range,
-        rel_standing_envs=0.0,      # no standing envs — we want to see turning
-        rel_heading_envs=1.0,       # every env is a heading env
+        rel_standing_envs=float(rel_standing_envs),
+        rel_heading_envs=1.0,       # every non-standing env is a heading env
         heading_command=True,
         heading_control_stiffness=heading_control_stiffness,
         heading_delta_min=delta_min,

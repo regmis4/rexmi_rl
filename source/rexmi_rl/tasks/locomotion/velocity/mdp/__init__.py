@@ -22,6 +22,8 @@ from .rewards import (  # noqa: F401
     foot_alternation_reward,
     yaw_stagnation_penalty,
     heading_progress,
+    heading_error_l1,
+    heading_error_reduction,
     trunk_stability_penalty,
     pivot_step_coordination,
     foot_air_time_penalty,

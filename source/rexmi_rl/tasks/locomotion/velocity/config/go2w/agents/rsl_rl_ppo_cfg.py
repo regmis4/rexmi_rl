@@ -411,3 +411,21 @@ class Go2wSlopeTurnCPPORunnerCfg(Go2wTurnBPPORunnerCfg):
     max_iterations  = _SLOPE_MAX_ITERATIONS
     save_interval   = 50
     algorithm       = _make_slope_algorithm()
+
+
+@configclass
+class Go2wSlopeTurnS25PPORunnerCfg(Go2wTurnBPPORunnerCfg):
+    """
+    PPO runner for Slope-Turn S25 — 25° mixed hold + turn bridge.
+
+    Warm-start from SB-v2:
+        --load_run go2w_velocity_slope_turn/2026-07-27_20-54-25
+        --checkpoint model_13345.pt
+
+    Logs to go2w_velocity_slope_turn_s25/
+    """
+
+    experiment_name = "go2w_velocity_slope_turn_s25"
+    max_iterations  = _SLOPE_MAX_ITERATIONS
+    save_interval   = 50
+    algorithm       = _make_slope_algorithm()

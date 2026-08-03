@@ -140,6 +140,11 @@ reference covering:
 - Reward engineering troubleshooting guide
 - Phase 2+ expansion instructions
 
+**YouTube series (filming bible):** [`docs/youtube_series_plan.md`](docs/youtube_series_plan.md) ·
+cue cards [`docs/youtube_cue_cards.md`](docs/youtube_cue_cards.md) ·
+investor one-pager [`docs/youtube_investor_one_pager.md`](docs/youtube_investor_one_pager.md)
+
+
 ---
 
 ## References

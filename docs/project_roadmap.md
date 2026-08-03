@@ -1,6 +1,6 @@
 # REXMI RL — Project Roadmap & Strategic Plan
 
-> **Last updated: 2026-07-11**
+> **Last updated: 2026-08-02** (slope-turn status; full history in `docs/slope_turn_policy_development.md`)
 >
 > **End goal**: A Go2W wheeled-hybrid quadruped that demonstrates autonomous,
 > insane-terrain navigation capability on a simulated lunar surface — suitable
@@ -103,6 +103,9 @@ would replace this when sufficient training data exists.
 ---
 
 ## 3. Current Policy Library
+
+**Slope-turn status (2026-08-02):** Best pivot-on-slope is `model_13345.pt` @ ~20°. Hold works steeper; **turn on 25–35° not solved**. Active path: HOLD→YAW→SETTLE pulse FSM (`Pulse20-v2`). Details: `docs/slope_turn_policy_development.md`.
+
 
 | Task ID | Policy | Checkpoint | Speed | Terrain capability | Status |
 |---|---|---|---|---|---|

@@ -856,6 +856,67 @@ gym.register(
     },
 )
 
+# Pulse FSM @ 20° — HOLD → YAW → SETTLE (warm-start model_13345)
+gym.register(
+    id="RexmiRl-Go2w-Velocity-SlopeTurnPulse20-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w"
+            ".slope_turn_env_cfg:Go2wSlopeTurnPulse20EnvCfg"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wSlopeTurnPulse20PPORunnerCfg"
+        ),
+    },
+)
+
+gym.register(
+    id="RexmiRl-Go2w-Velocity-SlopeTurnPulse20-Play-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w"
+            ".slope_turn_env_cfg:Go2wSlopeTurnPulse20EnvCfg_PLAY"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wSlopeTurnPulse20PPORunnerCfg"
+        ),
+    },
+)
+
+gym.register(
+    id="RexmiRl-Go2w-Velocity-SlopeTurnPulse20-Play-Hold-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w"
+            ".slope_turn_env_cfg:Go2wSlopeTurnPulse20EnvCfg_PLAY_HOLD"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wSlopeTurnPulse20PPORunnerCfg"
+        ),
+    },
+)
+
+gym.register(
+    id="RexmiRl-Go2w-Velocity-SlopeTurnPulse20-Play-Yaw-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            "rexmi_rl.tasks.locomotion.velocity.config.go2w"
+            ".slope_turn_env_cfg:Go2wSlopeTurnPulse20EnvCfg_PLAY_YAW"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{agents.__name__}.rsl_rl_ppo_cfg:Go2wSlopeTurnPulse20PPORunnerCfg"
+        ),
+    },
+)
+
 gym.register(
     id="RexmiRl-Go2w-Crater-Bowl-RockySlope-Record-v0",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",

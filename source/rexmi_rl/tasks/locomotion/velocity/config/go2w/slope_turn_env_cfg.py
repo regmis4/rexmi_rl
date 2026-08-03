@@ -202,7 +202,10 @@ from rexmi_rl.tasks.locomotion.velocity.config.go2w.turn_env_cfg import (
     Go2wTurnBEnvCfg,
 )
 from rexmi_rl.tasks.locomotion.velocity.mdp import terminations as rexmi_term
-from rexmi_rl.tasks.locomotion.velocity.mdp.commands import make_relative_heading_command
+from rexmi_rl.tasks.locomotion.velocity.mdp.commands import (
+    make_relative_heading_command,
+    make_hold_yaw_settle_command,
+)
 
 
 
@@ -1110,3 +1113,171 @@ class Go2wSlopeTurnS25EnvCfg_PLAY_TURN(Go2wSlopeTurnS25EnvCfg):
             lin_vel_x=0.0,
             resampling_s=2.0,
         )
+
+# ===========================================================================
+# PULSE FSM @ 20° — HOLD → YAW → SETTLE (single policy, Language A)
+# ===========================================================================
+# After S25 failures: continuous spin rolls; freeze kills turn; hold works.
+# Teach structured micro-reorient on 20° (where 13345 already turns), then
+# climb slope. Nav will emit the same pulse pattern later.
+# Warm-start: go2w_velocity_slope_turn/2026-07-27_20-54-25/model_13345.pt
+# ===========================================================================
+
+def _apply_pulse_fsm_rewards(cfg, omega_mag: float = 0.08, yaw_s: float = 2.0) -> None:
+    """
+    Pulse20-v2 rewards (Language A) — after v1 visual: wiggle only, no heading.
+
+    v1 failure: high track_ang + is_alive + short weak pulses → survival without Δψ.
+    v2: real heading_progress must dominate; track_ang weak; is_alive lower;
+        yaw_stagnation requires visible degrees over a yaw-scale window.
+    """
+    # Disable Language B leftovers
+    for name in ("heading_error", "heading_error_reduction"):
+        if hasattr(cfg.rewards, name):
+            getattr(cfg.rewards, name).weight = 0.0
+
+    # Survival must NOT beat yaw
+    if hasattr(cfg.rewards, "is_alive"):
+        cfg.rewards.is_alive.weight = 0.22
+
+    # Real net yaw — primary turn pay
+    if hasattr(cfg.rewards, "heading_progress_turn"):
+        cfg.rewards.heading_progress_turn.weight = 180.0
+        cfg.rewards.heading_progress_turn.params["min_cmd"] = max(0.04, 0.5 * omega_mag)
+    # track_ang lied in v1 (high while no heading change)
+    if hasattr(cfg.rewards, "track_ang_vel_z_exp"):
+        cfg.rewards.track_ang_vel_z_exp.weight = 1.0
+
+    # Require real degrees during yaw-scale windows (ω=0.08 * 2s ≈ 9°)
+    if hasattr(cfg.rewards, "yaw_stagnation"):
+        cfg.rewards.yaw_stagnation.weight = -4.0
+        cfg.rewards.yaw_stagnation.params["min_cmd"] = max(0.04, 0.5 * omega_mag)
+        cfg.rewards.yaw_stagnation.params["min_yaw_deg"] = 8.0
+        # ~ yaw_s / dt ; dt~0.02 → 2.0/0.02=100 steps; use 80
+        cfg.rewards.yaw_stagnation.params["window_steps"] = max(60, int(yaw_s / 0.02 * 0.8))
+
+    if hasattr(cfg.rewards, "position_drift"):
+        cfg.rewards.position_drift.params["drift_threshold"] = 0.30
+        cfg.rewards.position_drift.weight = -1.2
+
+    # Gates below omega_mag so shaping fires during yaw pulses
+    _g = max(0.03, 0.4 * omega_mag)
+    for name, key in (
+        ("wheel_lock", "omega_threshold"),
+        ("foot_alternation", "omega_threshold"),
+        ("foot_air_time", "omega_threshold"),
+        ("pivot_step_coord", "omega_threshold"),
+    ):
+        if hasattr(cfg.rewards, name):
+            getattr(cfg.rewards, name).params[key] = _g
+
+
+@configclass
+class Go2wSlopeTurnPulse20EnvCfg(Go2wTurnBEnvCfg):
+    """
+    Pulse20-v2 FSM on 20° — HOLD → YAW → SETTLE (after v1 wiggle-only fail).
+
+    Warm-start: SB-v2 model_13345.pt ONLY (not Pulse20-v1 13594).
+
+    v2 pulse box (tighter yaw pay + longer/stronger pulse):
+      hold 1.0s | yaw 2.0s @ ±0.08 | settle 1.5s
+      heading_progress 180, track_ang 1.0, is_alive 0.22, yaw_stag min 8°
+    """
+
+    def __post_init__(self):
+        super().__post_init__()
+
+        self.scene.terrain.terrain_type = "generator"
+        self.scene.terrain.terrain_generator = _make_slope_terrain(20.0)
+        self.scene.env_spacing = 8.0
+        self.curriculum.terrain_levels = None
+        self.sim.gravity = (0.0, 0.0, -9.81)
+
+        _apply_slope_spawn(self, 20.0)
+        _apply_slope_friction_event(self)
+        _apply_slope_reward_overrides(self)
+
+        omega = 0.08
+        yaw_s = 2.0
+        self.commands.base_velocity = make_hold_yaw_settle_command(
+            omega_mag=omega,
+            hold_s=1.0,
+            yaw_s=yaw_s,
+            settle_s=1.5,
+            direction_flip_prob=0.2,
+            debug_vis=True,
+        )
+        _apply_pulse_fsm_rewards(self, omega_mag=omega, yaw_s=yaw_s)
+
+        if hasattr(self.rewards, "trunk_stability"):
+            self.rewards.trunk_stability.params["max_tilt_deg"] = 25.0
+        if hasattr(self.events, "push_robot"):
+            self.events.push_robot = None
+
+
+@configclass
+class Go2wSlopeTurnPulse20EnvCfg_PLAY(Go2wSlopeTurnPulse20EnvCfg):
+    """
+    Pulse20 play: full HOLD→YAW→SETTLE.
+
+    PLAY-ONLY soft envelope (no retrain): ω±0.04, yaw 1.0s, settle 1.5s.
+    Train v2 stays 2.0s @ ±0.08; visual showed real turn but tips when hot.
+    """
+
+    def __post_init__(self):
+        super().__post_init__()
+        _apply_slope_play_common(self)
+        omega = 0.04
+        yaw_s = 1.0
+        self.commands.base_velocity = make_hold_yaw_settle_command(
+            omega_mag=omega,
+            hold_s=1.0,
+            yaw_s=yaw_s,
+            settle_s=1.5,
+            direction_flip_prob=0.2,
+            debug_vis=True,
+        )
+        _apply_pulse_fsm_rewards(self, omega_mag=omega, yaw_s=yaw_s)
+
+
+@configclass
+class Go2wSlopeTurnPulse20EnvCfg_PLAY_HOLD(Go2wSlopeTurnPulse20EnvCfg):
+    """Pulse20 play diagnostic: permanent HOLD (ω=0)."""
+
+    def __post_init__(self):
+        super().__post_init__()
+        _apply_slope_play_common(self)
+        # Degenerate FSM: very long hold, zero yaw magnitude
+        self.commands.base_velocity = make_hold_yaw_settle_command(
+            omega_mag=0.0,
+            hold_s=30.0,
+            yaw_s=0.5,
+            settle_s=0.5,
+            direction_flip_prob=0.0,
+            debug_vis=True,
+        )
+
+
+@configclass
+class Go2wSlopeTurnPulse20EnvCfg_PLAY_YAW(Go2wSlopeTurnPulse20EnvCfg):
+    """
+    Pulse20 play YAW emphasis — PLAY-ONLY soft envelope.
+
+    hold 0.5s | yaw 1.0s @ ±0.04 | settle 1.5s
+    (half rate + half duration vs train v2; same policy ckpt)
+    """
+
+    def __post_init__(self):
+        super().__post_init__()
+        _apply_slope_play_common(self)
+        omega = 0.04
+        yaw_s = 1.0
+        self.commands.base_velocity = make_hold_yaw_settle_command(
+            omega_mag=omega,
+            hold_s=0.5,
+            yaw_s=yaw_s,
+            settle_s=1.5,
+            direction_flip_prob=0.15,
+            debug_vis=True,
+        )
+        _apply_pulse_fsm_rewards(self, omega_mag=omega, yaw_s=yaw_s)

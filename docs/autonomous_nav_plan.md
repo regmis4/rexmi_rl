@@ -1,7 +1,7 @@
 # REXMI Autonomous Navigation — Implementation Plan
 
-**Date:** 2026-07-19  
-**Status:** In progress  
+**Date:** 2026-07-19 (slope-turn note 2026-08-02)  
+**Status:** In progress — **steep reorient blocked on slope-turn skill**  
 **Author:** AI-assisted development session
 
 ---
@@ -26,6 +26,21 @@ on Earth gravity. The robot must:
 | `rocky_slope` | `model_13994.pt` | Boulder slopes 15–35° | ~247-dim (WITH height scan) |
 
 **PolicySelector** switches between these at runtime based on terrain metrics from the height scanner.
+
+### Slope-turn / reorient (2026-08-02)
+
+Obstacle avoidance needs **stop → turn → go**. Forward policies above do **not** provide pivot-on-slope.
+
+| Item | State |
+|------|--------|
+| Best turn-on-slope ckpt | `logs/rsl_rl/go2w_velocity_slope_turn/2026-07-27_20-54-25/model_13345.pt` (**~20°**) |
+| Hold on 25°+ | Demonstrated |
+| Reliable turn on 25–35° | **Not yet** — see pulse FSM work |
+| Nav integration plan | Emit Language A **HOLD→YAW→SETTLE** pulses (same as train), not continuous ω |
+
+Living log: **`docs/slope_turn_policy_development.md`**.  
+Do not wire nav steep reorient until Pulse multi-pulse yaw passes **visual** gates.
+
 
 ---
 

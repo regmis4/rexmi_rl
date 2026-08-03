@@ -1,8 +1,8 @@
 # Turn Command Semantics — what the turn policies are actually being asked to do
 
-**Date:** 2026-07-26
-**Applies to:** every turn policy in this project — spin, spin_static, Turn A/B/C, Slope Turn SA/SB/SC
-**Status:** root cause confirmed by source inspection
+**Date:** 2026-07-26 (addendum 2026-08-02)
+**Applies to:** turn / slope-turn policies — Turn A/B, Slope SA/SB/SC/S25, Pulse20
+**Status:** root cause confirmed; **slope path now uses Language A + optional HOLD→YAW→SETTLE FSM**
 
 ---
 
@@ -414,3 +414,24 @@ Play diagnostics D1/D2 and SA-v11 reward tighten live in
 `docs/slope_turn_policy_development.md` and `slope_turn_env_cfg.py`.
 Relative heading remains **not** wired into play. Baseline play is still
 v10e constant sampled yaw.
+
+---
+
+## Addendum (2026-08-02) — Language A vs B, and the pulse FSM
+
+Slope-turn development clarified two **command languages** (same obs layout `[vx,vy,ωz]`):
+
+| Language | Mechanism | Used by |
+|----------|-----------|---------|
+| **A — sampled ω** | Env holds a yaw-rate command for a window (`heading_command=False`) | SB-v2 `model_13345`, S25 Phase A/A2, **Pulse20** |
+| **B — relative heading** | Env sets θ*; ω from P(error) (`heading_command=True`) | S25-v3b (failed on 25°) |
+
+**Project choice for steep reorient:** Language **A**, structured as:
+
+`HoldYawSettleVelocityCommand` — phases **HOLD → YAW → SETTLE → YAW → …**  
+Code: `source/rexmi_rl/tasks/locomotion/velocity/mdp/commands.py`.
+
+This is still compatible with nav (“turn toward X then stop”): nav schedules finite ω bursts and zeros, instead of relying on continuous spin or mid-train Language B.
+
+**Do not confuse** high `track_ang_vel_z_exp` with real heading change — always **visual-gate** multi-pulse yaw.  
+Full phase history: `docs/slope_turn_policy_development.md` §0–§5.

@@ -302,3 +302,205 @@ def make_relative_heading_command(
             heading=(-math.pi, math.pi),               # unused by this term
         ),
     )
+
+# =============================================================================
+# HOLD → YAW → SETTLE pulse FSM (Language A, single policy)
+# =============================================================================
+
+class HoldYawSettleVelocityCommand(UniformVelocityCommand):
+    """
+    Structured Language-A velocity command: HOLD → YAW pulse → SETTLE → YAW → …
+
+    PURPOSE
+    -------
+    Continuous ω on steep slopes causes roll; pure standing freezes turn skill.
+    This FSM forces the nav-like skill:
+        plant → small yaw burst → rebalance → repeat
+
+    Still Language A: policy sees piecewise-constant [vx, vy, ωz].
+    heading_command is forced False.
+
+    Phases (per env):
+        0 HOLD   — ω=0, duration hold_s   (episode start + optional)
+        1 YAW    — ω=±omega_mag, duration yaw_s
+        2 SETTLE — ω=0, duration settle_s
+
+    After the first HOLD, cycles YAW ↔ SETTLE. Direction persists across
+    settle with occasional flips (direction_flip_prob).
+    """
+
+    cfg: "HoldYawSettleVelocityCommandCfg"
+
+    PHASE_HOLD = 0
+    PHASE_YAW = 1
+    PHASE_SETTLE = 2
+
+    def __init__(self, cfg: "HoldYawSettleVelocityCommandCfg", env: "ManagerBasedEnv"):
+        # Force Language A
+        cfg.heading_command = False
+        cfg.rel_heading_envs = 0.0
+        cfg.rel_standing_envs = 0.0  # we manage zeros via phase
+        super().__init__(cfg, env)
+
+        self.phase = torch.zeros(self.num_envs, dtype=torch.long, device=self.device)
+        self.yaw_sign = torch.where(
+            torch.rand(self.num_envs, device=self.device) < 0.5,
+            -torch.ones(self.num_envs, device=self.device),
+            torch.ones(self.num_envs, device=self.device),
+        )
+        self.metrics["phase_hold_frac"] = torch.zeros(self.num_envs, device=self.device)
+        self.metrics["phase_yaw_frac"] = torch.zeros(self.num_envs, device=self.device)
+        self.metrics["phase_settle_frac"] = torch.zeros(self.num_envs, device=self.device)
+
+    def __str__(self) -> str:
+        c = self.cfg
+        return (
+            "HoldYawSettleVelocityCommand: "
+            f"hold={c.hold_s:.2f}s yaw={c.yaw_s:.2f}s settle={c.settle_s:.2f}s "
+            f"omega_mag={c.omega_mag:.3f} flip_p={c.direction_flip_prob:.2f}"
+        )
+
+    def _resample(self, env_ids):
+        """Advance FSM phase and set phase duration (overrides parent timing)."""
+        if len(env_ids) == 0:
+            return
+        ids = torch.as_tensor(env_ids, device=self.device, dtype=torch.long).view(-1)
+        if ids.numel() == 0:
+            return
+
+        first = self.command_counter[ids] == 0
+        old = self.phase[ids]
+        new = old.clone()
+
+        # Episode start → HOLD
+        new = torch.where(first, torch.zeros_like(new), new)
+        # HOLD → YAW
+        new = torch.where((~first) & (old == self.PHASE_HOLD), torch.ones_like(new), new)
+        # YAW → SETTLE
+        new = torch.where((~first) & (old == self.PHASE_YAW), torch.full_like(new, self.PHASE_SETTLE), new)
+        # SETTLE → YAW
+        new = torch.where((~first) & (old == self.PHASE_SETTLE), torch.ones_like(new), new)
+
+        self.phase[ids] = new
+
+        # Durations
+        t = torch.empty(ids.numel(), device=self.device)
+        t = torch.where(new == self.PHASE_HOLD, torch.full_like(t, self.cfg.hold_s), t)
+        t = torch.where(new == self.PHASE_YAW, torch.full_like(t, self.cfg.yaw_s), t)
+        t = torch.where(new == self.PHASE_SETTLE, torch.full_like(t, self.cfg.settle_s), t)
+        # Tiny jitter so all envs don't sync perfectly
+        jitter = 0.05 * self.cfg.yaw_s
+        t = t + (torch.rand_like(t) - 0.5) * 2.0 * jitter
+        t = t.clamp(min=0.2)
+        self.time_left[ids] = t
+
+        self._resample_command(ids)
+        self.command_counter[ids] += 1
+
+    def _resample_command(self, env_ids):
+        ids = torch.as_tensor(env_ids, device=self.device, dtype=torch.long).view(-1)
+        n = ids.numel()
+        if n == 0:
+            return
+
+        phase = self.phase[ids]
+        # Always zero linear
+        self.vel_command_b[ids, 0] = 0.0
+        self.vel_command_b[ids, 1] = 0.0
+
+        # Flip yaw direction when *entering* YAW (not on every hold)
+        entering_yaw = phase == self.PHASE_YAW
+        if entering_yaw.any():
+            ey = ids[entering_yaw]
+            # Flip only with probability; else keep previous sign (chain turns)
+            flip = torch.rand(ey.numel(), device=self.device) < self.cfg.direction_flip_prob
+            # On very first YAW after episode HOLD, always keep random init sign
+            # (already random). Occasional flip thereafter.
+            self.yaw_sign[ey] = torch.where(flip, -self.yaw_sign[ey], self.yaw_sign[ey])
+
+        omega = torch.zeros(n, device=self.device)
+        yaw_local = phase == self.PHASE_YAW
+        omega[yaw_local] = self.yaw_sign[ids[yaw_local]] * float(self.cfg.omega_mag)
+        self.vel_command_b[ids, 2] = omega
+
+        # Mark non-yaw as standing for any downstream that checks the flag
+        self.is_standing_env[ids] = phase != self.PHASE_YAW
+
+    def _update_command(self):
+        """Re-assert phase ω every step (standing zeros hold/settle)."""
+        # Yaw envs: keep resampled omega
+        # Hold/Settle: force zero
+        stand_ids = self.is_standing_env.nonzero(as_tuple=False).flatten()
+        if len(stand_ids) > 0:
+            self.vel_command_b[stand_ids, :] = 0.0
+
+    def _update_metrics(self):
+        super()._update_metrics()
+        # Running fraction estimates (for TensorBoard via command metrics)
+        # Note: parent accumulates; we set instantaneous indicators each step
+        # Use exponential-style: just store current phase one-hot mean via extras path
+        # Simpler: count steps in phase via metrics buffers
+        dt_scale = 1.0
+        self.metrics["phase_hold_frac"] += (self.phase == self.PHASE_HOLD).float() * dt_scale
+        self.metrics["phase_yaw_frac"] += (self.phase == self.PHASE_YAW).float() * dt_scale
+        self.metrics["phase_settle_frac"] += (self.phase == self.PHASE_SETTLE).float() * dt_scale
+
+
+@configclass
+class HoldYawSettleVelocityCommandCfg(UniformVelocityCommandCfg):
+    """Config for HoldYawSettleVelocityCommand."""
+
+    class_type: type = HoldYawSettleVelocityCommand
+
+    hold_s: float = 1.5
+    """Initial HOLD duration (seconds) at episode start."""
+
+    yaw_s: float = 1.0
+    """YAW pulse duration (seconds)."""
+
+    settle_s: float = 2.0
+    """SETTLE / rebalance duration (seconds) after each yaw pulse."""
+
+    omega_mag: float = 0.06
+    """|ω_z| during YAW phase (rad/s). Symmetric ±omega_mag."""
+
+    direction_flip_prob: float = 0.2
+    """Probability of reversing turn direction when entering a new YAW phase."""
+
+
+def make_hold_yaw_settle_command(
+    *,
+    omega_mag: float = 0.06,
+    hold_s: float = 1.5,
+    yaw_s: float = 1.0,
+    settle_s: float = 2.0,
+    direction_flip_prob: float = 0.2,
+    debug_vis: bool = True,
+) -> HoldYawSettleVelocityCommandCfg:
+    """
+    Build HOLD→YAW→SETTLE Language-A command (single-policy pulse FSM).
+
+    Policy obs still sees [vx=0, vy=0, ωz] with ωz piecewise constant.
+    """
+    # resampling_time_range is unused for timing (FSM sets time_left) but
+    # parent metrics divide by max — set to a harmless positive range.
+    period = max(hold_s, yaw_s, settle_s)
+    return HoldYawSettleVelocityCommandCfg(
+        asset_name="robot",
+        resampling_time_range=(period, period),
+        heading_command=False,
+        rel_heading_envs=0.0,
+        rel_standing_envs=0.0,
+        debug_vis=debug_vis,
+        hold_s=float(hold_s),
+        yaw_s=float(yaw_s),
+        settle_s=float(settle_s),
+        omega_mag=float(omega_mag),
+        direction_flip_prob=float(direction_flip_prob),
+        ranges=HoldYawSettleVelocityCommandCfg.Ranges(
+            lin_vel_x=(0.0, 0.0),
+            lin_vel_y=(0.0, 0.0),
+            ang_vel_z=(-float(omega_mag), float(omega_mag)),
+            heading=(-3.14159265, 3.14159265),
+        ),
+    )

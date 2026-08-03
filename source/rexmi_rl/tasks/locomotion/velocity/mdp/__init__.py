@@ -7,6 +7,9 @@ from .commands import (  # noqa: F401
     RelativeHeadingVelocityCommand,
     RelativeHeadingVelocityCommandCfg,
     make_relative_heading_command,
+    HoldYawSettleVelocityCommand,
+    HoldYawSettleVelocityCommandCfg,
+    make_hold_yaw_settle_command,
 )
 from .rewards import (  # noqa: F401
 

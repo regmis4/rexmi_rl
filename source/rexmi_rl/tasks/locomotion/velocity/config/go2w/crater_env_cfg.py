@@ -614,12 +614,14 @@ class LunarCraterDemoBowlEnvCfg(LunarCraterBaseEnvCfg):
         #   env_origin_z = h at tile centre (r = 0, crater floor) ≈ 0 m
         #   spawn_z = h_spawn + body_clearance = 4.115 + 0.35 = 4.465 m
         #   Range adds ±0.45 m for azimuthal noise and boulders near spawn.
+        # Fixed exterior spawn: just above mesh (h≈4.115 + 0.35 clearance ≈ 4.47).
+        # Wide z∈(4.0,4.9) caused air-drop crashes and physics resets in nav demos.
         self.events.reset_base.params = {
             "pose_range": {
-                "x": (12.0, 14.0),          # r ≈ 12–14 m (exterior ramp, rim at r=11 m)
-                "y": (-3.0, 3.0),            # lateral: each of 10 robots at a different y
-                "yaw": (math.pi, math.pi),   # face −x direction (toward crater centre)
-                "z": (4.0, 4.9),             # above env_origin (floor level)
+                "x": (13.0, 13.0),
+                "y": (0.0, 0.0),
+                "yaw": (math.pi, math.pi),
+                "z": (4.48, 4.52),
             },
             "velocity_range": {
                 "x": (0.0, 0.0), "y": (0.0, 0.0), "z": (0.0, 0.0),
@@ -647,6 +649,26 @@ class LunarCraterDemoBowlEnvCfg_PLAY(LunarCraterDemoBowlEnvCfg):
         self.scene.terrain.terrain_generator = _crater_terrain_gen(
             LunarCraterDemoBowlCfg(proportion=1.0), num_cols=1, size=(64.0, 64.0)
         )
+        # Nav/demo: do not terminate on tip/base contact — respawn kills the mission.
+        # Keep time_out only if present.
+        if hasattr(self, "terminations"):
+            if hasattr(self.terminations, "base_contact"):
+                self.terminations.base_contact = None
+            if hasattr(self.terminations, "bad_orientation"):
+                self.terminations.bad_orientation = None
+        # Pin spawn again after parent (single robot, consistent pose)
+        self.events.reset_base.params = {
+            "pose_range": {
+                "x": (13.0, 13.0),
+                "y": (0.0, 0.0),
+                "yaw": (math.pi, math.pi),
+                "z": (4.48, 4.52),
+            },
+            "velocity_range": {
+                "x": (0.0, 0.0), "y": (0.0, 0.0), "z": (0.0, 0.0),
+                "roll": (0.0, 0.0), "pitch": (0.0, 0.0), "yaw": (0.0, 0.0),
+            },
+        }
 
 
 # ===========================================================================

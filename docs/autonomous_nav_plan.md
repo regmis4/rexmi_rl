@@ -1,8 +1,9 @@
 # REXMI Autonomous Navigation — Implementation Plan
 
 **Date:** 2026-07-19 (slope-turn note 2026-08-02)  
-**Status:** In progress — **steep reorient blocked on slope-turn skill**  
+**Status:** Pulse reorient **wired into nav** (2026-08-08) — Language A HOLD→YAW→SETTLE  
 **Author:** AI-assisted development session
+
 
 ---
 
@@ -27,19 +28,43 @@ on Earth gravity. The robot must:
 
 **PolicySelector** switches between these at runtime based on terrain metrics from the height scanner.
 
-### Slope-turn / reorient (2026-08-02)
+### Slope-turn / reorient (updated 2026-08-08)
 
 Obstacle avoidance needs **stop → turn → go**. Forward policies above do **not** provide pivot-on-slope.
 
 | Item | State |
 |------|--------|
-| Best turn-on-slope ckpt | `logs/rsl_rl/go2w_velocity_slope_turn/2026-07-27_20-54-25/model_13345.pt` (**~20°**) |
-| Hold on 25°+ | Demonstrated |
-| Reliable turn on 25–35° | **Not yet** — see pulse FSM work |
-| Nav integration plan | Emit Language A **HOLD→YAW→SETTLE** pulses (same as train), not continuous ω |
+| Best continuous 20° turn | `.../go2w_velocity_slope_turn/2026-07-27_20-54-25/model_13345.pt` |
+| Pulse20 play | `.../pulse20/2026-08-02_16-36-04/model_13594.pt` |
+| **Nav default (Pulse25 plant-heavy)** | `.../pulse25/2026-08-07_19-50-19/model_13843.pt` |
+| Flat Turn-B (optional dual) | `logs/rsl_rl/best_policies/go2w_turn_flat_v6_model_10992.pt` |
+| Nav integration | ✅ `ReorientController` emits Language A **HOLD→YAW→SETTLE** |
 
-Living log: **`docs/slope_turn_policy_development.md`**.  
-Do not wire nav steep reorient until Pulse multi-pulse yaw passes **visual** gates.
+**Do not** feed continuous `ω≈±1.0` to pulse policies.  
+Living log: **`docs/slope_turn_policy_development.md`**.
+
+### Demo launch (with pulse turn)
+
+```bash
+conda activate env_isaacsim
+python scripts/navigate.py \
+  --task RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0 \
+  --ckpt_fast_flat logs/rsl_rl/go2w_velocity_fast_flat/2026-06-17_20-08-58/model_1499.pt \
+  --ckpt_rough     logs/rsl_rl/go2w_velocity_rough/2026-06-14_20-03-41/model_8996.pt \
+  --ckpt_rocky     logs/rsl_rl/go2w_velocity_rocky_slope/2026-06-30_09-31-48/model_13994.pt \
+  --ckpt_turn      logs/rsl_rl/go2w_velocity_slope_turn_pulse25/2026-08-07_19-50-19/model_13843.pt \
+  --ckpt_turn_flat logs/rsl_rl/best_policies/go2w_turn_flat_v6_model_10992.pt \
+  --mission traverse
+```
+
+| Module | Role |
+|--------|------|
+| `nav/reorient.py` | Pulse FSM; slope-adaptive envelopes (flat / gentle / steep) |
+| `local_planner` | `want_reorient` on committed large turn; brakes `vx=0` |
+| `recovery` | Reverse then hand off to reorient (no continuous 1 rad/s spin) |
+| `policy_selector` | `TURN` / `TURN_FLAT` + `force_turn()` while reorienting |
+| `navigator` | Arbitrates reorient > reverse > local plan |
+
 
 
 ---

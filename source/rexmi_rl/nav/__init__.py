@@ -16,6 +16,7 @@ Architecture
   GlobalPlanner    — A* on occupancy map → next waypoint
   LocalPlanner     — height-scan traversability → (vx, vy, ωz) command
   RecoveryFSM      — stuck detection and escape behaviour
+  ReorientController — Language A HOLD→YAW→SETTLE pulse turn scheduler
   PolicySelector   — terrain-aware RL policy switcher
   Dashboard        — live 3D SLAM cloud + 2D cost map (matplotlib, daemon thread)
   Navigator        — top-level loop tying all modules together
@@ -28,6 +29,7 @@ from rexmi_rl.nav.occupancy_map import OccupancyMap
 from rexmi_rl.nav.global_planner import GlobalPlanner
 from rexmi_rl.nav.local_planner import LocalPlanner
 from rexmi_rl.nav.recovery import RecoveryFSM
+from rexmi_rl.nav.reorient import ReorientController, ReorientPhase, PulseEnvelope
 from rexmi_rl.nav.policy_selector import PolicySelector, PolicyMode
 from rexmi_rl.nav.navigator import Navigator
 
@@ -39,6 +41,8 @@ __all__ = [
     "GlobalPlanner",
     "LocalPlanner",
     "RecoveryFSM",
+    "ReorientController", "ReorientPhase", "PulseEnvelope",
     "PolicySelector", "PolicyMode",
     "Navigator",
 ]
+

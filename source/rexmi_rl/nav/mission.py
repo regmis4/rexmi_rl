@@ -140,27 +140,37 @@ class MissionPlanner:
         This showcases the full capability: downhill approach, floor navigation,
         uphill exit.  The most visually compelling demo for investors.
         """
-        # Halfway point between spawn and rim entry (approach corridor)
-        approach_x = self.spawn_x + 0.5 * (self._entry_x - self.spawn_x)
-        approach_y = self.cy
+        wps: List[Waypoint] = []
 
-        return [
-            # arrival_radius=2.0 m: robot must actually drive to within 2 m.
-            # Previously 4.0 m — too large; robot spawning at x=+13 with approach
-            # at x=+12 was within 4 m at spawn and immediately skipped the waypoint.
-            # The closest-approach gate in _advance_waypoint() also prevents spawn-skip,
-            # but tight radii give the correct behaviour even without that gate.
-            Waypoint(approach_x, approach_y, 2.0, "approach"),
-            # rim_entry/rim_exit: 2.0 m radius — tight enough to require genuine
-            # rim crossing, wide enough for slight lateral offset.
-            Waypoint(self._entry_x, self._entry_y, 2.0, "rim_entry"),
-            Waypoint(self.cx, self.cy, 2.0, "floor_centre"),
-            Waypoint(self._exit_x, self._exit_y, 2.0, "rim_exit"),
-            # Continue 7 m beyond the far rim
-            Waypoint(self._exit_x - 7.0 * math.cos(self.entry_az),
-                     self._exit_y - 7.0 * math.sin(self.entry_az),
-                     4.0, "exit_clear"),
-        ]
+        # Approach corridor only if spawn is far enough from the rim that a
+        # mid-point waypoint is useful.  Bowl demo defaults (spawn_x=+13,
+        # rim at +11) put spawn only 2 m outside the rim — a halfway
+        # "approach" at +12 is already inside arrival_radius=2 m at spawn
+        # and would be skipped immediately (or worse, arm the closest-
+        # approach gate and skip without driving).
+        dist_spawn_to_entry = math.hypot(
+            self.spawn_x - self._entry_x, self.cy - self._entry_y
+        )
+        if dist_spawn_to_entry > 4.0:
+            approach_x = self.spawn_x + 0.5 * (self._entry_x - self.spawn_x)
+            approach_y = self.cy
+            wps.append(Waypoint(approach_x, approach_y, 2.0, "approach"))
+
+        # rim_entry/rim_exit: 1.5 m — require genuine rim crossing
+        wps.append(Waypoint(self._entry_x, self._entry_y, 1.5, "rim_entry"))
+        wps.append(Waypoint(self.cx, self.cy, 2.0, "floor_centre"))
+        wps.append(Waypoint(self._exit_x, self._exit_y, 1.5, "rim_exit"))
+        # Continue 7 m beyond the far rim
+        wps.append(
+            Waypoint(
+                self._exit_x - 7.0 * math.cos(self.entry_az),
+                self._exit_y - 7.0 * math.sin(self.entry_az),
+                3.0,
+                "exit_clear",
+            )
+        )
+        return wps
+
 
     def _survey(self) -> List[Waypoint]:
         """

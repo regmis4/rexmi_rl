@@ -1172,6 +1172,28 @@ def _apply_pulse_fsm_rewards(cfg, omega_mag: float = 0.08, yaw_s: float = 2.0) -
             getattr(cfg.rewards, name).params[key] = _g
 
 
+
+def _apply_pulse_fsm_rewards_capped(
+    cfg,
+    omega_mag: float = 0.05,
+    yaw_s: float = 0.9,
+    max_rate_scale: float = 2.5,
+) -> None:
+    """
+    Pulse25 microstep rewards — Pulse20 family + rate-capped heading_progress.
+
+    14092 (uncapped plant-heavy): one-shot twist, forgot microstep.
+    Cap per-step hp at |ω|*dt*max_rate_scale so many small steps beat one wrench.
+    Same weights otherwise (hp 180, is_alive 0.22). Pulse20 stays uncapped.
+    """
+    _apply_pulse_fsm_rewards(cfg, omega_mag=omega_mag, yaw_s=yaw_s)
+    if hasattr(cfg.rewards, "heading_progress_turn"):
+        cfg.rewards.heading_progress_turn.params["max_rate_scale"] = float(max_rate_scale)
+        cfg.rewards.heading_progress_turn.params["step_dt"] = 0.02
+        cfg.rewards.heading_progress_turn.params["min_cmd"] = max(0.02, 0.4 * omega_mag)
+
+
+
 @configclass
 class Go2wSlopeTurnPulse20EnvCfg(Go2wTurnBEnvCfg):
     """
@@ -1281,3 +1303,127 @@ class Go2wSlopeTurnPulse20EnvCfg_PLAY_YAW(Go2wSlopeTurnPulse20EnvCfg):
             debug_vis=True,
         )
         _apply_pulse_fsm_rewards(self, omega_mag=omega, yaw_s=yaw_s)
+
+
+# ===========================================================================
+# PULSE FSM @ 25° — plant-heavy pulse (2026-08-07)
+# ===========================================================================
+# After minimal 25° finetune (13843): plant OK, hot yaw tips / continuous spin feel.
+# Train matches successful play language: long hold/settle, short moderate yaw.
+# Cmd: hold 2.5 | yaw 0.9 @ ±0.05 | settle 3.0
+# Rewards: same _apply_pulse_fsm_rewards (no new terms).
+# Warm-start: pulse25/2026-08-07_19-50-19/model_13843.pt
+# ===========================================================================
+
+
+@configclass
+class Go2wSlopeTurnPulse25EnvCfg(Go2wTurnBEnvCfg):
+    """
+    Pulse25 plant-heavy + rate-capped hp @ 25° (microstep, not one-shot).
+
+    Warm-start: pulse25/2026-08-07_19-50-19/model_13843.pt
+    (minimal 25° finetune from Pulse20 13594; turns but tippy on hot yaw)
+
+    Schedule (play-proven language):
+      hold 2.5s | yaw 0.9s @ ±0.05 | settle 3.0s
+    Pulse20 rewards + heading_progress max_rate_scale=2.5 (anti one-shot).
+    Warm-start model_13843.pt ONLY (not 14092 one-shot).
+    """
+
+    def __post_init__(self):
+        super().__post_init__()
+
+        self.scene.terrain.terrain_type = "generator"
+        self.scene.terrain.terrain_generator = _make_slope_terrain(25.0)
+        self.scene.env_spacing = 8.0
+        self.curriculum.terrain_levels = None
+        self.sim.gravity = (0.0, 0.0, -9.81)
+
+        _apply_slope_spawn(self, 25.0)
+        _apply_slope_friction_event(self)
+        _apply_slope_reward_overrides(self)
+
+        # Plant-heavy pulse (play-aligned)
+        omega = 0.05
+        yaw_s = 0.9
+        self.commands.base_velocity = make_hold_yaw_settle_command(
+            omega_mag=omega,
+            hold_s=2.5,
+            yaw_s=yaw_s,
+            settle_s=3.0,
+            direction_flip_prob=0.1,
+            debug_vis=True,
+        )
+        _apply_pulse_fsm_rewards_capped(self, omega_mag=omega, yaw_s=yaw_s, max_rate_scale=2.5)
+
+        if hasattr(self.rewards, "trunk_stability"):
+            # slightly above slope angle (Pulse20 used 25 on 20° terrain)
+            self.rewards.trunk_stability.params["max_tilt_deg"] = 30.0
+        if hasattr(self.events, "push_robot"):
+            self.events.push_robot = None
+
+
+@configclass
+class Go2wSlopeTurnPulse25EnvCfg_PLAY(Go2wSlopeTurnPulse25EnvCfg):
+    """
+    Pulse25 play: plant-heavy HOLD→YAW→SETTLE (no retrain).
+
+    User visual: stable plant; turn too fast / continuous spin → fall.
+    Schedule: long hold, short slow yaw, long settle — stack small heading
+    changes with ample stability between pulses.
+      hold 2.5s | yaw 0.8s @ ±0.04 | settle 3.0s
+    """
+
+    def __post_init__(self):
+        super().__post_init__()
+        _apply_slope_play_common(self)
+        omega = 0.04
+        yaw_s = 0.8
+        self.commands.base_velocity = make_hold_yaw_settle_command(
+            omega_mag=omega,
+            hold_s=2.5,
+            yaw_s=yaw_s,
+            settle_s=3.0,
+            direction_flip_prob=0.1,
+            debug_vis=True,
+        )
+        _apply_pulse_fsm_rewards_capped(self, omega_mag=omega, yaw_s=yaw_s, max_rate_scale=2.5)
+
+
+class Go2wSlopeTurnPulse25EnvCfg_PLAY_HOLD(Go2wSlopeTurnPulse25EnvCfg):
+    """Pulse25 play: pure hold ω=0."""
+
+    def __post_init__(self):
+        super().__post_init__()
+        _apply_slope_play_common(self)
+        self.commands.base_velocity = make_hold_yaw_settle_command(
+            omega_mag=0.0,
+            hold_s=30.0,
+            yaw_s=0.5,
+            settle_s=0.5,
+            direction_flip_prob=0.0,
+            debug_vis=True,
+        )
+
+
+@configclass
+class Go2wSlopeTurnPulse25EnvCfg_PLAY_YAW(Go2wSlopeTurnPulse25EnvCfg):
+    """
+    Pulse25 play yaw emphasis — still plant-heavy.
+      hold 1.5s | yaw 0.8s @ ±0.04 | settle 3.0s
+    """
+
+    def __post_init__(self):
+        super().__post_init__()
+        _apply_slope_play_common(self)
+        omega = 0.04
+        yaw_s = 0.8
+        self.commands.base_velocity = make_hold_yaw_settle_command(
+            omega_mag=omega,
+            hold_s=1.5,
+            yaw_s=yaw_s,
+            settle_s=3.0,
+            direction_flip_prob=0.1,
+            debug_vis=True,
+        )
+        _apply_pulse_fsm_rewards_capped(self, omega_mag=omega, yaw_s=yaw_s, max_rate_scale=2.5)

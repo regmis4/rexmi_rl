@@ -65,9 +65,15 @@ class RecoveryFSM:
                                           # Was 8s (too long — 8s of vx=0.40 against boulder),
                                           # was 4s (too short — triggered on slow crater descent).
         reverse_duration:  float = 2.0,
-        rotate_duration:   float = 3.0,   # 3s × 1.0 rad/s = 171° rotation
-        rotate_speed:      float = 1.0,
+        # ROTATING: Navigator starts ReorientController on entry.  Stay here
+        # long enough for at least one steep HOLD+YAW+SETTLE cycle (~6 s) so
+        # is_rotating remains true while the pulse turn runs.  Reorient may
+        # finish earlier; Navigator still owns cmd via reorient.active.
+        rotate_duration:   float = 8.0,
+        rotate_speed:      float = 0.0,   # no continuous ω — reorient owns yaw
         max_attempts:      int   = 3,
+
+
         progress_thresh:   float = 0.5,   # m — 0.5 m progress counts (not 1.0 m)
         progress_timeout:  float = 60.0,  # s — raised: slow descent on crater wall takes ~60 s/metre
     ):
@@ -112,15 +118,24 @@ class RecoveryFSM:
         """
         True when the FSM is actively executing a rotation manoeuvre.
 
-        Used by Navigator.step() to force PolicyMode.TURN so the dedicated
-        turn policy (vx=0, omega=±1) is active during recovery rotation,
-        rather than rough/rocky_slope which stall at vx=0.
+        Used by Navigator.step() to force PolicyMode.TURN and to start
+        ReorientController (Language A pulses) during recovery rotation.
 
         Also True during REVERSING — the robot is backing away from an obstacle
-        and will transition to ROTATING immediately after.  Using the turn policy
-        during reverse avoids a policy switch mid-manoeuvre.
+        and will transition to ROTATING immediately after.
         """
         return self.state in (RecoveryState.REVERSING, RecoveryState.ROTATING)
+
+    @property
+    def wants_reorient(self) -> bool:
+        """True in ROTATING — Navigator should drive ReorientController."""
+        return self.state == RecoveryState.ROTATING
+
+    @property
+    def rotate_dir(self) -> float:
+        """Latched +1 / -1 rotation direction toward the goal."""
+        return self._rotate_dir
+
 
     def reset(self) -> None:
         """Call after global planner finds a new path to clear BLOCKED state."""

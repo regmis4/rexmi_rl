@@ -1217,6 +1217,8 @@ def trunk_stability_penalty(
 def heading_progress(
     env: ManagerBasedRLEnv,
     min_cmd: float = 0.05,
+    max_rate_scale: float | None = None,
+    step_dt: float = 0.02,
 ) -> torch.Tensor:
     """
     Reward actual heading displacement in the commanded yaw direction.
@@ -1263,6 +1265,10 @@ def heading_progress(
     min_cmd   : minimum |omega_cmd| to activate the reward (rad/s).
                 Default 0.05 — ignores tiny residual commands from the
                 command sampler near zero.
+    max_rate_scale : if set > 0, cap per-step reward at
+                |omega_cmd| * step_dt * max_rate_scale so one-shot twists
+                cannot bank unlimited Δyaw in a single step. None = uncapped.
+    step_dt   : control dt (s) used with max_rate_scale. Default 0.02.
 
     Returns
     -------
@@ -1309,6 +1315,12 @@ def heading_progress(
 
     # Only reward correct-direction turning (clamp negatives to 0)
     reward: torch.Tensor = signed_progress.clamp(min=0.0)
+
+    # Cap per-step pay near commanded micro-rate (anti one-shot twist).
+    # When max_rate_scale is None/0: uncapped (Pulse20 default behavior).
+    if max_rate_scale is not None and float(max_rate_scale) > 0.0:
+        max_dyaw = omega_cmd.abs() * float(step_dt) * float(max_rate_scale)
+        reward = torch.minimum(reward, max_dyaw)
 
     # Zero out on first step (prev_yaw not valid yet)
     reward = reward * (~is_first_step).float()

@@ -1000,3 +1000,54 @@ Logs: `logs/rsl_rl/go2w_velocity_slope_turn_pulse20/`
 ```
 
 **Pass:** visible heading change each pulse, both directions, settle plants.
+
+---
+
+## Pulse25 — minimal climb from Pulse20-v2 (2026-08-07)
+
+**Reset to git `94434b2` + `model_13594.pt`.** Prior 25° experiments discarded.
+
+**Only change vs Pulse20-v2:** terrain slope **20° → 25°**.  
+Same cmd (hold 1.0 | yaw 2.0 @ ±0.08 | settle 1.5), same `_apply_pulse_fsm_rewards`.
+
+```bash
+./run.sh scripts/train.py --task RexmiRl-Go2w-Velocity-SlopeTurnPulse25-v0 --headless \
+  --load_run go2w_velocity_slope_turn_pulse20/2026-08-02_16-36-04 \
+  --checkpoint /home/susan/rexmi_rl/logs/rsl_rl/go2w_velocity_slope_turn_pulse20/2026-08-02_16-36-04/model_13594.pt \
+  --max_iterations 13844
+
+# Full play (soft envelope like Pulse20 play)
+./run.sh scripts/play.py --task RexmiRl-Go2w-Velocity-SlopeTurnPulse25-Play-v0 \
+  --load_run go2w_velocity_slope_turn_pulse25/<date> \
+  --checkpoint /home/susan/rexmi_rl/logs/rsl_rl/go2w_velocity_slope_turn_pulse25/<date>/model_<N>.pt
+```
+
+**Pass:** still turns both ways on 25°, settle plants. **If tips a lot:** tiny is_alive bump only — not a new reward stack.
+
+### Pulse25 plant-heavy train (2026-08-07)
+
+Play: turn→hold→turn sometimes works; continuous spin fails.
+Train aligned: **hold 2.5 | yaw 0.9 @ ±0.05 | settle 3.0**, same Pulse20 rewards.
+Warm-start **model_13843.pt**.
+
+```bash
+./run.sh scripts/train.py --task RexmiRl-Go2w-Velocity-SlopeTurnPulse25-v0 --headless \
+  --load_run go2w_velocity_slope_turn_pulse25/2026-08-07_19-50-19 \
+  --checkpoint /home/susan/rexmi_rl/logs/rsl_rl/go2w_velocity_slope_turn_pulse25/2026-08-07_19-50-19/model_13843.pt \
+  --max_iterations 14093
+```
+
+### Pulse25 rate-capped microstep (2026-08-07)
+
+**14092 eyes:** one-shot twist, forgot microstep (uncapped hp + short yaw).
+**Fix:** plant-heavy schedule + `heading_progress` **max_rate_scale=2.5** only.
+Warm-start **13843** (not 14092). Pulse20 remains uncapped.
+
+```bash
+./run.sh scripts/train.py --task RexmiRl-Go2w-Velocity-SlopeTurnPulse25-v0 --headless \
+  --load_run go2w_velocity_slope_turn_pulse25/2026-08-07_19-50-19 \
+  --checkpoint /home/susan/rexmi_rl/logs/rsl_rl/go2w_velocity_slope_turn_pulse25/2026-08-07_19-50-19/model_13843.pt \
+  --max_iterations 14093
+```
+
+**Pass:** foot microsteps + small heading per pulse. **Fail:** one-shot twist.

@@ -447,3 +447,22 @@ class Go2wSlopeTurnPulse20PPORunnerCfg(Go2wTurnBPPORunnerCfg):
     max_iterations  = _SLOPE_MAX_ITERATIONS
     save_interval   = 50
     algorithm       = _make_slope_algorithm()
+
+
+@configclass
+class Go2wSlopeTurnPulse25PPORunnerCfg(Go2wTurnBPPORunnerCfg):
+    """
+    PPO runner for Pulse25 plant-heavy + rate-capped hp @ 25°.
+
+    Warm-start (NOT 14092 one-shot):
+        --load_run go2w_velocity_slope_turn_pulse25/2026-08-07_19-50-19
+        --checkpoint model_13843.pt
+
+    +250: --max_iterations 14093
+    Logs: go2w_velocity_slope_turn_pulse25/
+    """
+
+    experiment_name = "go2w_velocity_slope_turn_pulse25"
+    max_iterations  = _SLOPE_MAX_ITERATIONS
+    save_interval   = 50
+    algorithm       = _make_slope_algorithm()

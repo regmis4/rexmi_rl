@@ -43,6 +43,8 @@ from rexmi_rl.nav.global_planner import GlobalPlanner
 from rexmi_rl.nav.local_planner import LocalPlanner, LocalPlannerOutput
 from rexmi_rl.nav.recovery import RecoveryFSM, RecoveryState
 from rexmi_rl.nav.policy_selector import PolicySelector, PolicyMode
+from rexmi_rl.nav.reorient import ReorientController, ReorientPhase
+
 
 
 class Navigator:
@@ -179,6 +181,32 @@ class Navigator:
                                         replan_interval_s=replan_interval_s)
         self._local     = LocalPlanner()
         self._recovery  = RecoveryFSM()
+        # Language A HOLD→YAW→SETTLE pulse scheduler for brake + turn on slope.
+        # Continuous ω is OOD for Pulse turn policies — this owns reorient cmds.
+        self._reorient  = ReorientController()
+
+        # Soft-reset (nav-owned tip recovery — terminations are off for demo)
+        self._last_good_pose: Pose | None = None
+        self._soft_reset_count = 0
+        self._soft_reset_cooldown_until = 0.0
+        self._post_fail_reverse_until = 0.0
+        self._post_soft_hold_until = 0.0   # zero cmd after soft-reset plant
+        self._brake_until = 0.0            # decelerate before reorient
+        self._pending_reorient = False     # start reorient after brake
+        self._pending_reorient_sign = None
+        self._pending_reorient_slope = 0.0
+        # Primary tip signal = body +Z · world +Z (1=upright, -1=on back).
+        # Euler roll/pitch alone miss some back-flat attitudes.
+        self._tip_up_soft = 0.25    # ~75° from upright → start tip timer
+        self._tip_up_hard = -0.20   # clearly inverted / on back → immediate
+        self._tip_limit_rad = math.radians(95.0)
+        self._tip_hard_rad = math.radians(120.0)
+        self._tip_since: float | None = None
+        self._tip_sustain_s = 0.45
+        self._stuck_flat_since: float | None = None
+        self._stuck_flat_s = 1.5    # motionless + not upright → force reset
+        self._prev_dist_wp = math.inf
+        self._last_body_up_z = 1.0
 
         # Mission waypoints
         self._mission_planner = MissionPlanner(
@@ -191,17 +219,23 @@ class Navigator:
         self._waypoints = self._mission_planner.get_waypoints(mission)
         self._wp_idx    = 0
 
-        # Per-waypoint closest approach tracking — prevents immediate skip at spawn.
-        # A waypoint is only considered "reached" after the robot has actually
-        # approached it (driven to within 1.5 × arrival_radius at some point).
-        # Without this, a robot spawning near WP[0] triggers arrival immediately
-        # before the first step, skipping straight to WP[2].
+        # Per-waypoint tracking — prevents immediate skip at spawn.
+        # A waypoint is only "reached" after the robot has made real progress
+        # toward it (closed the gap by ≥ progress_arm_m from first sighting)
+        # OR was never already inside the arrival disk at first sighting.
         self._wp_closest_dist: list[float] = [math.inf] * len(self._waypoints)
+        self._wp_first_dist: list[float] = [math.inf] * len(self._waypoints)
+        self._wp_progress_arm_m: float = 1.0  # must close gap by this much to arm
 
-        # Set first waypoint in global planner
+
+        # Set first waypoint in global planner + log mission path
         if self._waypoints:
             wp = self._waypoints[0]
             self._global.set_goal(wp.x, wp.y)
+            print(f"[Navigator] Mission '{mission.value}' — {len(self._waypoints)} waypoints:")
+            for i, w in enumerate(self._waypoints):
+                print(f"  WP[{i}] {w.label:16s} ({w.x:+6.1f}, {w.y:+6.1f}) r={w.arrival_radius:.1f}m")
+
 
         # ------------------------------------------------------------------
         # BOOT phase — hold still while SLAM warms up
@@ -257,8 +291,10 @@ class Navigator:
             "planned_path":     [],
             "local_out":        None,
             "recovery_status":  "BOOT",
+            "reorient_status":  "IDLE",
             "mission":          mission.value,
             "cmd":              (0.0, 0.0, 0.0),
+
             "cloud_xyz":        (empty, empty, empty),       # downward scan (viridis)
             "fwd_cloud_xyz":    (empty, empty, empty),       # forward scan (orange)
             "lidar_cloud":      np.zeros((0, 3), dtype=np.float32),  # SLAM map cloud
@@ -406,6 +442,77 @@ class Navigator:
         vx_w, vy_w, _ = self._localizer.get_velocity()
         speed = math.hypot(vx_w, vy_w)
 
+        # Orientation from robot quat
+        try:
+            quat = self._robot.data.root_quat_w[self._env_idx]
+            w, qx, qy, qz = (float(quat[0]), float(quat[1]),
+                             float(quat[2]), float(quat[3]))
+            roll = math.atan2(2 * (w * qx + qy * qz), 1 - 2 * (qx * qx + qy * qy))
+            sinp = max(-1.0, min(1.0, 2 * (w * qy - qz * qx)))
+            pitch = math.asin(sinp)
+            # Body +Z axis in world (1 = upright, -1 = flat on back)
+            body_up_z = 1.0 - 2.0 * (qx * qx + qy * qy)
+        except Exception:
+            roll, pitch, body_up_z = 0.0, 0.0, 1.0
+        self._last_body_up_z = body_up_z
+
+        # Soft-reset detection (priority: body_up_z, then euler, then stuck-flat)
+        now_m = time.monotonic()
+        inverted = body_up_z < self._tip_up_soft
+        hard_inverted = body_up_z < self._tip_up_hard
+        euler_soft = abs(roll) > self._tip_limit_rad or abs(pitch) > self._tip_limit_rad
+        euler_hard = abs(roll) > self._tip_hard_rad or abs(pitch) > self._tip_hard_rad
+        tipped_soft = inverted or euler_soft
+        tipped_hard = hard_inverted or euler_hard
+        reorient_busy = self._reorient.active
+
+        # Sustained tip timer (also counts during reorient if inverted)
+        if tipped_soft:
+            if self._tip_since is None:
+                self._tip_since = now_m
+            tip_held = (now_m - self._tip_since) >= self._tip_sustain_s
+        else:
+            self._tip_since = None
+            tip_held = False
+
+        # Stuck lying down: nearly zero speed + not upright for a while
+        # Catches "on back but euler looks mild" and frozen physics poses.
+        not_upright = body_up_z < 0.50  # >~60° from upright
+        if not_upright and speed < 0.08:
+            if self._stuck_flat_since is None:
+                self._stuck_flat_since = now_m
+            stuck_flat = (now_m - self._stuck_flat_since) >= self._stuck_flat_s
+        else:
+            self._stuck_flat_since = None
+            stuck_flat = False
+
+        do_soft = False
+        reason = ""
+        if now_m >= self._soft_reset_cooldown_until:
+            if tipped_hard:
+                do_soft = True
+                reason = f"hard invert up_z={body_up_z:+.2f}"
+            elif tip_held and (not reorient_busy or hard_inverted or body_up_z < 0.0):
+                # During reorient only if actually inverted (not mild roll while turning)
+                do_soft = True
+                reason = f"sustained tip up_z={body_up_z:+.2f}"
+            elif stuck_flat:
+                do_soft = True
+                reason = f"stuck-flat up_z={body_up_z:+.2f} v={speed:.2f}"
+
+        if do_soft:
+            if reorient_busy:
+                print(f"[Nav] tip during reorient — soft-reset ({reason})")
+            else:
+                print(f"[Nav] tip — soft-reset ({reason})")
+            self._soft_reset_upright(pose, roll, pitch)
+            pose = self._localizer.get_pose()
+            speed = 0.0
+
+        # Track last good upright pose for soft-reset target
+        if body_up_z > 0.70 and abs(roll) < math.radians(40) and abs(pitch) < math.radians(40) and speed < 1.5:
+            self._last_good_pose = Pose(pose.x, pose.y, pose.z, pose.yaw)
+
         # Physics-reset detector: Isaac Lab may reset the robot (fall/termination)
         # without the nav stack knowing.  Detect via sudden large position jump.
         _prev_pose = self.shared.get("pose")
@@ -431,10 +538,19 @@ class Navigator:
                 # direction even though it may now be correctly aimed at the goal.
                 self._local._turn_committed      = False
                 self._local._committed_omega_sign = 0.0
+                self._reorient.cancel()
                 # Reset progress tracking in recovery so the new position gets
                 # a fresh 60-s window to make progress toward the waypoint.
                 self._recovery._last_progress_time = None
                 self._recovery._best_dist          = math.inf
+                # Do NOT advance waypoints on reset; re-arm progress gate
+                if self._wp_idx < len(self._wp_first_dist):
+                    self._wp_first_dist[self._wp_idx] = math.inf
+                    self._wp_closest_dist[self._wp_idx] = math.inf
+                if hasattr(self, "policy_selector") and self.policy_selector is not None:
+                    if hasattr(self.policy_selector, "release_turn"):
+                        self.policy_selector.release_turn()
+
 
         # 2. Update occupancy map from raw scanner hits
         #    2a. Downward height scanner (1.6 m × 1.0 m, 160 rays, fine detail)
@@ -526,83 +642,49 @@ class Navigator:
             robot_pos_w=robot_pos,
         )
 
-        # 6. Policy selector — choose which RL policy runs this step
-        policy_status = "fixed"
-        if self.policy_selector is not None:
-            # Extract terrain metrics from local_out for selector decision
-            trav_count = sum(1 for t in local_out.traversable_mask if t)
-            trav_frac  = trav_count / max(1, len(local_out.traversable_mask))
-            # max_step: worst step across all 10 columns (recompute from scan)
-            scan = [[scan_heights[i * 10 + j] for j in range(10)] for i in range(16)]
-            max_step = max(
-                max(abs(scan[i+1][j] - scan[i][j]) for i in range(15))
-                for j in range(10)
-            )
-
-            # Force TURN mode when RecoveryFSM is executing a rotation manoeuvre.
-            # is_rotating is True during REVERSING and ROTATING states — the robot
-            # needs vx=0 capability that rough/rocky_slope don't reliably provide.
-            # We override heading_error to 180° (worst case) so the turn threshold
-            # is guaranteed to fire regardless of the actual heading at that moment.
-            if self._recovery.is_rotating:
-                _he_for_selector = math.pi   # force turn-override in PolicySelector
-            else:
-                _he_for_selector = local_out.heading_error
-
-            self.policy_selector.update(
-                slope_ahead=local_out.slope_ahead if not (
-                    local_out.slope_ahead != local_out.slope_ahead  # nan check
-                ) else 0.0,
-                heading_error_rad=_he_for_selector,
-                max_step=max_step,
-                traversable_fraction=trav_frac,
-            )
-            policy_status = self.policy_selector.status_str()
-
-            # Update local planner's vx_normal to match the active policy's
-            # in-distribution speed.  This ensures the robot drives at the speed
-            # the policy was trained at (fast_flat=1.5 m/s, rough=0.45, rocky=0.40)
-            # rather than the CLI default, which may be out-of-distribution.
-            self._local.vx_normal = self.policy_selector.current_vx()
+        # 6. Terrain metrics for policy selector
+        slope_for_sel = (
+            0.0 if (local_out.slope_ahead != local_out.slope_ahead)
+            else float(local_out.slope_ahead)
+        )
+        trav_count = sum(1 for t in local_out.traversable_mask if t)
+        trav_frac  = trav_count / max(1, len(local_out.traversable_mask))
+        scan = [[scan_heights[i * 10 + j] for j in range(10)] for i in range(16)]
+        max_step = max(
+            max(abs(scan[i + 1][j] - scan[i][j]) for i in range(15))
+            for j in range(10)
+        )
 
         # 7. Recovery FSM — pass current distance to waypoint for progress tracking
+        #    While reorient is active, treat as "turning" so stuck timers stay quiet.
         dist_to_wp = math.hypot(pose.x - current_wp.x, pose.y - current_wp.y)
+        _he_for_recovery = local_out.heading_error
+        if self._reorient.active:
+            # Keep |he| large enough that RecoveryFSM turning exemption holds
+            _he_for_recovery = math.copysign(
+                max(abs(local_out.heading_error), math.radians(70)),
+                local_out.heading_error if abs(local_out.heading_error) > 1e-6 else 1.0,
+            )
         rec_vx, rec_vy, rec_omega = self._recovery.update(
-            speed, local_out.heading_error, waypoint_dist=dist_to_wp
+            speed, _he_for_recovery, waypoint_dist=dist_to_wp
         )
 
         if self._recovery.is_blocked:
             # ----------------------------------------------------------------
             # BLOCKED handler — inflate obstacle radius + optionally skip WP
             # ----------------------------------------------------------------
-            # 1. Inflate a 1.0 m radius around the robot's current position.
-            #    inflate_blocked() marks a hard-block core (0-1 cells) and a
-            #    cost-gradient halo (2-5 cells) that A* will actively avoid.
-            #    This prevents the robot from being sent straight back to the
-            #    same boulder after every replan.
-            #
-            # 2. If the robot has been BLOCKED at this waypoint more than once,
-            #    skip to the next waypoint.  Repeated BLOCKs at the same WP
-            #    mean the waypoint itself is unreachable from the current
-            #    position — keep trying forever is futile.
-            # ----------------------------------------------------------------
             _fwd_x = pose.x + 0.5 * math.cos(pose.yaw)
             _fwd_y = pose.y + 0.5 * math.sin(pose.yaw)
 
-            # Inflate the obstacle area in the costmap (1.0 m radius)
             self._omap.inflate_blocked(_fwd_x, _fwd_y, radius_m=1.0)
-            # Also inflate at the robot's current position to push future paths away
             self._omap.inflate_blocked(pose.x, pose.y, radius_m=0.6)
 
-            # Count how many times we've been BLOCKED at this waypoint
             _block_key = self._wp_idx
             if not hasattr(self, "_block_count"):
                 self._block_count: dict = {}
             self._block_count[_block_key] = self._block_count.get(_block_key, 0) + 1
 
             if self._block_count[_block_key] >= 3:
-                # 3 strikes — skip to next waypoint rather than hammering
-                # the same impassable boulder indefinitely
                 self._block_count[_block_key] = 0
                 print(f"[Nav] BLOCKED at ({pose.x:.1f},{pose.y:.1f}) × 3 — "
                       f"skipping WP[{self._wp_idx}] → WP[{self._wp_idx+1}]")
@@ -611,24 +693,174 @@ class Navigator:
                     nwp = self._waypoints[self._wp_idx]
                     self._global.set_goal(nwp.x, nwp.y)
             else:
-                # Replan — A* will route around the inflated area
                 self._global.set_goal(current_wp.x, current_wp.y)
                 print(f"[Nav] BLOCKED at ({pose.x:.1f},{pose.y:.1f}) "
                       f"(×{self._block_count[_block_key]}) — "
                       f"inflated 1.0m radius, forcing replan")
 
-            # Reset recovery FSM so it can detect the next stuck event
             self._recovery.reset()
+            self._reorient.cancel()
 
-        if self._recovery.is_recovering:
+        # ------------------------------------------------------------------
+        # 7b. ReorientController — Language A HOLD→YAW→SETTLE
+        # ------------------------------------------------------------------
+        # Start when:
+        #   • local planner wants a committed large turn / obstacle stop-turn
+        #   • RecoveryFSM enters ROTATING (after reverse)
+        #   • |heading_error| exceeds enter threshold (backup path)
+        # While active: command = pulse schedule; force TURN policy.
+        # ------------------------------------------------------------------
+        # Skip new reorient while post-fail reverse / post soft-reset hold / braking
+        now_m2 = time.monotonic()
+        in_post_fail_reverse = now_m2 < self._post_fail_reverse_until
+        in_post_soft_hold = now_m2 < self._post_soft_hold_until
+        in_brake = now_m2 < self._brake_until
+
+        # Drive-and-correct: if closing on WP, do not open a full reorient
+        making_progress = (
+            dist_to_wp < self._prev_dist_wp - 0.08
+            and speed > 0.10
+            and abs(local_out.heading_error) < math.radians(55)
+        )
+        self._prev_dist_wp = dist_to_wp
+
+        # Finish pending reorient after brake window (must be nearly stopped)
+        if (
+            self._pending_reorient
+            and not self._reorient.active
+            and not in_brake
+            and speed < 0.10
+            and now_m2 >= getattr(self._reorient, "_cooldown_until", 0.0)
+        ):
+            self._pending_reorient = False
+            self._reorient.start(
+                heading_error=local_out.heading_error,
+                slope_ahead=self._pending_reorient_slope,
+                yaw_sign=self._pending_reorient_sign,
+                body_yaw=pose.yaw,
+            )
+            print(f"[Nav] brake done (v={speed:.2f}) — starting slow reorient")
+
+        if (
+            not self._reorient.active
+            and not self._pending_reorient
+            and not self._recovery.is_blocked
+            and self._recovery.state != RecoveryState.REVERSING
+            and not in_post_fail_reverse
+            and not in_post_soft_hold
+            and not in_brake
+            and not making_progress
+        ):
+            start_reorient = False
+            yaw_sign = None
+            cooled = now_m2 >= getattr(self._reorient, "_cooldown_until", 0.0)
+            he_abs = abs(local_out.heading_error)
+            he_need = he_abs >= self._reorient.enter_rad
+            if cooled and he_need and getattr(local_out, "want_reorient", False):
+                start_reorient = True
+                if abs(getattr(local_out, "reorient_yaw_sign", 0.0)) > 1e-6:
+                    yaw_sign = local_out.reorient_yaw_sign
+            elif cooled and he_need and self._recovery.wants_reorient:
+                start_reorient = True
+                yaw_sign = self._recovery.rotate_dir
+            elif cooled and he_need and self._reorient.should_start(local_out.heading_error):
+                start_reorient = True
+
+            if start_reorient:
+                # CRITICAL: never pivot while still sliding — brake first
+                if speed > 0.12:
+                    self._pending_reorient = True
+                    self._pending_reorient_sign = yaw_sign
+                    self._pending_reorient_slope = slope_for_sel
+                    self._brake_until = now_m2 + 1.5
+                    print(
+                        f"[Nav] BRAKE before turn "
+                        f"(v={speed:.2f} he={math.degrees(local_out.heading_error):+.0f}°)"
+                    )
+                else:
+                    self._reorient.start(
+                        heading_error=local_out.heading_error,
+                        slope_ahead=slope_for_sel,
+                        yaw_sign=yaw_sign,
+                        body_yaw=pose.yaw,
+                    )
+
+        reorient_out = self._reorient.update(
+            local_out.heading_error,
+            slope_ahead=slope_for_sel,
+            body_up_z=self._last_body_up_z,
+            body_yaw=pose.yaw,
+        )
+        if reorient_out.done:
+            if self._recovery.is_recovering:
+                self._recovery.reset()
+            self._local._turn_committed = False
+            self._local._committed_omega_sign = 0.0
+            # Extra stillness after micro-turn success (policy already settled 2s)
+            self._post_soft_hold_until = max(
+                self._post_soft_hold_until, time.monotonic() + 0.8
+            )
+        if reorient_out.failed:
+            # Reverse away from stuck cell; cooldown blocks reorient restart
+            print("[Nav] Reorient failed — reverse 2s + inflate + replan (cooldown active)")
+            self._omap.inflate_blocked(pose.x, pose.y, radius_m=0.8)
+            self._global.set_goal(current_wp.x, current_wp.y)
+            self._recovery.reset()
+            self._local._turn_committed = False
+            self._local._committed_omega_sign = 0.0
+            self._post_fail_reverse_until = time.monotonic() + 2.0
+            if self.policy_selector is not None and hasattr(self.policy_selector, "release_turn"):
+                self.policy_selector.release_turn()
+
+
+        # 8. Policy selector
+        policy_status = "fixed"
+        if self.policy_selector is not None:
+            # Use turn policy for reorient AND while braking into a turn
+            if (
+                self._reorient.active
+                or self._pending_reorient
+                or (time.monotonic() < self._brake_until)
+                or self._recovery.is_rotating
+            ):
+                # Turn policy for brake + pivot (leg plant)
+                self.policy_selector.force_turn(slope_ahead=slope_for_sel)
+            else:
+                he_for_sel = local_out.heading_error
+                if abs(he_for_sel) > math.radians(50):
+                    he_for_sel = math.copysign(math.radians(50), he_for_sel)
+                self.policy_selector.update(
+                    slope_ahead=slope_for_sel,
+                    heading_error_rad=he_for_sel,
+                    max_step=max_step,
+                    traversable_fraction=trav_frac,
+                )
+            policy_status = self.policy_selector.status_str()
+            self._local.vx_normal = self.policy_selector.current_vx()
+
+        # 9. Command arbitration
+        # Priority: post-soft hold > brake > reorient > post-fail reverse > recovery > local
+        if time.monotonic() < self._post_soft_hold_until:
+            cmd = (0.0, 0.0, 0.0)  # plant after soft-reset
+        elif time.monotonic() < self._brake_until or self._pending_reorient:
+            # In-distribution plant for 13345 (NOT vx=0,ω=0 — that flings legs)
+            cmd = (0.05, 0.0, 0.0)
+        elif self._reorient.active or reorient_out.done:
+            cmd = (reorient_out.vx, reorient_out.vy, reorient_out.omega)
+        elif time.monotonic() < self._post_fail_reverse_until:
+            cmd = (-0.20, 0.0, 0.0)  # light reverse after failed reorient
+        elif self._recovery.state == RecoveryState.REVERSING:
+            cmd = (rec_vx, rec_vy, rec_omega)
+        elif self._recovery.is_recovering and not self._recovery.wants_reorient:
             cmd = (rec_vx, rec_vy, rec_omega)
         else:
             cmd = (local_out.vx, local_out.vy, local_out.omega)
 
-        # 8. Inject command into env
+
+        # 10. Inject command into env
         self._inject_command(*cmd)
 
-        # 8b. Per-50-step diagnostic log
+        # 10b. Per-50-step diagnostic log
         step_n_now = self.shared.get("step_count", 0) + 1
         if step_n_now % 50 == 0:
             _cell = self._omap.world_to_cell(pose.x, pose.y)
@@ -642,8 +874,7 @@ class Navigator:
             _fwd_obs = getattr(local_out, "fwd_obstacle_dist", math.inf)
             _fwd_str = f" fwd_obs={_fwd_obs:.1f}m" if _fwd_obs < 5.0 else ""
             _state   = self._recovery.status_str()
-            # Also show the normalized omega value the policy actually sees in its obs
-            # cmd tensor index 2 = omega; command manager normalizes it via ang_vel_z range
+            _reo     = self._reorient.status_str()
             try:
                 _cmd_tensor = self._env.unwrapped.command_manager.get_command("base_velocity")
                 _omega_obs = float(_cmd_tensor[self._env_idx, 2])
@@ -652,14 +883,32 @@ class Navigator:
             print(
                 f"[Nav][{step_n_now:5d}] "
                 f"he={_he_deg:+.1f}° "
-                f"ω_cmd={_omega:+.2f} ω_obs={_omega_obs:+.2f} "
+                f"ω_cmd={_omega:+.3f} ω_obs={_omega_obs:+.3f} "
                 f"vx={_vx:+.2f} "
                 f"cell_cost={_cell_cost:.1f} "
                 f"dist_wp={dist_to_wp:.1f}m "
                 f"imm_wp=({imm_wp[0]:+.1f},{imm_wp[1]:+.1f}) "
-                f"state={_state}"
+                f"state={_state} reorient={_reo}"
                 f"{_fwd_str}"
             )
+            # Extra turn diagnostics while reorient active
+            if self._reorient.active:
+                try:
+                    _ang = self._robot.data.root_ang_vel_b[self._env_idx]
+                    _wz = float(_ang[2])
+                except Exception:
+                    _wz = float("nan")
+                print(
+                    "[Turn] "
+                    + self._reorient.diag_str(
+                        local_out.heading_error,
+                        pose.yaw,
+                        self._last_body_up_z,
+                        speed,
+                        omega_body=_wz,
+                    )
+                )
+
 
         # 9. Update shared state for dashboard
         self._trajectory.append((pose.x, pose.y))
@@ -672,11 +921,13 @@ class Navigator:
                 "planned_path":    self._global.get_path_world(),
                 "local_out":       local_out,
                 "recovery_status": self._recovery.status_str(),
+                "reorient_status": self._reorient.status_str(),
                 "policy_status":   policy_status,
                 "cmd":             cmd,
                 "step_count":      step_n,
                 "trajectory":      list(self._trajectory),
             })
+
             # Update point clouds and cost grid every 5 steps for responsive dashboard
             # Forward cloud: always write the current frame (no deque — no trail)
             if _fwd_cloud_this_step is not None:
@@ -791,38 +1042,207 @@ class Navigator:
         """
         Check if current waypoint is reached; if so, advance to next.
 
-        Closest-approach gate prevents immediate waypoint skip at spawn.
-        The robot must have actually approached to within 1.5 × arrival_radius
-        before the arrival check is armed.  This handles the case where the
-        robot spawns within arrival_radius of the first waypoint (e.g. spawn_x=+13
-        and approach WP at x=+12 with arrival_radius=2 m) — without this gate
-        the waypoint would be skipped in the very first step before the robot moves.
+        Progress gate: if the robot spawns already inside arrival_radius, do
+        NOT count that as arrival.  Require either:
+          • first sighting was outside the disk, then enter it, OR
+          • robot closed the gap by ≥ progress_arm_m from first sighting
+            (genuine approach) and is now inside arrival_radius.
         """
         if self._wp_idx >= len(self._waypoints):
             return
         wp = self._waypoints[self._wp_idx]
         dist = math.hypot(pose.x - wp.x, pose.y - wp.y)
 
-        # Update closest-distance tracking for this waypoint
+        # Record first-sighting distance
+        if self._wp_first_dist[self._wp_idx] == math.inf:
+            self._wp_first_dist[self._wp_idx] = dist
+
+
         if dist < self._wp_closest_dist[self._wp_idx]:
             self._wp_closest_dist[self._wp_idx] = dist
 
-        # Only arm arrival check once the robot has genuinely approached.
-        # Gate: closest-ever distance < 1.5 × arrival_radius (robot was close).
-        # This prevents triggering at spawn if the robot happens to start near
-        # an early waypoint.
-        armed = self._wp_closest_dist[self._wp_idx] < (1.5 * wp.arrival_radius)
+        first = self._wp_first_dist[self._wp_idx]
+        closed = first - self._wp_closest_dist[self._wp_idx]
+        # Armed if we started outside and entered, or made real progress inward
+        started_outside = first >= wp.arrival_radius
+        made_progress = closed >= self._wp_progress_arm_m
+        armed = (started_outside and dist < wp.arrival_radius) or (
+            made_progress and dist < wp.arrival_radius
+        )
 
-        if armed and dist < wp.arrival_radius:
+        if armed:
             print(f"[Nav] Waypoint {self._wp_idx} '{wp.label}' reached "
-                  f"(dist={dist:.1f} m < radius={wp.arrival_radius:.1f} m)")
+                  f"(dist={dist:.1f} m < radius={wp.arrival_radius:.1f} m, "
+                  f"closed={closed:.1f} m)")
             self._wp_idx += 1
+            self._recovery.reset()
+            self._reorient.reset()
+            self._local._turn_committed = False
+            self._local._committed_omega_sign = 0.0
             if self._wp_idx < len(self._waypoints):
                 nwp = self._waypoints[self._wp_idx]
                 self._global.set_goal(nwp.x, nwp.y)
-                self._recovery.reset()   # fresh slate for each waypoint
-                # Reset closest-dist tracking for newly active waypoint
-                # (already initialized to inf in __init__, no action needed)
+
+
+
+
+    def _soft_reset_upright(self, pose: Pose, roll: float, pitch: float) -> None:
+        """
+        Nav-owned tip recovery when Isaac terminations are disabled.
+
+        Uses Isaac Lab Articulation APIs correctly:
+          write_root_pose_to_sim(pose (1,7), env_ids (1,))
+          write_root_velocity_to_sim(vel (1,6), env_ids)
+          write_joint_state_to_sim(q, qd, env_ids)  # default stand
+        """
+        import torch
+
+        self._soft_reset_count += 1
+        self._soft_reset_cooldown_until = time.monotonic() + 4.0
+
+        # Recovery pose: current xy, lift z, yaw toward mission WP (upright only)
+        tx, ty = float(pose.x), float(pose.y)
+        tz = float(pose.z) + 0.40  # clear terrain while untangling
+        if self._last_good_pose is not None:
+            # Prefer last good xy if we haven't drifted far
+            if math.hypot(self._last_good_pose.x - tx, self._last_good_pose.y - ty) < 2.5:
+                tx, ty = self._last_good_pose.x, self._last_good_pose.y
+                tz = max(tz, self._last_good_pose.z + 0.35)
+
+        tyaw = float(pose.yaw)
+        if self._wp_idx < len(self._waypoints):
+            wp = self._waypoints[self._wp_idx]
+            tyaw = math.atan2(wp.y - ty, wp.x - tx)
+        elif self._last_good_pose is not None:
+            tyaw = self._last_good_pose.yaw
+
+        half = 0.5 * tyaw
+        qw, qx, qy, qz = math.cos(half), 0.0, 0.0, math.sin(half)
+
+        print(
+            f"[Nav][SOFT_RESET] #{self._soft_reset_count} "
+            f"tip roll={math.degrees(roll):+.0f}° pitch={math.degrees(pitch):+.0f}° "
+            f"up_z={getattr(self, '_last_body_up_z', float('nan')):+.2f} → "
+            f"({tx:+.1f},{ty:+.1f},{tz:+.1f}) yaw={math.degrees(tyaw):+.0f}°"
+        )
+
+        robot = self._robot
+        idx = int(self._env_idx)
+        wrote_ok = False
+        try:
+            device = robot.data.root_pos_w.device
+            dtype = robot.data.root_pos_w.dtype
+            env_ids = torch.tensor([idx], device=device, dtype=torch.long)
+
+            # (1, 7) pose: pos + quat wxyz
+            root_pose = torch.tensor(
+                [[tx, ty, tz, qw, qx, qy, qz]], device=device, dtype=dtype
+            )
+            # (1, 6) zero twist
+            root_vel = torch.zeros((1, 6), device=device, dtype=dtype)
+
+            # Prefer explicit pose + velocity with env_ids (Isaac Lab contract)
+            if hasattr(robot, "write_root_pose_to_sim"):
+                robot.write_root_pose_to_sim(root_pose, env_ids=env_ids)
+            elif hasattr(robot, "write_root_link_pose_to_sim"):
+                robot.write_root_link_pose_to_sim(root_pose, env_ids=env_ids)
+            else:
+                raise RuntimeError("no write_root_pose_to_sim on robot")
+
+            if hasattr(robot, "write_root_velocity_to_sim"):
+                robot.write_root_velocity_to_sim(root_vel, env_ids=env_ids)
+            elif hasattr(robot, "write_root_com_velocity_to_sim"):
+                robot.write_root_com_velocity_to_sim(root_vel, env_ids=env_ids)
+
+            # Joints → default stand (critical — legs stay collapsed otherwise)
+            if hasattr(robot, "write_joint_state_to_sim") and hasattr(robot.data, "default_joint_pos"):
+                q = robot.data.default_joint_pos[idx].unsqueeze(0).clone()
+                qd = torch.zeros_like(q)
+                # joint_ids=None → all joints
+                try:
+                    robot.write_joint_state_to_sim(q, qd, env_ids=env_ids)
+                except TypeError:
+                    # older signature: (pos, vel, joint_ids, env_ids)
+                    robot.write_joint_state_to_sim(q, qd, None, env_ids)
+
+            wrote_ok = True
+        except Exception as e:
+            print(f"[Nav][SOFT_RESET] write failed: {e}")
+            # Fallback: full-state (1, 13) + env_ids
+            try:
+                device = robot.data.root_state_w.device
+                dtype = robot.data.root_state_w.dtype
+                env_ids = torch.tensor([idx], device=device, dtype=torch.long)
+                state = torch.zeros((1, 13), device=device, dtype=dtype)
+                state[0, 0] = tx
+                state[0, 1] = ty
+                state[0, 2] = tz
+                state[0, 3] = qw
+                state[0, 4] = qx
+                state[0, 5] = qy
+                state[0, 6] = qz
+                robot.write_root_state_to_sim(state, env_ids=env_ids)
+                wrote_ok = True
+                print("[Nav][SOFT_RESET] fallback write_root_state_to_sim(1,13) OK")
+            except Exception as e2:
+                print(f"[Nav][SOFT_RESET] fallback also failed: {e2}")
+
+        # Verify orientation from buffers (PhysX applies on next step; buffers should update)
+        try:
+            quat = robot.data.root_quat_w[idx]
+            w, qx2, qy2, qz2 = (float(quat[0]), float(quat[1]),
+                                float(quat[2]), float(quat[3]))
+            r2 = math.atan2(2 * (w * qx2 + qy2 * qz2), 1 - 2 * (qx2 * qx2 + qy2 * qy2))
+            sp = max(-1.0, min(1.0, 2 * (w * qy2 - qz2 * qx2)))
+            p2 = math.asin(sp)
+            if abs(r2) < math.radians(45) and abs(p2) < math.radians(45):
+                print(
+                    f"[Nav][SOFT_RESET] verify OK "
+                    f"roll={math.degrees(r2):+.1f}° pitch={math.degrees(p2):+.1f}°"
+                )
+            else:
+                print(
+                    f"[Nav][SOFT_RESET] verify STILL TIPPED "
+                    f"roll={math.degrees(r2):+.1f}° pitch={math.degrees(p2):+.1f}° "
+                    f"(wrote_ok={wrote_ok}) — will retry next tip window"
+                )
+                # Allow quicker retry if write didn't stick
+                self._soft_reset_cooldown_until = time.monotonic() + 0.5
+        except Exception as e:
+            print(f"[Nav][SOFT_RESET] verify read failed: {e}")
+
+        # Clear nav state — long plant so policy doesn't immediately thrash
+        self._reorient.cancel()
+        if hasattr(self._reorient, "_cooldown_until"):
+            self._reorient._cooldown_until = time.monotonic() + 8.0
+        self._recovery.reset()
+        self._local._turn_committed = False
+        self._local._committed_omega_sign = 0.0
+        self._post_fail_reverse_until = 0.0
+        self._post_soft_hold_until = time.monotonic() + 3.0  # 3 s plant
+        self._brake_until = 0.0
+        self._pending_reorient = False
+        self._tip_since = None
+        self._stuck_flat_since = None
+        self._last_good_pose = Pose(tx, ty, tz - 0.15, tyaw)
+        if self.policy_selector is not None:
+            if hasattr(self.policy_selector, "release_turn"):
+                self.policy_selector.release_turn()
+            # Prefer rocky after recovery
+            try:
+                from rexmi_rl.nav.policy_selector import PolicyMode
+                if hasattr(self.policy_selector, "_current_mode"):
+                    self.policy_selector._current_mode = PolicyMode.ROCKY_SLOPE
+                    self.policy_selector._candidate = PolicyMode.ROCKY_SLOPE
+                    self.policy_selector._in_turn_override = False
+            except Exception:
+                pass
+        if self._wp_idx < len(self._waypoints):
+            wp = self._waypoints[self._wp_idx]
+            self._global.set_goal(wp.x, wp.y)
+            if self._wp_idx < len(self._wp_first_dist):
+                self._wp_first_dist[self._wp_idx] = math.inf
+                self._wp_closest_dist[self._wp_idx] = math.inf
 
     def _get_scan_heights(self) -> list[float]:
         """

@@ -94,19 +94,21 @@ def _parse_args():
     # Checkpoints — all three required for auto-switching; spin is optional
     p.add_argument("--task", required=True,
                    help="Isaac Lab gym task name")
-    p.add_argument("--ckpt_fast_flat", required=False, default=None,
-                   help="Checkpoint for fast_flat policy (.pt)")
+    # Conservative crater demo: rough + rocky_slope + pulse turn only (no fast_flat).
     p.add_argument("--ckpt_rough",     required=False, default=None,
                    help="Checkpoint for rough policy (.pt)")
     p.add_argument("--ckpt_rocky",     required=False, default=None,
                    help="Checkpoint for rocky_slope policy (.pt)")
     p.add_argument("--ckpt_turn",      required=False, default=None,
-                   help="Checkpoint for turn-in-place policy (.pt). "
-                        "Optional — if omitted, turn-override falls back to rough policy. "
-                        "Train with: python scripts/train.py "
-                        "--task RexmiRl-Go2w-Velocity-Turn-v0 --headless "
-                        "--load_run go2w_velocity_rough/2026-06-14_20-03-41 "
-                        "--checkpoint model_8996.pt --max_iterations 1500")
+                   help="Direct slope-turn ckpt (continuous w=+/-0.08). Default: "
+                        "logs/rsl_rl/go2w_velocity_slope_turn/"
+                        "2026-07-27_20-54-25/model_13345.pt")
+    # Deprecated aliases (ignored with warning)
+    p.add_argument("--ckpt_fast_flat", required=False, default=None,
+                   help=argparse.SUPPRESS)
+    p.add_argument("--ckpt_turn_flat", required=False, default=None,
+                   help=argparse.SUPPRESS)
+
 
     # Task IDs used to build the network for each policy (must match training task)
     p.add_argument("--task_fast_flat",
@@ -121,7 +123,7 @@ def _parse_args():
     p.add_argument("--checkpoint", default=None,
                    help="Single checkpoint path (use with --policy_mode)")
     p.add_argument("--policy_mode",
-                   choices=["auto", "fast_flat", "rough", "rocky_slope"],
+                   choices=["auto", "rough", "rocky_slope"],
                    default="auto",
                    help="'auto' uses PolicySelector; others use a fixed policy")
 
@@ -309,6 +311,34 @@ def main():
             tg.num_cols = 1
     env_cfg.sim.device = args.device
 
+    # --- Nav-safe spawn + no fall terminations (always, even if task uses non-PLAY cfg) ---
+    try:
+        import math as _math
+        env_cfg.events.reset_base.params = {
+            "pose_range": {
+                "x": (13.0, 13.0),
+                "y": (0.0, 0.0),
+                "yaw": (_math.pi, _math.pi),
+                "z": (4.48, 4.52),  # just above exterior mesh ~4.12 + 0.35
+            },
+            "velocity_range": {
+                "x": (0.0, 0.0), "y": (0.0, 0.0), "z": (0.0, 0.0),
+                "roll": (0.0, 0.0), "pitch": (0.0, 0.0), "yaw": (0.0, 0.0),
+            },
+        }
+        print("[navigate] ✓ Spawn pinned: x=13 y=0 yaw=π z≈4.50 (no air-drop)")
+    except Exception as _e:
+        print(f"[navigate] WARNING: could not pin spawn: {_e}")
+    try:
+        if hasattr(env_cfg, "terminations"):
+            if hasattr(env_cfg.terminations, "base_contact"):
+                env_cfg.terminations.base_contact = None
+            if hasattr(env_cfg.terminations, "bad_orientation"):
+                env_cfg.terminations.bad_orientation = None
+            print("[navigate] ✓ Terminations base_contact/bad_orientation disabled for nav")
+    except Exception as _e:
+        print(f"[navigate] WARNING: could not disable terminations: {_e}")
+
     # Keep velocity command debug_vis ENABLED (True is the default).
     # This renders the green/blue heading arrow above the robot in Isaac Sim.
     # No need to touch env_cfg.commands.base_velocity.debug_vis here.
@@ -354,10 +384,17 @@ def main():
         if _bv is not None and hasattr(_bv, "ranges"):
             old_az = (_bv.ranges.ang_vel_z if hasattr(_bv.ranges, "ang_vel_z")
                       else "?")
+            # Wide enough for rocky/rough; turn path clamps inject to ±0.08.
+            # Also open lin_vel_x so vx=0.05 is not clipped if train range was fixed.
             _bv.ranges.ang_vel_z = (-1.0, 1.0)
-            print(f"[navigate] ✓ Patched command ang_vel_z: {old_az} → (-1.0, 1.0)")
-            print(f"[navigate]   (without this patch, omega is clamped to 0 "
-                  f"and the policy ignores all steering commands)")
+            if hasattr(_bv.ranges, "lin_vel_x"):
+                old_lx = _bv.ranges.lin_vel_x
+                # Ensure 0.05 is inside range for turn plant
+                lo = min(float(old_lx[0]) if isinstance(old_lx, (list, tuple)) else -0.1, 0.0)
+                hi = max(float(old_lx[1]) if isinstance(old_lx, (list, tuple)) else 1.0, 0.5)
+                _bv.ranges.lin_vel_x = (lo, hi)
+            print(f"[navigate] Patched ang_vel_z: {old_az} → (-1.0, 1.0)")
+            print(f"[navigate]   turn injects ω≤0.08 vx=0.05 (13345 train band)")
         else:
             print("[navigate] WARNING: Could not patch command ranges — "
                   "base_velocity not found in command manager cfg")
@@ -370,65 +407,56 @@ def main():
     use_auto = (args.policy_mode == "auto")
 
     if use_auto:
-        # Require all three checkpoints
         missing = []
-        if not args.ckpt_fast_flat: missing.append("--ckpt_fast_flat")
-        if not args.ckpt_rough:     missing.append("--ckpt_rough")
-        if not args.ckpt_rocky:     missing.append("--ckpt_rocky")
+        if not args.ckpt_rough: missing.append("--ckpt_rough")
+        if not args.ckpt_rocky: missing.append("--ckpt_rocky")
         if missing:
-            # Graceful fallback: if only one checkpoint given, disable auto
             if args.checkpoint:
-                print(f"[navigate] WARNING: --policy_mode auto requires all 3 "
-                      f"checkpoints. Falling back to fixed rocky_slope.")
+                print("[navigate] WARNING: auto needs rough+rocky. "
+                      "Falling back to fixed rocky_slope.")
                 use_auto = False
                 args.policy_mode = "rocky_slope"
                 args.ckpt_rocky = args.checkpoint
             else:
                 raise SystemExit(
                     f"[navigate] ERROR: --policy_mode auto requires: {missing}\n"
-                    f"Or use --checkpoint + --policy_mode rocky_slope for fixed mode."
+                    f"Conservative demo: rough + rocky + optional turn (model_13345)."
                 )
+        if args.ckpt_fast_flat:
+            print("[navigate] NOTE: --ckpt_fast_flat ignored (conservative demo: no flat)")
+        if args.ckpt_turn_flat:
+            print("[navigate] NOTE: --ckpt_turn_flat ignored (use --ckpt_turn model_13345)")
 
     if use_auto:
-        print("[navigate] Loading all 3 policies (each from its own task cfg)...")
-        # Each policy is loaded from its own task so the network architecture matches
-        # the checkpoint (different obs dims: flat=60, rough=varies, rocky=247)
+        print("[navigate] Loading conservative policies: rough + rocky + turn")
         policies = {
-            PolicyMode.FAST_FLAT:   _load_policy(args.ckpt_fast_flat, env, agent_cfg, args.device),
-            PolicyMode.ROUGH:       _load_policy(args.ckpt_rough,     env, agent_cfg, args.device),
-            PolicyMode.ROCKY_SLOPE: _load_policy(args.ckpt_rocky,     env, agent_cfg, args.device),
+            PolicyMode.ROUGH:       _load_policy(args.ckpt_rough, env, agent_cfg, args.device),
+            PolicyMode.ROCKY_SLOPE: _load_policy(args.ckpt_rocky, env, agent_cfg, args.device),
         }
-
-        # Optional turn policy — provides clean in-place rotation when
-        # |heading_error| > 75° or RecoveryFSM is rotating.
-        # Trained with vx=0, vy=0, omega∈(-1,+1) on mixed flat+slope terrain.
-        # If --ckpt_turn is not provided, PolicySelector falls back to ROUGH
-        # for turn-override (rough has vx∈(-0.5,0.5) — partial vx=0 support).
-        if args.ckpt_turn:
-            print(f"[navigate] Loading turn policy from {args.ckpt_turn}")
+        # Direct continuous slope-turn (model_13345) — not Pulse20
+        turn_path = args.ckpt_turn or (
+            "logs/rsl_rl/go2w_velocity_slope_turn/"
+            "2026-07-27_20-54-25/model_13345.pt"
+        )
+        import os as _os
+        if _os.path.isfile(turn_path):
+            print(f"[navigate] Loading direct turn from {turn_path}")
             policies[PolicyMode.TURN] = _load_policy(
-                args.ckpt_turn, env, agent_cfg, args.device
+                turn_path, env, agent_cfg, args.device
             )
-            print(f"[navigate] ✓ Turn policy loaded — turn-override will use dedicated "
-                  f"turn policy (vx=0, omega=±1 rad/s) instead of rough fallback")
+            print("[navigate] Turn loaded: direct model_13345 (continuous w=+/-0.08)")
         else:
-            print("[navigate] NOTE: --ckpt_turn not provided — turn-override falls back "
-                  "to rough policy (degraded turn quality). Train turn policy with:")
-            print("[navigate]   python scripts/train.py --task RexmiRl-Go2w-Velocity-Turn-v0 "
-                  "--headless --load_run go2w_velocity_rough/2026-06-14_20-03-41 "
-                  "--checkpoint model_8996.pt --max_iterations 1500")
+            print(f"[navigate] WARNING: turn ckpt missing ({turn_path}) — rough fallback")
 
         selector = PolicySelector(policies, initial_mode=PolicyMode.ROCKY_SLOPE)
-        print("[navigate] PolicySelector: auto mode (terrain-aware switching)")
-        print(f"  fast_flat  : {args.ckpt_fast_flat}")
+        print("[navigate] PolicySelector: rough | rocky_slope | turn (no fast_flat)")
         print(f"  rough      : {args.ckpt_rough}")
         print(f"  rocky_slope: {args.ckpt_rocky}")
-        if args.ckpt_turn:
-            print(f"  turn       : {args.ckpt_turn}")
+        print(f"  turn       : {turn_path}")
+
     else:
         # Single policy fixed mode
         mode_map = {
-            "fast_flat":   (PolicyMode.FAST_FLAT,   args.ckpt_fast_flat or args.checkpoint),
             "rough":       (PolicyMode.ROUGH,        args.ckpt_rough     or args.checkpoint),
             "rocky_slope": (PolicyMode.ROCKY_SLOPE,  args.ckpt_rocky     or args.checkpoint),
         }
@@ -439,13 +467,19 @@ def main():
         print(f"  checkpoint: {fixed_ckpt}")
         fixed_policy = _load_policy(fixed_ckpt, env, agent_cfg, args.device)
         policies = {
-            PolicyMode.FAST_FLAT:   fixed_policy,
             PolicyMode.ROUGH:       fixed_policy,
             PolicyMode.ROCKY_SLOPE: fixed_policy,
         }
         selector = PolicySelector(policies, initial_mode=fixed_mode)
         _fixed = fixed_mode
-        selector.update = lambda slope, max_step, trav_frac: _fixed
+
+        # Must accept the same kwargs Navigator passes (heading_error_rad, etc.)
+        def _fixed_update(*_a, **_k):
+            return _fixed
+
+        selector.update = _fixed_update  # type: ignore[method-assign]
+        selector.force_turn = lambda slope_ahead=0.0: _fixed  # type: ignore[method-assign]
+
 
     print(f"[navigate] Mission: {args.mission}")
     if args.mission == "velocity_goal":
@@ -480,6 +514,8 @@ def main():
         )
         nav._wp_idx = 0
         nav._wp_closest_dist = [math.inf] * len(nav._waypoints)
+        nav._wp_first_dist = [math.inf] * len(nav._waypoints)
+
         # Update global planner goal to the actual user-specified target
         if nav._waypoints:
             wp0 = nav._waypoints[0]
@@ -488,8 +524,8 @@ def main():
         # Override initial selector mode to fast_flat for responsiveness
         if hasattr(selector, "_current_mode"):
             from rexmi_rl.nav.policy_selector import PolicyMode
-            selector._current_mode = PolicyMode.FAST_FLAT
-            selector._candidate    = PolicyMode.FAST_FLAT
+            selector._current_mode = PolicyMode.ROUGH
+            selector._candidate    = PolicyMode.ROUGH
     nav._local.vx_normal = args.vx_normal
     nav._local.vx_steep  = args.vx_steep
     nav.policy_selector  = selector
@@ -554,12 +590,30 @@ def main():
             # Get active policy from selector
             active_policy = selector.current_policy
 
-            # RL policy forward pass with currently active policy
+            # During BOOT hold still: zero actions (cmd alone is not enough —
+            # residual policy torque was spinning the robot during SLAM warm-up).
             with torch.no_grad():
-                actions = active_policy(obs)
+                # Zero residual torques during BOOT and post soft-reset plant
+                # Zero actions only for BOOT / post soft-reset.
+                # During brake+turn, turn policy must run (leg plant) with cmd vx=0.05.
+                hold_still = getattr(nav, "_in_boot", False) or (
+                    time.monotonic() < getattr(nav, "_post_soft_hold_until", 0.0)
+                )
+                if hold_still:
+                    actions = torch.zeros_like(active_policy(obs))
+                else:
+                    actions = active_policy(obs)
 
             # Sim step
             obs, rewards, dones, infos = env.step(actions)
+
+            # If env terminated (should be rare with terminations off), log it
+            try:
+                if bool(dones[0]):
+                    print(f"[navigate] WARNING: env done at step {step} "
+                          f"(termination still active?)")
+            except Exception:
+                pass
 
             # Nav tick — updates selector, injects velocity command
             _t0 = time.perf_counter()

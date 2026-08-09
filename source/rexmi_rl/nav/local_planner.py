@@ -37,6 +37,11 @@ class LocalPlannerOutput:
     best_col_idx: int         # which of 5 candidate headings was selected
     traversable_mask: list    # per-column traversability bool (10 columns)
     fwd_obstacle_dist: float = math.inf   # nearest forward obstacle (m); inf = clear
+    # When True, Navigator should run ReorientController (HOLD→YAW→SETTLE)
+    # instead of applying continuous omega.  Continuous ±omega_max is OOD for
+    # Pulse slope-turn policies and tips the robot on crater walls.
+    want_reorient: bool = False
+    reorient_yaw_sign: float = 0.0  # +1 / -1 latched turn direction
 
 
 class LocalPlanner:
@@ -73,8 +78,8 @@ class LocalPlanner:
         vx_steep:     float = 0.30,
         vx_min:       float = 0.20,   # minimum forward speed during turns
                                       # rough: lin_vel_x ∈ (-0.5, 0.5) so 0.20 is in-distribution
-        omega_gain:   float = 0.8,    # proportional gain for heading correction
-        omega_max:    float = 1.00,   # env patched to ang_vel_z ∈ (−1.0, 1.0) in navigate.py
+        omega_gain:   float = 0.35,
+        omega_max:    float = 0.08,   # loco nudge only; big turns = 13345
         turn_slow_thresh: float = 0.35,  # rad (~20°): start slowing vx when |he| > this
         step_thresh:  float = 0.20,   # match OccupancyMap.STEP_THRESH
         slope_thresh: float = 0.47,
@@ -252,60 +257,55 @@ class LocalPlanner:
         # ------------------------------------------------------------------
         he_abs = abs(heading_error)
 
-        if he_abs > math.radians(90) and not self._turn_committed:
-            # Enter committed turn mode — latch ONCE, never re-latch while turning.
-            #
-            # CRITICAL: we only set _committed_omega_sign on the FIRST entry
-            # (not self._turn_committed).  Once we're in committed mode, we NEVER
-            # change the sign, even if heading_error crosses ±π (the wraparound
-            # singularity).  Changing sign at ±180° is what caused the orbit:
-            #   • robot turns CW, he crosses −180° → +164°
-            #   • he > 0 → re-latch to +1 → robot flips to CCW
-            #   • robot turns CCW, crosses +180° → flips back
-            #   → infinite orbit at the ±π boundary
-            #
-            # By never re-latching, the robot commits to one rotation direction
-            # and holds it until |he| < 45° regardless of the sign of he.
-            self._turn_committed       = True
-            self._committed_omega_sign = math.copysign(1.0, heading_error)
-        elif he_abs < math.radians(45):
-            # Exit committed turn mode — heading is within acceptable range
-            self._turn_committed = False
+        # ------------------------------------------------------------------
+        # Turn policy owns brake + pivot (model_13345).
+        # Loco only does tiny heading nudge; large he → want_reorient.
+        #
+        #   |he| < 25°   : gentle loco ω ≤ omega_max
+        #   25–60°       : slow loco arc (small ω) or creep
+        #   |he| ≥ 60°   : want_reorient → turn policy (plant+yaw in-dist)
+        # ------------------------------------------------------------------
+        want_reorient = False
+        reorient_yaw_sign = 0.0
 
-        if self._turn_committed:
-            # Hold full omega in the committed direction regardless of current he sign.
-            #
-            # vx=0.0: The dedicated TURN policy (PolicyMode.TURN) is now the active
-            # policy during committed turns — it was trained with vx=0, vy=0,
-            # omega∈(-1,+1) on rocky slopes.  It produces ~57°/s clean rotation
-            # without any forward drift.
-            #
-            # The old vx=0.15 workaround (to compensate for the rough policy's
-            # OOD stall at vx=0) is NO LONGER NEEDED — the spin policy handles it.
-            # Keeping vx=0.15 here would push the spin policy out-of-distribution
-            # (it was trained at vx=0 and drift-penalised), causing oscillation.
-            omega = self.omega_max * self._committed_omega_sign
-            vx    = 0.0
-        elif slope_ahead > self.slope_thresh and he_abs > self.turn_slow_thresh:
-            # STEEP SLOPE + significant heading error → go straight, don't steer.
-            vx    = self.vx_steep
+        HE_NUDGE = math.radians(25.0)
+        HE_PIVOT = math.radians(60.0)
+
+        if he_abs >= HE_PIVOT:
+            want_reorient = True
+            reorient_yaw_sign = math.copysign(1.0, heading_error)
+            self._turn_committed = True
+            self._committed_omega_sign = reorient_yaw_sign
             omega = 0.0
-        elif he_abs >= self.turn_slow_thresh:
-            # Moderate heading error — creep forward at vx_min while turning.
-            vx = self.vx_min
+            vx = 0.0
         else:
-            # Small heading error — blend smoothly from vx_min to vx_normal
-            t  = he_abs / self.turn_slow_thresh
-            vx = self.vx_min + (vx - self.vx_min) * (1.0 - t)
+            self._turn_committed = False
+            if he_abs >= HE_NUDGE:
+                # Mild arc with loco — keep ω small
+                omega = float(
+                    max(-self.omega_max, min(self.omega_max, self.omega_gain * heading_error))
+                )
+                vx = self.vx_min if slope_ahead <= self.slope_thresh else self.vx_steep
+            else:
+                omega = float(
+                    max(-self.omega_max, min(self.omega_max, self.omega_gain * heading_error))
+                )
+                if slope_ahead > self.slope_thresh:
+                    vx = self.vx_steep
+                else:
+                    t = he_abs / max(HE_NUDGE, 1e-6)
+                    vx = self.vx_normal * (1.0 - t) + self.vx_min * t
 
         return LocalPlannerOutput(
             vx=float(vx),
             vy=0.0,
-            omega=omega,
+            omega=float(omega),
             slope_ahead=float(slope_ahead),
             heading_error=float(heading_error),
             best_col_idx=int(best_col),
             traversable_mask=traversable,
+            want_reorient=want_reorient,
+            reorient_yaw_sign=float(reorient_yaw_sign),
         )
 
 
@@ -406,16 +406,31 @@ class LocalPlanner:
         else:
             vx_scaled = out.vx  # beyond danger zone — no change
 
+        # Rocky-primary: only escalate to turn policy for about-face (≥150°).
+        # Obstacle stop + mid he: stay rocky, vx=0; recovery handles stuck.
+        want_reorient = out.want_reorient
+        reorient_sign = out.reorient_yaw_sign
+        if (
+            vx_scaled <= 1e-3
+            and abs(out.heading_error) >= math.radians(60)
+        ):
+            want_reorient = True
+            if abs(reorient_sign) < 1e-6:
+                reorient_sign = math.copysign(1.0, out.heading_error)
+
         return LocalPlannerOutput(
             vx=vx_scaled,
             vy=out.vy,
-            omega=out.omega,
+            omega=out.omega if not want_reorient else 0.0,
             slope_ahead=out.slope_ahead,
             heading_error=out.heading_error,
             best_col_idx=out.best_col_idx,
             traversable_mask=out.traversable_mask,
             fwd_obstacle_dist=nearest_dist,
+            want_reorient=want_reorient,
+            reorient_yaw_sign=float(reorient_sign),
         )
+
 
 
 def _wrap_angle(a: float) -> float:

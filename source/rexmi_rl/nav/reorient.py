@@ -2,15 +2,21 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 """
-ReorientController — in-distribution continuous pivot for model_13345.
+ReorientController — isolation-style TURN_ONCE for model_13345.
 
-Training:
-  lin_vel_x = 0.05, ang_vel_z ∈ (−0.08, +0.08)
+Matches scripts/test_turn_crater.py command schedule after calm handoff:
 
-CRITICAL NAV RULES (from crater demo failures):
-  1. NEVER re-latch yaw sign mid-turn (he wrap ±π caused ω flip → flail/tip).
-  2. Success uses latched target heading vs body yaw — not live he to moving imm_wp.
-  3. Plant with (vx=0.05, ω=0) not (0,0).
+  PLANT   vx=0.05  ω=0      until calm (or hold_s)
+  YAW     vx=0.05  ω=±0.07  until |err|<exit or yaw_s
+  SETTLE  vx=0.05  ω=0      settle_s
+  DONE → FOLLOW
+
+Iso findings:
+  • Zero-action HOLD until upright is required before 13345
+  • ω=−0.07 produced large stable turns; +0.07 often weak
+  • Stay upright (up_z high) even when body rate spikes
+
+Nav must: brake → settle actions → force_turn → this controller.
 """
 
 from __future__ import annotations
@@ -31,7 +37,7 @@ class ReorientPhase(Enum):
     PLANT = auto()
     YAW = auto()
     SETTLE = auto()
-    HOLD = auto()
+    HOLD = auto()  # alias of PLANT
 
 
 @dataclass(frozen=True)
@@ -40,17 +46,15 @@ class PulseEnvelope:
     hold_s: float
     yaw_s: float
     settle_s: float
-    label: str = ""
+    label: str = "iso"
 
 
-ENVELOPE_FLAT = PulseEnvelope(
-    omega_mag=0.07, hold_s=1.00, yaw_s=0.0, settle_s=1.50, label="direct13345"
-)
-ENVELOPE_GENTLE = PulseEnvelope(
-    omega_mag=0.07, hold_s=1.00, yaw_s=0.0, settle_s=1.50, label="direct13345"
+# Match isolation test: vx=0.05, |ω|=0.07, long yaw window
+ENVELOPE_ISO = PulseEnvelope(
+    omega_mag=0.07, hold_s=2.0, yaw_s=8.0, settle_s=1.5, label="iso"
 )
 ENVELOPE_STEEP = PulseEnvelope(
-    omega_mag=0.05, hold_s=1.40, yaw_s=0.0, settle_s=2.00, label="direct13345-steep"
+    omega_mag=0.07, hold_s=2.5, yaw_s=8.0, settle_s=1.5, label="iso-steep"
 )
 
 _SLOPE_STEEP = math.tan(math.radians(22.0))
@@ -62,7 +66,7 @@ def select_envelope(slope_ahead: float) -> PulseEnvelope:
         slope_ahead = 0.0
     if abs(float(slope_ahead)) >= _SLOPE_STEEP:
         return ENVELOPE_STEEP
-    return ENVELOPE_GENTLE
+    return ENVELOPE_ISO
 
 
 @dataclass
@@ -76,44 +80,61 @@ class ReorientOutput:
     envelope_label: str
     done: bool
     failed: bool
+    wants_turn_policy: bool = True
 
 
 class ReorientController:
     """
-    Continuous slow reorient. Yaw sign latched once at start — never flipped.
-    Progress measured by body yaw toward latched target heading.
+    Single-shot isolation-style turn.
+
+    Sign: prefer heading_error sign. If YAW makes little progress, flip once
+    (iso: −ω often works when +ω freezes).
     """
 
     def __init__(
         self,
-        enter_rad: float = math.radians(60.0),
-        exit_rad: float = math.radians(30.0),
+        enter_rad: float = math.radians(100.0),
+        exit_rad: float = math.radians(35.0),
         max_pulses: int = 1,
         fixed_envelope: Optional[PulseEnvelope] = None,
         progress_pulses: int = 1,
-        min_he_improve_rad: float = math.radians(15.0),
-        body_up_abort: float = -0.15,
+        min_he_improve_rad: float = math.radians(20.0),
+        body_up_abort: float = -0.10,
         vx_turn: float = VX_TURN,
-        max_yaw_s: float = 35.0,
-        stuck_yaw_s: float = 6.0,  # abort if body barely yaws for this long
-        min_body_dyaw_rad: float = math.radians(8.0),
+        max_yaw_s: float = 8.0,
+        thrash_omega_body: float = 6.0,  # allow fast spin if upright
+        thrash_count_limit: int = 8,
+        calm_omega_body: float = 0.35,
+        calm_up_z: float = 0.85,
+        bleed_up_z: float = 0.45,
+        plant_max_s: float = 4.0,
+        stuck_yaw_s: float = 3.0,
+        min_body_dyaw_rad: float = math.radians(12.0),
+        max_consecutive_thrash: int = 3,
+        # unused compat
+        bite_rad: float = 0.0,
     ):
         self.enter_rad = float(enter_rad)
         self.exit_rad = float(exit_rad)
-        self.max_pulses = int(max_pulses)
-        self.fixed_envelope = fixed_envelope
-        self.progress_pulses = int(progress_pulses)
+        self.max_pulses = 1
+        self.fixed_envelope = fixed_envelope or ENVELOPE_ISO
         self.min_he_improve_rad = float(min_he_improve_rad)
         self.body_up_abort = float(body_up_abort)
         self.vx_turn = float(vx_turn)
         self.max_yaw_s = float(max_yaw_s)
+        self.thrash_omega_body = float(thrash_omega_body)
+        self.thrash_count_limit = int(thrash_count_limit)
+        self.calm_omega_body = float(calm_omega_body)
+        self.calm_up_z = float(calm_up_z)
+        self.bleed_up_z = float(bleed_up_z)
+        self.plant_max_s = float(plant_max_s)
         self.stuck_yaw_s = float(stuck_yaw_s)
         self.min_body_dyaw_rad = float(min_body_dyaw_rad)
-        self.cooldown_s = 6.0
+        self.cooldown_s = 10.0
 
         self._phase = ReorientPhase.IDLE
         self._yaw_sign = 1.0
-        self._envelope = ENVELOPE_GENTLE
+        self._envelope = ENVELOPE_ISO
         self._phase_start: float | None = None
         self._yaw_start: float | None = None
         self._pulse_count = 0
@@ -123,13 +144,13 @@ class ReorientController:
         self._he_at_start = math.pi
         self._err_best = math.pi
         self._cooldown_until = 0.0
-        # Latched geometry (body frame at start)
-        self._body_yaw0: float | None = None
         self._target_yaw: float | None = None
         self._body_yaw_last: float | None = None
         self._body_yaw_at_yaw_start: float | None = None
-        self._last_progress_t: float | None = None
-        self._diag_counter = 0
+        self._thrash_count = 0
+        self._manoeuvre_he0 = math.pi
+        self._flipped_once = False
+        self._preferred_sign: float | None = None  # set from iso: often -1
 
     @property
     def active(self) -> bool:
@@ -142,6 +163,10 @@ class ReorientController:
     @property
     def yaw_sign(self) -> float:
         return self._yaw_sign
+
+    @property
+    def wants_turn_policy(self) -> bool:
+        return self._active
 
     def should_start(self, heading_error: float) -> bool:
         if self._active:
@@ -158,48 +183,49 @@ class ReorientController:
         body_yaw: float | None = None,
     ) -> None:
         if time.monotonic() < self._cooldown_until:
-            print("[Reorient] start ignored — fail cooldown active")
+            print("[Reorient] start ignored — cooldown")
             return
 
         he = float(heading_error)
-        if yaw_sign is None:
-            yaw_sign = 1.0 if abs(he) < 1e-6 else math.copysign(1.0, he)
-        else:
-            yaw_sign = 1.0 if yaw_sign >= 0.0 else -1.0
+        if abs(he) < 1e-6:
+            return
 
-        # LATCH ONCE — never change until done/fail
-        self._yaw_sign = float(yaw_sign)
+        # Prefer explicit sign, else he sign. Optional preferred_sign bias if |he| large.
+        if yaw_sign is not None and abs(yaw_sign) > 1e-6:
+            self._yaw_sign = math.copysign(1.0, float(yaw_sign))
+        else:
+            self._yaw_sign = math.copysign(1.0, he)
+            # Iso: −ω often works better; if he wants + but preferred is −, still use he
+            # (nav needs correct direction). Keep he sign.
+
         self._envelope = (
             self.fixed_envelope
             if self.fixed_envelope is not None
             else select_envelope(slope_ahead)
         )
-        self._pulse_count = 0
         self._active = True
         self._just_done = False
         self._just_failed = False
         self._he_at_start = abs(he)
+        self._manoeuvre_he0 = abs(he)
         self._err_best = abs(he)
+        self._pulse_count = 0
+        self._thrash_count = 0
         self._yaw_start = None
-        self._diag_counter = 0
+        self._flipped_once = False
 
         by = 0.0 if body_yaw is None else float(body_yaw)
-        self._body_yaw0 = by
         self._body_yaw_last = by
         self._body_yaw_at_yaw_start = None
-        # Target world yaw = current body + heading_error (to waypoint at start)
         self._target_yaw = _wrap(by + he)
-        self._last_progress_t = time.monotonic()
 
         self._enter_phase(ReorientPhase.PLANT)
         print(
-            f"[Reorient] START 13345/{self._envelope.label} "
-            f"he0={math.degrees(he):+.1f}° "
-            f"sign={self._yaw_sign:+.0f} LATCHED "
-            f"body={math.degrees(by):+.1f}° "
-            f"tgt={math.degrees(self._target_yaw):+.1f}° "
-            f"ω=±{self._envelope.omega_mag:.3f} vx={self.vx_turn:.2f} "
-            f"plant={self._envelope.hold_s:.1f}s max_yaw={self.max_yaw_s:.0f}s"
+            f"[Reorient] START iso/{self._envelope.label} "
+            f"he={math.degrees(he):+.0f}° sign={self._yaw_sign:+.0f} "
+            f"body={math.degrees(by):+.0f}° tgt={math.degrees(self._target_yaw):+.0f}° "
+            f"ω=±{self._envelope.omega_mag:.3f} yaw_max={self._envelope.yaw_s:.1f}s "
+            f"vx={self.vx_turn:.2f}"
         )
 
     def cancel(self) -> None:
@@ -223,20 +249,19 @@ class ReorientController:
         slope_ahead: float = 0.0,
         body_up_z: float | None = None,
         body_yaw: float | None = None,
+        omega_body: float | None = None,
     ) -> ReorientOutput:
         self._just_done = False
         self._just_failed = False
         if not self._active:
-            return self._output(0.0, vx=0.0)
+            return self._out(0.0, 0.0)
 
-        # Live he only for logging — control uses latched target vs body yaw
         he_live = float(heading_error)
         by = float(body_yaw) if body_yaw is not None else (
             self._body_yaw_last if self._body_yaw_last is not None else 0.0
         )
         self._body_yaw_last = by
 
-        # Error to latched target (stable during pivot)
         if self._target_yaw is not None:
             err = _wrap(self._target_yaw - by)
         else:
@@ -244,113 +269,134 @@ class ReorientController:
         err_abs = abs(err)
         if err_abs < self._err_best:
             self._err_best = err_abs
-            self._last_progress_t = time.monotonic()
 
-        # NOTE: yaw_sign is NEVER updated here (anti ±π thrash)
+        # Hard invert only
+        if body_up_z is not None and float(body_up_z) < self.body_up_abort:
+            return self._fail("inverted")
 
-        if body_up_z is not None and body_up_z < self.body_up_abort:
-            if self._phase != ReorientPhase.SETTLE:
-                print(f"[Reorient] ABORT inverted up_z={body_up_z:+.2f}")
-                return self._finish_failed("inverted")
+        # Bleed during yaw only if collapsing
+        if (
+            body_up_z is not None
+            and self._phase == ReorientPhase.YAW
+            and float(body_up_z) < self.bleed_up_z
+        ):
+            return self._fail("attitude_bleed")
+
+        # Thrash: high rate AND bad attitude (fast spin while upright is OK)
+        if (
+            omega_body is not None
+            and body_up_z is not None
+            and self._phase == ReorientPhase.YAW
+            and abs(float(omega_body)) > self.thrash_omega_body
+            and float(body_up_z) < 0.70
+        ):
+            self._thrash_count += 1
+            if self._thrash_count >= self.thrash_count_limit:
+                return self._fail("thrash")
+        else:
+            self._thrash_count = max(0, self._thrash_count - 1)
 
         now = time.monotonic()
         if self._phase_start is None:
             self._phase_start = now
         elapsed = now - self._phase_start
 
-        # Periodic diagnostic (every ~1s wall if caller logs often)
-        self._diag_counter += 1
+        # Success
+        upright = body_up_z is None or float(body_up_z) > 0.70
+        if err_abs < self.exit_rad and upright:
+            if self._phase != ReorientPhase.SETTLE:
+                print(f"[Reorient] aligned err={math.degrees(err):+.0f}° — SETTLE")
+                self._enter_phase(ReorientPhase.SETTLE)
 
         if self._phase == ReorientPhase.SETTLE:
             if elapsed >= self._envelope.settle_s:
-                return self._finish_success()
-            return self._plant_cmd()
-
-        # Success: close enough to latched target
-        if err_abs < self.exit_rad and self._phase in (
-            ReorientPhase.PLANT, ReorientPhase.YAW, ReorientPhase.HOLD
-        ):
-            print(
-                f"[Reorient] aligned err={math.degrees(err):+.0f}° "
-                f"(live_he={math.degrees(he_live):+.0f}°) — SETTLE "
-                f"{self._envelope.settle_s:.1f}s"
-            )
-            self._enter_phase(ReorientPhase.SETTLE)
-            return self._plant_cmd()
+                return self._done()
+            return self._plant()
 
         if self._phase in (ReorientPhase.PLANT, ReorientPhase.HOLD):
-            if elapsed >= self._envelope.hold_s:
+            wb = 0.0 if omega_body is None else abs(float(omega_body))
+            uz = 1.0 if body_up_z is None else float(body_up_z)
+            if (
+                elapsed >= self._envelope.hold_s
+                and wb <= self.calm_omega_body
+                and uz >= self.calm_up_z
+            ):
                 self._enter_phase(ReorientPhase.YAW)
                 self._yaw_start = time.monotonic()
                 self._body_yaw_at_yaw_start = by
-                self._last_progress_t = time.monotonic()
                 print(
-                    f"[Reorient] YAW continuous ω="
-                    f"{self._yaw_sign * self._envelope.omega_mag:+.3f} "
-                    f"vx={self.vx_turn:.2f} "
-                    f"sign={self._yaw_sign:+.0f} FIXED "
-                    f"err={math.degrees(err):+.0f}°"
+                    f"[Reorient] YAW iso ω={self._yaw_sign * self._envelope.omega_mag:+.3f} "
+                    f"calm ωb={wb:.2f} up_z={uz:+.2f}"
                 )
-                return self._yaw_cmd()
-            return self._plant_cmd()
+                return self._yaw()
+            if elapsed >= self.plant_max_s:
+                # Start yaw anyway if mostly upright
+                if uz >= 0.75:
+                    self._enter_phase(ReorientPhase.YAW)
+                    self._yaw_start = time.monotonic()
+                    self._body_yaw_at_yaw_start = by
+                    print("[Reorient] YAW iso (plant timeout, upright enough)")
+                    return self._yaw()
+                return self._fail("plant_not_calm")
+            return self._plant()
 
         if self._phase == ReorientPhase.YAW:
-            yaw_elapsed = (
+            yaw_t = (
                 time.monotonic() - self._yaw_start
                 if self._yaw_start is not None
                 else elapsed
             )
-            # Body yaw progress since YAW started
+            body_turned = 0.0
             if self._body_yaw_at_yaw_start is not None:
                 body_turned = abs(_wrap(by - self._body_yaw_at_yaw_start))
-            else:
-                body_turned = 0.0
 
-            # Stuck: little body rotation for stuck_yaw_s
+            wb = 0.0 if omega_body is None else abs(float(omega_body))
+
+            # Stuck: little body turn — flip sign once (iso asymmetry)
             if (
-                self._last_progress_t is not None
-                and (now - self._last_progress_t) >= self.stuck_yaw_s
-                and yaw_elapsed >= self.stuck_yaw_s
+                yaw_t >= self.stuck_yaw_s
+                and body_turned < self.min_body_dyaw_rad
+                and not self._flipped_once
             ):
-                if body_turned < self.min_body_dyaw_rad:
+                self._flipped_once = True
+                self._yaw_sign = -self._yaw_sign
+                self._yaw_start = time.monotonic()
+                self._body_yaw_at_yaw_start = by
+                print(
+                    f"[Reorient] YAW stuck — flip sign → {self._yaw_sign:+.0f} "
+                    f"(iso: other direction often works)"
+                )
+                return self._yaw()
+
+            if yaw_t >= self.stuck_yaw_s * 2 and body_turned < self.min_body_dyaw_rad:
+                return self._fail("stuck_no_yaw")
+
+            # Time limit — accept partial progress
+            max_yaw = max(self._envelope.yaw_s, self.max_yaw_s)
+            if yaw_t >= max_yaw:
+                if err_abs < self.exit_rad * 1.8 or body_turned > math.radians(30):
                     print(
-                        f"[Reorient] STUCK body_turned={math.degrees(body_turned):.1f}° "
-                        f"in {yaw_elapsed:.1f}s"
+                        f"[Reorient] YAW time done Δbody={math.degrees(body_turned):.0f}° "
+                        f"err={math.degrees(err):+.0f}° — SETTLE"
                     )
-                    return self._finish_failed("stuck_no_yaw")
-
-            if yaw_elapsed >= 0.70 * self.max_yaw_s:
-                improved = (self._he_at_start - self._err_best) >= self.min_he_improve_rad
-                if not improved and body_turned < self.min_he_improve_rad:
-                    return self._finish_failed("no_progress")
-
-            if yaw_elapsed >= self.max_yaw_s:
-                if err_abs < self.exit_rad * 1.5:
                     self._enter_phase(ReorientPhase.SETTLE)
-                    return self._plant_cmd()
-                return self._finish_failed("timeout")
+                    return self._plant()
+                return self._fail("timeout")
+            return self._yaw()
 
-            return self._yaw_cmd()
-
-        return self._plant_cmd()
+        return self._plant()
 
     def status_str(self) -> str:
         if not self._active:
             return "IDLE"
         t = 0.0
-        if self._phase == ReorientPhase.YAW and self._yaw_start is not None:
+        if self._yaw_start is not None and self._phase == ReorientPhase.YAW:
             t = time.monotonic() - self._yaw_start
         elif self._phase_start is not None:
             t = time.monotonic() - self._phase_start
-        err_s = ""
-        if self._target_yaw is not None and self._body_yaw_last is not None:
-            e = _wrap(self._target_yaw - self._body_yaw_last)
-            err_s = f" err={math.degrees(e):+.0f}°"
         return (
-            f"{self._phase.name}[{self._envelope.label}] "
-            f"t={t:.1f}s "
-            f"ω={self._yaw_sign * self._envelope.omega_mag:+.3f} "
-            f"sign={self._yaw_sign:+.0f}{err_s}"
+            f"{self._phase.name}[iso] t={t:.1f}s "
+            f"ω={self._yaw_sign * self._envelope.omega_mag:+.3f}"
         )
 
     def diag_str(
@@ -361,7 +407,6 @@ class ReorientController:
         speed: float,
         omega_body: float = float("nan"),
     ) -> str:
-        """One-line diagnostic for nav logs."""
         err = (
             _wrap(self._target_yaw - body_yaw)
             if self._target_yaw is not None
@@ -371,72 +416,61 @@ class ReorientController:
             f"phase={self._phase.name} sign={self._yaw_sign:+.0f} "
             f"ω_cmd={self._yaw_sign * self._envelope.omega_mag:+.3f} "
             f"ω_body={omega_body:+.3f} "
-            f"vx={self.vx_turn:.2f} "
-            f"he_live={math.degrees(heading_error):+.1f}° "
-            f"err_tgt={math.degrees(err):+.1f}° "
-            f"body={math.degrees(body_yaw):+.1f}° "
-            f"tgt={math.degrees(self._target_yaw or 0):+.1f}° "
-            f"up_z={body_up_z:+.2f} v={speed:.2f} "
-            f"best_err={math.degrees(self._err_best):.0f}°"
+            f"he={math.degrees(heading_error):+.0f}° "
+            f"err={math.degrees(err):+.0f}° "
+            f"body={math.degrees(body_yaw):+.0f}° "
+            f"up_z={body_up_z:+.2f} v={speed:.2f}"
         )
 
-    def _enter_phase(self, phase: ReorientPhase) -> None:
-        self._phase = phase
+    def _enter_phase(self, p: ReorientPhase) -> None:
+        self._phase = p
         self._phase_start = time.monotonic()
 
-    def _plant_cmd(self) -> ReorientOutput:
-        return self._output(0.0, vx=self.vx_turn)
+    def _plant(self) -> ReorientOutput:
+        return self._out(self.vx_turn, 0.0)
 
-    def _yaw_cmd(self) -> ReorientOutput:
-        return self._output(
-            self._yaw_sign * self._envelope.omega_mag,
-            vx=self.vx_turn,
-        )
+    def _yaw(self) -> ReorientOutput:
+        return self._out(self.vx_turn, self._yaw_sign * self._envelope.omega_mag)
 
-    def _finish_success(self) -> ReorientOutput:
+    def _done(self) -> ReorientOutput:
         print(
-            f"[Reorient] DONE 13345/{self._envelope.label} "
-            f"best_err={math.degrees(self._err_best):.0f}° "
-            f"sign_held={self._yaw_sign:+.0f}"
+            f"[Reorient] DONE iso best_err={math.degrees(self._err_best):.0f}° "
+            f"start={math.degrees(self._manoeuvre_he0):.0f}°"
         )
         self._active = False
         self._phase = ReorientPhase.IDLE
-        self._phase_start = None
-        self._yaw_start = None
         self._just_done = True
-        return self._output(0.0, vx=0.0, done=True, failed=False)
+        return self._out(0.0, 0.0, done=True)
 
-    def _finish_failed(self, reason: str = "") -> ReorientOutput:
+    def _fail(self, reason: str) -> ReorientOutput:
         print(
-            f"[Reorient] FAILED 13345/{self._envelope.label} ({reason}) "
-            f"start_he={math.degrees(self._he_at_start):.0f}° "
-            f"best_err={math.degrees(self._err_best):.0f}° "
-            f"sign_held={self._yaw_sign:+.0f} "
-            f"— cooldown {self.cooldown_s:.0f}s"
+            f"[Reorient] FAILED iso ({reason}) "
+            f"start={math.degrees(self._manoeuvre_he0):.0f}° "
+            f"best={math.degrees(self._err_best):.0f}° "
+            f"cooldown {self.cooldown_s:.0f}s"
         )
         self._active = False
         self._phase = ReorientPhase.IDLE
-        self._phase_start = None
-        self._yaw_start = None
         self._just_failed = True
         self._cooldown_until = time.monotonic() + self.cooldown_s
-        return self._output(0.0, vx=0.0, done=False, failed=True)
+        return self._out(0.0, 0.0, failed=True)
 
-    def _output(
+    def _out(
         self,
+        vx: float,
         omega: float,
-        vx: float | None = None,
-        done: bool | None = None,
-        failed: bool | None = None,
+        done: bool = False,
+        failed: bool = False,
     ) -> ReorientOutput:
         return ReorientOutput(
-            vx=self.vx_turn if vx is None else float(vx),
+            vx=float(vx),
             vy=0.0,
             omega=float(omega),
             active=self._active,
             phase=self._phase,
             pulse_count=self._pulse_count,
             envelope_label=self._envelope.label,
-            done=self._just_done if done is None else done,
-            failed=self._just_failed if failed is None else failed,
+            done=done or self._just_done,
+            failed=failed or self._just_failed,
+            wants_turn_policy=self._active,
         )

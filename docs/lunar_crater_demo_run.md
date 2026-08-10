@@ -225,3 +225,45 @@ Each crossing traverses the zones twice (inbound + outbound).
 | All robots face random directions | `yaw` not fixed | Set `"yaw": (0.0, 0.0)` in `reset_base` |
 | Robots scatter sideways | `lin_vel_y` not zeroed | Set `lin_vel_y = (0.0, 0.0)` in commands |
 | `network shape mismatch` error | Wrong env ID for the checkpoint | See Policy Selection table above |
+
+
+---
+
+## Autonomous navigation (SLAM + multi-policy + turn)
+
+Full crater traverse with rough / rocky_slope loco and **model_13345** plant-and-spin
+(iso-style handoff). Turn is **ON by default**.
+
+```bash
+conda activate env_isaacsim
+cd /home/susan/rexmi_rl
+
+python scripts/navigate.py \
+    --task RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0 \
+    --ckpt_rough logs/rsl_rl/go2w_velocity_rough/2026-06-14_20-03-41/model_8996.pt \
+    --ckpt_rocky logs/rsl_rl/go2w_velocity_rocky_slope/2026-06-30_09-31-48/model_13994.pt \
+    --ckpt_turn  logs/rsl_rl/go2w_velocity_slope_turn/2026-07-27_20-54-25/model_13345.pt \
+    --mission traverse
+```
+
+Path-only (no pivot):
+
+```bash
+python scripts/navigate.py \
+    --task RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0 \
+    --ckpt_rough logs/rsl_rl/go2w_velocity_rough/2026-06-14_20-03-41/model_8996.pt \
+    --ckpt_rocky logs/rsl_rl/go2w_velocity_rocky_slope/2026-06-30_09-31-48/model_13994.pt \
+    --mission traverse \
+    --no_turn
+```
+
+Turn isolation (policy only, no nav FSM):
+
+```bash
+python scripts/test_turn_crater.py \
+    --task RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0 \
+    --checkpoint logs/rsl_rl/go2w_velocity_slope_turn/2026-07-27_20-54-25/model_13345.pt \
+    --spawn_preset floor
+```
+
+Details: `docs/nav_layer.md`, `docs/turn_isolation_test.md`.

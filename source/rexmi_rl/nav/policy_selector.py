@@ -34,7 +34,7 @@ VERY_STEEP    = math.tan(math.radians(28))
 HOLD_SAFE     = 15
 
 # Large heading: force turn policy (ReorientController owns ω pulses)
-TURN_ENTER_RAD = math.radians(60)   # turn policy for brake+pivot
+TURN_ENTER_RAD = math.radians(120)  # micro-bites for large he
 TURN_EXIT_RAD  = math.radians(30)
 
 

@@ -97,71 +97,94 @@ scripts/
 
 ```bash
 conda activate env_isaacsim
+cd /home/susan/rexmi_rl
 
-# ── Auto policy-switching (recommended) ──────────────────────────────────
-# Each policy is loaded from its own task (different obs dims / net sizes):
-#   fast_flat:   60-dim obs, 128-wide net
-#   rough:       ~120-dim obs, varies
-#   rocky_slope: 247-dim obs, 512-wide net  (this is also the nav env)
-python scripts/navigate.py \
-    --task           RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0 \
-    --ckpt_fast_flat logs/rsl_rl/go2w_velocity_fast_flat/2026-06-17_20-08-58/model_1499.pt \
-    --ckpt_rough     logs/rsl_rl/go2w_velocity_rough/2026-06-14_20-03-41/model_8996.pt \
-    --ckpt_rocky     logs/rsl_rl/go2w_velocity_rocky_slope/2026-06-30_09-31-48/model_13994.pt \
-    --mission traverse
-# task_fast_flat and task_rough default to the right crater-bowl variants automatically
-
-# Floor survey (lawnmower scan of crater interior)
+# ------------------------------------------------------------------
+# PRIMARY: autonomous crater traverse WITH iso-style turn (13345)
+# ------------------------------------------------------------------
 python scripts/navigate.py \
     --task RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0 \
-    --ckpt_fast_flat logs/.../model_1499.pt \
-    --ckpt_rough     logs/.../model_8996.pt \
-    --ckpt_rocky     logs/.../model_13994.pt \
-    --mission survey
+    --ckpt_rough logs/rsl_rl/go2w_velocity_rough/2026-06-14_20-03-41/model_8996.pt \
+    --ckpt_rocky logs/rsl_rl/go2w_velocity_rocky_slope/2026-06-30_09-31-48/model_13994.pt \
+    --ckpt_turn  logs/rsl_rl/go2w_velocity_slope_turn/2026-07-27_20-54-25/model_13345.pt \
+    --mission traverse
+```
 
-# Rim perimeter circuit
+Expect boot log:
+```text
+[navigate] TURN enabled (iso handoff: brake→settle→13345→FOLLOW)
+[navigate] Turn loaded: direct model_13345 (continuous w=+/-0.08)
+```
+
+### Path-only (no pivot)
+
+```bash
+python scripts/navigate.py \
+    --task RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0 \
+    --ckpt_rough logs/rsl_rl/go2w_velocity_rough/2026-06-14_20-03-41/model_8996.pt \
+    --ckpt_rocky logs/rsl_rl/go2w_velocity_rocky_slope/2026-06-30_09-31-48/model_13994.pt \
+    --mission traverse \
+    --no_turn
+```
+
+### Isolation test (turn policy alone)
+
+```bash
+# Floor interior (default)
+python scripts/test_turn_crater.py \
+    --task RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0 \
+    --checkpoint logs/rsl_rl/go2w_velocity_slope_turn/2026-07-27_20-54-25/model_13345.pt \
+    --spawn_preset floor
+
+# Exterior rim
+python scripts/test_turn_crater.py ... --spawn_preset rim_out
+```
+
+See `docs/turn_isolation_test.md`.
+
+### Other missions
+
+```bash
+python scripts/navigate.py ... --mission survey
 python scripts/navigate.py ... --mission rim_circuit
-
-# ── Fixed single policy (no auto-switching) ───────────────────────────────
-python scripts/navigate.py \
-    --task RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0 \
-    --checkpoint logs/.../model_13994.pt \
-    --policy_mode rocky_slope \
-    --mission traverse
-
-# ── Headless (no matplotlib window, e.g. for recording) ──────────────────
 python scripts/navigate.py ... --no_dashboard
 ```
 
-### All CLI arguments
+### CLI flags (nav + turn)
 
-| Argument | Default | Description |
-|----------|---------|-------------|
-| `--task` | *(required)* | Isaac Lab gym task name |
-| `--ckpt_fast_flat` | — | Checkpoint for fast_flat policy (auto mode) |
-| `--ckpt_rough` | — | Checkpoint for rough policy (auto mode) |
-| `--ckpt_rocky` | — | Checkpoint for rocky_slope policy (auto mode) |
-| `--ckpt_spin` | — | *(optional)* Checkpoint for spin-in-place policy — activates `PolicyMode.SPIN` for turn-override (|he| > 75°). Falls back to `rough` if not provided. |
-| `--task_fast_flat` | `RexmiRl-Go2w-Crater-Bowl-FastFlat-Play-v0` | Task to build fast_flat net architecture |
-| `--task_rough` | `RexmiRl-Go2w-Crater-Bowl-Play-v0` | Task to build rough net architecture |
-| `--checkpoint` | — | Single checkpoint path (use with `--policy_mode`) |
-| `--policy_mode` | `auto` | `auto` / `fast_flat` / `rough` / `rocky_slope` |
+| Flag | Default | Meaning |
+|------|---------|---------|
+| `--task` | required | `RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0` |
+| `--ckpt_rough` | — | Rough loco checkpoint |
+| `--ckpt_rocky` | — | Rocky_slope loco checkpoint |
+| `--ckpt_turn` | `.../model_13345.pt` | Slope-turn plant-and-spin |
 | `--mission` | `traverse` | `traverse` / `survey` / `rim_circuit` |
-| `--num_envs` | `1` | Parallel environments |
-| `--device` | `cuda:0` | Torch device |
-| `--crater_x` | `0.0` | Crater centre X (world frame, m) |
-| `--crater_y` | `0.0` | Crater centre Y (world frame, m) |
-| `--r_floor` | `3.0` | Crater floor radius (m) |
-| `--r_rim` | `11.0` | Crater rim radius (m) |
-| `--spawn_x` | `13.0` | Robot spawn X (m). Matches `LunarCraterDemoBowlEnvCfg` (exterior ramp, facing −x) |
-| `--entry_azimuth_deg` | `0.0` | Crater entry azimuth (°, CCW from +x). `0°` = enters from +x side heading −x |
-| `--replan_interval` | `2.0` | Seconds between A* replans |
-| `--vx_normal` | `0.40` | Forward speed on clear terrain (m/s) |
-| `--vx_steep` | `0.25` | Forward speed on steep terrain (m/s) |
-| `--no_dashboard` | off | Disable matplotlib window |
-| `--max_steps` | `15000` | Max sim steps (~300 s at 50 Hz) |
+| `--no_turn` | off | Disable 13345; path-only FOLLOW |
+| `--no_dashboard` | off | No matplotlib dashboard |
+| `--spawn_x` | `13.0` | Exterior ramp spawn (faces −x) |
 
----
+### Turn handoff (iso-style)
+
+When `|heading_error| ≥ 100°` and turn is enabled:
+
+```text
+BRAKE ~3 s (rocky, vx=0) until nearly stopped + upright
+  → settle actions 1.0 s (zeros) + force_turn
+  → 13345: PLANT vx=0.05 ω=0 → YAW ±0.07 (up to 8 s) → SETTLE
+  → if YAW stuck: flip ω sign once
+  → DONE → short hold → FOLLOW (rocky/rough)
+```
+
+Expect:
+```text
+[Nav] BRAKE before turn (v=... he=±100°+)
+[Nav] brake done ... TURN handoff settle 1.0s then 13345
+[PolicySelector] TURN FORCE: rocky_slope → turn
+[Reorient] START iso/... ω=±0.070 vx=0.05
+[Reorient] YAW iso ...
+[Reorient] DONE iso ...
+```
+
 
 ## Starting the Dashboard
 

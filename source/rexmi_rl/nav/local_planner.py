@@ -76,10 +76,11 @@ class LocalPlanner:
         self,
         vx_normal:    float = 0.40,   # rocky_slope trained: lin_vel_x in (0.2, 0.5)
         vx_steep:     float = 0.30,
-        vx_min:       float = 0.20,   # minimum forward speed during turns
+        vx_min:       float = 0.12,   # crawl speed for rocky pivot (log: sharp turn at vx~0.1)
                                       # rough: lin_vel_x ∈ (-0.5, 0.5) so 0.20 is in-distribution
-        omega_gain:   float = 0.35,
-        omega_max:    float = 0.08,   # loco nudge only; big turns = 13345
+        omega_gain:   float = 0.55,
+        omega_max:    float = 0.15,   # normal path tracking
+        omega_pivot:  float = 0.18,   # brief assist only; isolation test owns real pivot
         turn_slow_thresh: float = 0.35,  # rad (~20°): start slowing vx when |he| > this
         step_thresh:  float = 0.20,   # match OccupancyMap.STEP_THRESH
         slope_thresh: float = 0.47,
@@ -90,6 +91,7 @@ class LocalPlanner:
         self.vx_min       = vx_min
         self.omega_gain   = omega_gain
         self.omega_max    = omega_max
+        self.omega_pivot  = omega_pivot
         self.step_thresh  = step_thresh
         self.slope_thresh = slope_thresh
 
@@ -258,43 +260,70 @@ class LocalPlanner:
         he_abs = abs(heading_error)
 
         # ------------------------------------------------------------------
-        # Turn policy owns brake + pivot (model_13345).
-        # Loco only does tiny heading nudge; large he → want_reorient.
+        # FOLLOW + rocky crawl-pivot (no 13345 required).
         #
-        #   |he| < 25°   : gentle loco ω ≤ omega_max
-        #   25–60°       : slow loco arc (small ω) or creep
-        #   |he| ≥ 60°   : want_reorient → turn policy (plant+yaw in-dist)
+        # Log evidence (path-only run): rocky swung ~140° yaw when
+        #   vx_cmd ≈ 0.08–0.15  and  ω_cmd ≈ ±0.15
+        # Full speed + ω drifts/orbits the wall; vx=0 tips.
+        #
+        #   |he| small     : path track  vx~normal  ω≤omega_max
+        #   |he| medium    : slow arc    vx reduced  ω≤omega_max
+        #   |he| large     : CRAWL-PIVOT vx~0.10–0.15  ω≤omega_pivot (stronger)
+        #   latch ω sign when |he|>90° until |he|<40° (anti ±π flip)
         # ------------------------------------------------------------------
-        want_reorient = False
+        want_reorient = False  # set True below for large he → nav TURN
         reorient_yaw_sign = 0.0
 
-        HE_NUDGE = math.radians(25.0)
-        HE_PIVOT = math.radians(60.0)
+        HE_CREEP  = math.radians(35.0)
+        HE_PIVOT  = math.radians(100.0)  # only large he; prefer path track otherwise
+        HE_LATCH  = math.radians(90.0)   # latch turn direction
+        HE_UNLATCH = math.radians(40.0)  # release latch
+
+        # --- yaw sign latch (hysteresis) ---
+        if he_abs >= HE_LATCH:
+            self._turn_committed = True
+            self._committed_omega_sign = math.copysign(1.0, heading_error)
+        elif he_abs < HE_UNLATCH:
+            self._turn_committed = False
+            self._committed_omega_sign = 0.0
+
+        if self._turn_committed and abs(self._committed_omega_sign) > 1e-6:
+            he_for_omega = abs(heading_error) * self._committed_omega_sign
+        else:
+            he_for_omega = heading_error
+
+        if slope_ahead > self.slope_thresh:
+            base_vx = self.vx_steep
+        else:
+            base_vx = self.vx_normal
 
         if he_abs >= HE_PIVOT:
             want_reorient = True
             reorient_yaw_sign = math.copysign(1.0, heading_error)
-            self._turn_committed = True
-            self._committed_omega_sign = reorient_yaw_sign
-            omega = 0.0
-            vx = 0.0
+            # CRAWL-PIVOT / flag for nav turn: low vx + strong ω (rocky sharp turn regime)
+            vx = 0.15
+            if slope_ahead > self.slope_thresh:
+                vx = 0.12
+            # Use pivot omega band; proportional but floored so we keep turning
+            w_cmd = self.omega_gain * he_for_omega
+            # floor: at least 0.18 in pivot direction when |he| large
+            floor = 0.12
+            if abs(w_cmd) < floor:
+                w_cmd = math.copysign(floor, he_for_omega if abs(he_for_omega) > 1e-6
+                                      else self._committed_omega_sign or 1.0)
+            omega = float(max(-self.omega_pivot, min(self.omega_pivot, w_cmd)))
+        elif he_abs >= HE_CREEP:
+            t = (he_abs - HE_CREEP) / max(HE_PIVOT - HE_CREEP, 1e-6)
+            vx = base_vx * (1.0 - 0.6 * t) + 0.15 * (0.6 * t)
+            omega = float(
+                max(-self.omega_max, min(self.omega_max, self.omega_gain * he_for_omega))
+            )
         else:
-            self._turn_committed = False
-            if he_abs >= HE_NUDGE:
-                # Mild arc with loco — keep ω small
-                omega = float(
-                    max(-self.omega_max, min(self.omega_max, self.omega_gain * heading_error))
-                )
-                vx = self.vx_min if slope_ahead <= self.slope_thresh else self.vx_steep
-            else:
-                omega = float(
-                    max(-self.omega_max, min(self.omega_max, self.omega_gain * heading_error))
-                )
-                if slope_ahead > self.slope_thresh:
-                    vx = self.vx_steep
-                else:
-                    t = he_abs / max(HE_NUDGE, 1e-6)
-                    vx = self.vx_normal * (1.0 - t) + self.vx_min * t
+            t = he_abs / max(HE_CREEP, 1e-6)
+            vx = base_vx * (1.0 - 0.3 * t) + self.vx_min * (0.3 * t)
+            omega = float(
+                max(-self.omega_max, min(self.omega_max, self.omega_gain * he_for_omega))
+            )
 
         return LocalPlannerOutput(
             vx=float(vx),
@@ -395,40 +424,33 @@ class LocalPlanner:
         # Find nearest obstacle distance
         nearest_dist = float(np.min(x_b[in_zone]))
 
-        # Scale vx: full speed at DANGER_DEPTH, zero at 0.5 m
+        # Scale vx down near obstacles, but NEVER kill crawl-pivot.
+        # Log: rocky sharp turn happened at vx~0.08–0.15 with ω held.
+        # Floor vx at crawl so we can still pivot away from the wall.
         SLOW_START = DANGER_DEPTH   # m — start slowing here
-        STOP_DIST  = 0.5            # m — stop here
+        STOP_DIST  = 0.5            # m — min approach
+        CRAWL_FLOOR = 0.10          # keep rolling for rocky pivot
         if nearest_dist <= STOP_DIST:
-            vx_scaled = 0.0
+            vx_scaled = CRAWL_FLOOR
         elif nearest_dist < SLOW_START:
             frac = (nearest_dist - STOP_DIST) / (SLOW_START - STOP_DIST)
             vx_scaled = float(out.vx * frac)
+            vx_scaled = max(vx_scaled, CRAWL_FLOOR)
         else:
-            vx_scaled = out.vx  # beyond danger zone — no change
+            vx_scaled = out.vx
 
-        # Rocky-primary: only escalate to turn policy for about-face (≥150°).
-        # Obstacle stop + mid he: stay rocky, vx=0; recovery handles stuck.
-        want_reorient = out.want_reorient
-        reorient_sign = out.reorient_yaw_sign
-        if (
-            vx_scaled <= 1e-3
-            and abs(out.heading_error) >= math.radians(60)
-        ):
-            want_reorient = True
-            if abs(reorient_sign) < 1e-6:
-                reorient_sign = math.copysign(1.0, out.heading_error)
-
+        # Keep omega always (crawl-pivot needs it). No want_reorient from obstacle.
         return LocalPlannerOutput(
-            vx=vx_scaled,
+            vx=float(vx_scaled),
             vy=out.vy,
-            omega=out.omega if not want_reorient else 0.0,
+            omega=out.omega,
             slope_ahead=out.slope_ahead,
             heading_error=out.heading_error,
             best_col_idx=out.best_col_idx,
             traversable_mask=out.traversable_mask,
             fwd_obstacle_dist=nearest_dist,
-            want_reorient=want_reorient,
-            reorient_yaw_sign=float(reorient_sign),
+            want_reorient=out.want_reorient,
+            reorient_yaw_sign=out.reorient_yaw_sign,
         )
 
 

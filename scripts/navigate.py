@@ -5,37 +5,42 @@
 """
 Autonomous navigation entry point for REXMI RL.
 
-Loads ALL THREE trained RL policy checkpoints and runs a deterministic nav layer
-on top.  The nav layer picks which policy to use each step based on real-time
-terrain metrics from the height scanner:
+Loads trained RL policy checkpoints and runs a deterministic nav layer on top.
+Policies (auto mode):
 
-  fast_flat    — slope < 5°, no obstacles (up to 2 m/s)
-  rough        — rough terrain, step < 10 cm, slope < 20° (~0.8 m/s)
-  rocky_slope  — steep with boulders, slope 20–35° (~0.4 m/s)
+  rough        — moderate terrain / steps
+  rocky_slope  — steep crater walls with boulders (primary loco)
+  turn         — model_13345 plant-and-spin (iso-style handoff, ON by default)
 
-Policy switching uses a 25-step hysteresis (0.5 s) to avoid oscillation
-at terrain boundaries.
+Turn handoff (when |heading_error| ≥ 100°):
+  BRAKE on rocky → settle actions 1 s → 13345 PLANT/YAW(±0.07)/SETTLE → FOLLOW
 
 Usage
 -----
-  # Full autonomous traverse (down into crater, floor, up opposite side)
-  python scripts/navigate.py \\
-      --task RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0 \\
-      --ckpt_fast_flat  logs/rsl_rl/go2w_velocity_fast_flat/2026-06-17_20-08-58/model_1499.pt \\
-      --ckpt_rough      logs/rsl_rl/go2w_velocity_rough/2026-06-14_20-03-41/model_8996.pt \\
-      --ckpt_rocky      logs/rsl_rl/go2w_velocity_rocky_slope/2026-06-30_09-31-48/model_13994.pt \\
+  conda activate env_isaacsim
+  cd /home/susan/rexmi_rl
+
+  # Full autonomous traverse WITH turn (default)
+  python scripts/navigate.py \
+      --task RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0 \
+      --ckpt_rough logs/rsl_rl/go2w_velocity_rough/2026-06-14_20-03-41/model_8996.pt \
+      --ckpt_rocky logs/rsl_rl/go2w_velocity_rocky_slope/2026-06-30_09-31-48/model_13994.pt \
+      --ckpt_turn  logs/rsl_rl/go2w_velocity_slope_turn/2026-07-27_20-54-25/model_13345.pt \
       --mission traverse
 
-  # Resource survey (lawnmower scan of crater floor)
+  # Path-only (no 13345 pivot)
+  python scripts/navigate.py ... --no_turn
+
+  # Isolation test (turn policy alone on crater)
+  python scripts/test_turn_crater.py \
+      --task RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0 \
+      --checkpoint logs/rsl_rl/go2w_velocity_slope_turn/2026-07-27_20-54-25/model_13345.pt \
+      --spawn_preset floor
+
+  # Other missions
   python scripts/navigate.py ... --mission survey
-
-  # Perimeter rim circuit
   python scripts/navigate.py ... --mission rim_circuit
-
-  # Use only one policy (no auto-switching)
   python scripts/navigate.py ... --policy_mode rocky_slope
-
-  # Headless (no matplotlib dashboard)
   python scripts/navigate.py ... --no_dashboard
 
 Missions
@@ -44,26 +49,13 @@ Missions
   survey      — systematic lawnmower scan of crater floor
   rim_circuit — clockwise loop around the crater rim
 
-Crater geometry (defaults match LunarCraterDemoBowlCfg)
---------------------------------------------------------
-  --crater_x 0.0 --crater_y 0.0   crater centre (world frame)
-  --r_floor 3.0                    flat floor radius (m)
-  --r_rim 11.0                     rim radius (m)
-  --spawn_x -18.0                  robot spawn x (m from centre)
-
-Policy switching
-----------------
-  The PolicySelector reads terrain metrics every step from the LocalPlanner:
-    slope_ahead           : terrain slope (tan θ) in best forward column
-    max_step              : largest vertical step in 16×10 height scan (m)
-    traversable_fraction  : fraction of 5 heading candidates that are clear
-
-  Decision rules (hysteresis: 25 steps before switching):
-    slope > tan(20°) = 0.36        → rocky_slope
-    step > 6 cm                    → rough (or rocky_slope if > 10 cm)
-    traversable_fraction < 40%     → rough
-    else                           → fast_flat
+Crater geometry (defaults match LunarCraterDemoBowlEnvCfg)
+---------------------------------------------------------
+  --crater_x 0.0 --crater_y 0.0
+  --r_floor 3.0 --r_rim 11.0
+  --spawn_x 13.0   (exterior ramp; robot faces −x toward centre)
 """
+
 
 import argparse
 import math
@@ -99,6 +91,10 @@ def _parse_args():
                    help="Checkpoint for rough policy (.pt)")
     p.add_argument("--ckpt_rocky",     required=False, default=None,
                    help="Checkpoint for rocky_slope policy (.pt)")
+    p.add_argument("--enable_turn", action="store_true", default=True,
+                   help="Enable iso-style 13345 turn (default ON)")
+    p.add_argument("--no_turn", action="store_true",
+                   help="Disable turn policy — path-only FOLLOW")
     p.add_argument("--ckpt_turn",      required=False, default=None,
                    help="Direct slope-turn ckpt (continuous w=+/-0.08). Default: "
                         "logs/rsl_rl/go2w_velocity_slope_turn/"
@@ -502,6 +498,14 @@ def main():
         replan_interval_s=args.replan_interval,
     )
 
+    # Isolation-style turn ON by default. Pass --no_turn for path-only.
+    if getattr(args, "no_turn", False):
+        nav.enable_turn = False
+        print("[navigate] --no_turn: path-only FOLLOW (13345 disabled)")
+    else:
+        nav.enable_turn = True
+        print("[navigate] TURN enabled (iso handoff: brake→settle→13345→FOLLOW)")
+
     # For velocity_goal, regenerate waypoints with the user-specified target.
     # Navigator.__init__ calls get_waypoints(mission) with default goal (0,0);
     # we override here after construction so the user's --goal_x/--goal_y is used.
@@ -537,6 +541,7 @@ def main():
           f"costmap: step_thresh={args.step_thresh:.2f} m")
 
     # Expose policy_status key in shared dict for dashboard
+
     nav.shared["policy_status"] = selector.status_str()
 
     # ------------------------------------------------------------------
@@ -594,10 +599,15 @@ def main():
             # residual policy torque was spinning the robot during SLAM warm-up).
             with torch.no_grad():
                 # Zero residual torques during BOOT and post soft-reset plant
-                # Zero actions only for BOOT / post soft-reset.
-                # During brake+turn, turn policy must run (leg plant) with cmd vx=0.05.
+                # Zero actions: BOOT, post soft-reset, and BRAKE (stop before turn).
+                # Turn policy runs only after brake when reorient.active.
+                # Zero actions: BOOT / plant / brake / clean turn handoff settle
                 hold_still = getattr(nav, "_in_boot", False) or (
                     time.monotonic() < getattr(nav, "_post_soft_hold_until", 0.0)
+                ) or (
+                    time.monotonic() < getattr(nav, "_brake_until", 0.0)
+                ) or getattr(nav, "_pending_reorient", False) or (
+                    time.monotonic() < getattr(nav, "_settle_actions_until", 0.0)
                 )
                 if hold_still:
                     actions = torch.zeros_like(active_policy(obs))

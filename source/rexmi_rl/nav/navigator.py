@@ -183,7 +183,9 @@ class Navigator:
         self._recovery  = RecoveryFSM()
         # Language A HOLD→YAW→SETTLE pulse scheduler for brake + turn on slope.
         # Continuous ω is OOD for Pulse turn policies — this owns reorient cmds.
-        self._reorient  = ReorientController()
+        self._reorient  = ReorientController(enter_rad=__import__('math').radians(100.0))
+        self._reorient.cooldown_s = 10.0
+        self.enable_turn = True  # iso-style 13345 pivot ON by default
 
         # Soft-reset (nav-owned tip recovery — terminations are off for demo)
         self._last_good_pose: Pose | None = None
@@ -195,6 +197,8 @@ class Navigator:
         self._pending_reorient = False     # start reorient after brake
         self._pending_reorient_sign = None
         self._pending_reorient_slope = 0.0
+        self._settle_actions_until = 0.0  # zero actions after rocky→turn switch
+        self._turn_switch_pending = False
         # Primary tip signal = body +Z · world +Z (1=upright, -1=on back).
         # Euler roll/pitch alone miss some back-flat attitudes.
         self._tip_up_soft = 0.25    # ~75° from upright → start tip timer
@@ -717,10 +721,15 @@ class Navigator:
         in_brake = now_m2 < self._brake_until
 
         # Drive-and-correct: if closing on WP, do not open a full reorient
+        # Prefer FOLLOW when closing on WP with moderate he.
+        # Large about-face (|he|>=100°) may still open turn even if creeping.
+        he_abs_mp = abs(local_out.heading_error)
         making_progress = (
-            dist_to_wp < self._prev_dist_wp - 0.08
-            and speed > 0.10
-            and abs(local_out.heading_error) < math.radians(55)
+            he_abs_mp < math.radians(100.0)
+            and (
+                (dist_to_wp < self._prev_dist_wp - 0.03 and speed > 0.05)
+                or (speed > 0.12 and he_abs_mp < math.radians(80.0))
+            )
         )
         self._prev_dist_wp = dist_to_wp
 
@@ -730,16 +739,31 @@ class Navigator:
             and not self._reorient.active
             and not in_brake
             and speed < 0.10
+            and self._last_body_up_z >= 0.85
             and now_m2 >= getattr(self._reorient, "_cooldown_until", 0.0)
         ):
             self._pending_reorient = False
-            self._reorient.start(
-                heading_error=local_out.heading_error,
-                slope_ahead=self._pending_reorient_slope,
-                yaw_sign=self._pending_reorient_sign,
-                body_yaw=pose.yaw,
-            )
-            print(f"[Nav] brake done (v={speed:.2f}) — starting slow reorient")
+            # Fresh sign from he NOW (stale brake-time sign caused wrong-way turns)
+            he_now = local_out.heading_error
+            # Skip turn if heading already recovered during brake
+            if abs(he_now) < self._reorient.exit_rad * 1.2:
+                print(
+                    f"[Nav] brake done (v={speed:.2f}) — he already "
+                    f"{math.degrees(he_now):+.0f}°, skip reorient"
+                )
+            else:
+                self._reorient.start(
+                    heading_error=he_now,
+                    slope_ahead=self._pending_reorient_slope,
+                    yaw_sign=None,  # always recompute from he_now
+                    body_yaw=pose.yaw,
+                )
+                self._settle_actions_until = time.monotonic() + 1.0  # iso HOLD-like zero actions
+                self._turn_switch_pending = True
+                print(
+                    f"[Nav] brake done (v={speed:.2f}) he={math.degrees(he_now):+.0f}° "
+                    f"— TURN handoff settle 0.4s then 13345"
+                )
 
         if (
             not self._reorient.active
@@ -754,6 +778,8 @@ class Navigator:
             start_reorient = False
             yaw_sign = None
             cooled = now_m2 >= getattr(self._reorient, "_cooldown_until", 0.0)
+            if not getattr(self, "enable_turn", True):
+                cooled = False  # path-only: never start turn
             he_abs = abs(local_out.heading_error)
             he_need = he_abs >= self._reorient.enter_rad
             if cooled and he_need and getattr(local_out, "want_reorient", False):
@@ -768,11 +794,11 @@ class Navigator:
 
             if start_reorient:
                 # CRITICAL: never pivot while still sliding — brake first
-                if speed > 0.12:
+                if speed > 0.08 or self._last_body_up_z < 0.85:
                     self._pending_reorient = True
                     self._pending_reorient_sign = yaw_sign
                     self._pending_reorient_slope = slope_for_sel
-                    self._brake_until = now_m2 + 1.5
+                    self._brake_until = now_m2 + 3.0  # iso: need near-stop before turn
                     print(
                         f"[Nav] BRAKE before turn "
                         f"(v={speed:.2f} he={math.degrees(local_out.heading_error):+.0f}°)"
@@ -781,34 +807,53 @@ class Navigator:
                     self._reorient.start(
                         heading_error=local_out.heading_error,
                         slope_ahead=slope_for_sel,
-                        yaw_sign=yaw_sign,
+                        yaw_sign=None,  # always from he at start
                         body_yaw=pose.yaw,
                     )
+                    # Clean handoff: zero residual rocky actions briefly
+                    self._settle_actions_until = time.monotonic() + 1.0  # iso HOLD-like zero actions
+                    self._turn_switch_pending = True
+                    print("[Nav] TURN handoff: settle actions 0.4s then 13345")
 
+        try:
+            _wb = float(self._robot.data.root_ang_vel_b[self._env_idx][2])
+        except Exception:
+            _wb = None
         reorient_out = self._reorient.update(
             local_out.heading_error,
             slope_ahead=slope_for_sel,
             body_up_z=self._last_body_up_z,
             body_yaw=pose.yaw,
+            omega_body=_wb,
         )
         if reorient_out.done:
             if self._recovery.is_recovering:
                 self._recovery.reset()
             self._local._turn_committed = False
             self._local._committed_omega_sign = 0.0
-            # Extra stillness after micro-turn success (policy already settled 2s)
+            # Hold still after turn so rocky doesn't engage mid-lurch
+            hold_s = 1.5 if self._last_body_up_z > 0.70 else 2.5
             self._post_soft_hold_until = max(
-                self._post_soft_hold_until, time.monotonic() + 0.8
+                self._post_soft_hold_until, time.monotonic() + hold_s
             )
+            self._turn_switch_pending = False
+            print(f"[Nav] post-turn hold {hold_s:.1f}s then FOLLOW (up_z={self._last_body_up_z:+.2f})")
         if reorient_out.failed:
-            # Reverse away from stuck cell; cooldown blocks reorient restart
-            print("[Nav] Reorient failed — reverse 2s + inflate + replan (cooldown active)")
+            # Soft fail: inflate + replan; reverse only if heading barely improved
+            improved = (
+                getattr(self._reorient, "_manoeuvre_he0", math.pi)
+                - getattr(self._reorient, "_err_best", 0.0)
+            )
+            print(
+                f"[Nav] Reorient failed — inflate+replan "
+                f"(he improved {math.degrees(improved):.0f}°)"
+            )
             self._omap.inflate_blocked(pose.x, pose.y, radius_m=0.8)
             self._global.set_goal(current_wp.x, current_wp.y)
             self._recovery.reset()
             self._local._turn_committed = False
             self._local._committed_omega_sign = 0.0
-            self._post_fail_reverse_until = time.monotonic() + 2.0
+            # No reverse after turn fail — stay on path (reverse caused chaos)
             if self.policy_selector is not None and hasattr(self.policy_selector, "release_turn"):
                 self.policy_selector.release_turn()
 
@@ -817,18 +862,20 @@ class Navigator:
         policy_status = "fixed"
         if self.policy_selector is not None:
             # Use turn policy for reorient AND while braking into a turn
+            # Isolation handoff: force 13345 during settle + reorient
             if (
                 self._reorient.active
-                or self._pending_reorient
-                or (time.monotonic() < self._brake_until)
                 or self._recovery.is_rotating
+                or self._pending_reorient
+                or now_m2 < getattr(self, "_settle_actions_until", 0.0)
             ):
-                # Turn policy for brake + pivot (leg plant)
                 self.policy_selector.force_turn(slope_ahead=slope_for_sel)
             else:
+                if hasattr(self.policy_selector, "release_turn"):
+                    self.policy_selector.release_turn()
                 he_for_sel = local_out.heading_error
-                if abs(he_for_sel) > math.radians(50):
-                    he_for_sel = math.copysign(math.radians(50), he_for_sel)
+                if abs(he_for_sel) > math.radians(60):
+                    he_for_sel = math.copysign(math.radians(60), he_for_sel)
                 self.policy_selector.update(
                     slope_ahead=slope_for_sel,
                     heading_error_rad=he_for_sel,
@@ -843,8 +890,8 @@ class Navigator:
         if time.monotonic() < self._post_soft_hold_until:
             cmd = (0.0, 0.0, 0.0)  # plant after soft-reset
         elif time.monotonic() < self._brake_until or self._pending_reorient:
-            # In-distribution plant for 13345 (NOT vx=0,ω=0 — that flings legs)
-            cmd = (0.05, 0.0, 0.0)
+            # Brake on current loco policy — full stop, then switch to turn
+            cmd = (0.0, 0.0, 0.0)
         elif self._reorient.active or reorient_out.done:
             cmd = (reorient_out.vx, reorient_out.vy, reorient_out.omega)
         elif time.monotonic() < self._post_fail_reverse_until:
@@ -1109,12 +1156,8 @@ class Navigator:
                 tx, ty = self._last_good_pose.x, self._last_good_pose.y
                 tz = max(tz, self._last_good_pose.z + 0.35)
 
+        # Keep CURRENT yaw — do NOT snap to goal (jumps off A* path)
         tyaw = float(pose.yaw)
-        if self._wp_idx < len(self._waypoints):
-            wp = self._waypoints[self._wp_idx]
-            tyaw = math.atan2(wp.y - ty, wp.x - tx)
-        elif self._last_good_pose is not None:
-            tyaw = self._last_good_pose.yaw
 
         half = 0.5 * tyaw
         qw, qx, qy, qz = math.cos(half), 0.0, 0.0, math.sin(half)

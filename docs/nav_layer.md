@@ -88,7 +88,8 @@ source/rexmi_rl/nav/
   dashboard.py         — matplotlib live dashboard (daemon thread)
 
 scripts/
-  navigate.py          — entry point (run this)
+  navigate.py          — autonomous entry point
+  teleop.py            — manual remote (policy pick + hold-to-drive)
 ```
 
 ---
@@ -116,7 +117,35 @@ Expect boot log:
 [navigate] Turn loaded: direct model_13345 (continuous w=+/-0.08)
 ```
 
+### Manual teleop (policy characterization — no autonomy)
+
+Drive each policy yourself on crater terrain. **Momentary controls:** hold a
+direction to command; release to stop. Autonomous `navigate.py` is unchanged.
+
+```bash
+python scripts/teleop.py \
+    --task RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0 \
+    --ckpt_rough logs/rsl_rl/go2w_velocity_rough/2026-06-14_20-03-41/model_8996.pt \
+    --ckpt_rocky logs/rsl_rl/go2w_velocity_rocky_slope/2026-06-30_09-31-48/model_13994.pt \
+    --ckpt_turn  logs/rsl_rl/go2w_velocity_slope_turn/2026-07-27_20-54-25/model_13345.pt \
+    --spawn_preset floor
+```
+
+| Control | Action |
+|---------|--------|
+| Policy dropdown / keys `1` `2` `3` | rough / rocky_slope / turn (+ default vx, ω) |
+| vx / ω fields | magnitudes used while a direction is held |
+| Hold Forward / Back / Left / Right (or WASD) | apply command |
+| Release | stop (`vx=0`, `ω=0`) |
+| Space / STOP | force stop |
+| `--spawn_preset` | `floor` · `mid_slope` · `rim_out` |
+
+Defaults: rough `vx=0.45 ω=0.40` · rocky `0.40 / 0.35` · turn `0.05 / 0.07` (13345 band).  
+While turn policy + Left/Right only, plant `vx` is kept so spin stays in-distribution.  
+CSV: `logs/nav/teleop_<timestamp>.csv`. Stdin fallback: `--no_gui`.
+
 ### Path-only (no pivot)
+
 
 ```bash
 python scripts/navigate.py \

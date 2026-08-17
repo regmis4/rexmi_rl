@@ -1,0 +1,19 @@
+DROP redesigned meshes here (exact names):
+
+  base.stl
+  hip.stl
+  thigh.stl
+  thigh_mirror.stl
+  calf.stl
+  calf_mirror.stl
+  left_wheel.stl
+  right_wheel.stl
+
+Optional: foot.stl
+
+Rules: meters, Z-up, link-frame origin (see ../MANIFEST.md).
+
+When done:
+  ./run.sh scripts/apply_visual_reskin.py --status
+  ./run.sh scripts/apply_visual_reskin.py
+  export REXMI_ROBOT_VISUAL=rexmi_dog

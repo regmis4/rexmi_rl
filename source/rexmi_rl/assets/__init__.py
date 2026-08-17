@@ -10,8 +10,10 @@ and the joint positions/velocities it should start with.
 
 Current assets
 --------------
-* go2w.py  — Unitree Go2W (wheeled-legged quadruped, 16 controllable DOF)
+* go2w.py  — Go2W kinematics + actuators (16 DOF). Visual skin selected by
+             REXMI_ROBOT_VISUAL=go2w|rexmi_dog (see assets/robots/visual_reskin/).
 """
+
 
 # Re-export the Go2W config so users can do:
 #   from rexmi_rl.assets import GO2W_CFG

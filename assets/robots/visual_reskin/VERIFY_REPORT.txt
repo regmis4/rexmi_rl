@@ -1,0 +1,17 @@
+restored original go2w USD stack into rexmi_dog
+new_stl verts=48726 faces=102726 ext=[0.5369, 0.1941, 0.2117] bounds=[[-0.128, -0.1044, -0.1058], [0.4089, 0.0897, 0.1058]]
+target_meshes=['/visuals/base/base/mesh', '/meshes/base/mesh']
+updated /visuals/base/base/mesh n=48726 ext=[0.5369, 0.1941, 0.2117]
+  world_R=
+[[ 1.  0.  0.]
+ [ 0.  0.  1.]
+ [ 0. -1.  0.]]
+updated /meshes/base/mesh n=48726 ext=[0.5369, 0.1941, 0.2117]
+  world_R=
+[[ 1.  0.  0.]
+ [ 0.  0.  1.]
+ [ 0. -1.  0.]]
+saved /home/susan/rexmi_rl/assets/robots/rexmi_dog/urdf/go2w/configuration/go2w_base.usd
+joints_controllable_missing=NONE total_joint_prims=18
+color /visuals/base/base/mesh dc=[(0.85, 0.05, 0.05)] mat=/go2w_description/Looks/rexmi_base_red
+STATUS: OK

@@ -36,10 +36,17 @@ simplest possible locomotion task and trains very quickly (~300 iterations).
 
 USD path
 ---------
-We reference the locally converted USD that lives in the repo at:
+Default (Unitree visuals):
   assets/robots/go2w/urdf/go2w/go2w.usd
+
+Reskin (after SolidWorks drop-off + apply_visual_reskin.py):
+  assets/robots/rexmi_dog/urdf/go2w/go2w.usd
+  enable with:  export REXMI_ROBOT_VISUAL=rexmi_dog
+
 The path is computed relative to this Python file's location so it works
-regardless of where the repo is cloned.
+regardless of where the repo is cloned. Physics/joints/actuators are identical
+for both skins — only the visual USD layer differs.
+
 """
 
 import os
@@ -54,7 +61,23 @@ from isaaclab.assets.articulation import ArticulationCfg
 # __file__  → .../source/rexmi_rl/assets/go2w.py
 # Go up 3 levels to reach the repo root, then navigate to the USD.
 _REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-_GO2W_USD = os.path.join(_REPO_ROOT, "assets", "robots", "go2w", "urdf", "go2w", "go2w.usd")
+
+# Visual skin switch (physics / joints / actuators stay identical either way):
+#   REXMI_ROBOT_VISUAL=go2w       → original Unitree meshes (default)
+#   REXMI_ROBOT_VISUAL=rexmi_dog  → SolidWorks reskin under assets/robots/rexmi_dog
+#
+# Set in the shell or in the repo-root .env (loaded by ./run.sh).
+# After dropping redesigned meshes, run:  ./run.sh scripts/apply_visual_reskin.py
+_ROBOT_VISUAL = os.environ.get("REXMI_ROBOT_VISUAL", "go2w").strip().lower()
+if _ROBOT_VISUAL in ("rexmi", "rexmi_dog", "reskin", "custom"):
+    _ROBOT_ASSET_DIR = "rexmi_dog"
+else:
+    _ROBOT_ASSET_DIR = "go2w"
+
+_GO2W_USD = os.path.join(
+    _REPO_ROOT, "assets", "robots", _ROBOT_ASSET_DIR, "urdf", "go2w", "go2w.usd"
+)
+
 
 # ---------------------------------------------------------------------------
 # GO2W_CFG — the main robot configuration object

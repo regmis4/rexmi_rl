@@ -102,11 +102,12 @@ reference — Isaac/URDF handles mirroring via RPY.
    # or, if already in the Isaac env:
    python scripts/apply_visual_reskin.py
    ```
-3. Enable the reskin in config (see `source/rexmi_rl/assets/go2w.py`):
+3. Visual default is already `rexmi_dog` (see `source/rexmi_rl/assets/go2w.py`).
+   No env var needed for the reskin. To force original Unitree look:
    ```bash
-   export REXMI_ROBOT_VISUAL=rexmi_dog
+   export REXMI_ROBOT_VISUAL=go2w
    ```
-   or set `REXMI_ROBOT_VISUAL=rexmi_dog` in `.env`.
+   or set `REXMI_ROBOT_VISUAL=go2w` in `.env`.
 4. Play any existing checkpoint — behavior should match; only look changes.
 
 ## Explicit non-goals

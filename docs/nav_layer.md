@@ -122,13 +122,35 @@ Expect boot log:
 Drive each policy yourself on crater terrain. **Momentary controls:** hold a
 direction to command; release to stop. Autonomous `navigate.py` is unchanged.
 
+**Defaults (current):**
+- Visual skin: `rexmi_dog` (titanium body + dark wheels). Override with
+  `export REXMI_ROBOT_VISUAL=go2w` for original Unitree look.
+- Spawn: **outside the crater** (`rim_out`, x=+13 m exterior ramp) — same as
+  `navigate.py`. Do **not** pass `--spawn_preset floor` unless you want the
+  crater centre for debug.
+
 ```bash
+# Outside crater (default) — same spawn as navigate.py
 python scripts/teleop.py \
     --task RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0 \
     --ckpt_rough logs/rsl_rl/go2w_velocity_rough/2026-06-14_20-03-41/model_8996.pt \
     --ckpt_rocky logs/rsl_rl/go2w_velocity_rocky_slope/2026-06-30_09-31-48/model_13994.pt \
-    --ckpt_turn  logs/rsl_rl/go2w_velocity_slope_turn/2026-07-27_20-54-25/model_13345.pt \
-    --spawn_preset floor
+    --ckpt_turn  logs/rsl_rl/go2w_velocity_slope_turn/2026-07-27_20-54-25/model_13345.pt
+
+# Explicit exterior (optional; same as default)
+python scripts/teleop.py ... --spawn_preset rim_out
+# or:  --spawn_x 13 --spawn_z 4.5
+
+# Other presets
+python scripts/teleop.py ... --spawn_preset mid_slope   # inner wall
+python scripts/teleop.py ... --spawn_preset floor       # crater centre (debug only)
+```
+
+Confirm exterior spawn in the boot log:
+```text
+[teleop] spawn_preset='rim_out' → x=13.00 y=0.00 z=4.50 yaw=180°
+[teleop] ✓ Force spawn world=(+13.xx,...) offset=(13.00,0.00,4.50) ...
+[teleop] ✓ Outside crater (|x|>=5).
 ```
 
 | Control | Action |
@@ -138,7 +160,7 @@ python scripts/teleop.py \
 | Hold Forward / Back / Left / Right (or WASD) | apply command |
 | Release | stop (`vx=0`, `ω=0`) |
 | Space / STOP | force stop |
-| `--spawn_preset` | `floor` · `mid_slope` · `rim_out` |
+| `--spawn_preset` | **`rim_out` (default)** · `mid_slope` · `floor` |
 
 Defaults: rough `vx=0.45 ω=0.40` · rocky `0.40 / 0.35` · turn `0.05 / 0.07` (13345 band).  
 While turn policy + Left/Right only, plant `vx` is kept so spin stays in-distribution.  

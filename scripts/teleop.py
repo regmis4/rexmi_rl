@@ -19,16 +19,18 @@ Usage
   conda activate env_isaacsim
   cd /home/susan/rexmi_rl
 
+  # Default spawn is outside the crater (rim_out).
   python scripts/teleop.py \\
       --task RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0 \\
       --ckpt_rough logs/rsl_rl/go2w_velocity_rough/2026-06-14_20-03-41/model_8996.pt \\
       --ckpt_rocky logs/rsl_rl/go2w_velocity_rocky_slope/2026-06-30_09-31-48/model_13994.pt \\
-      --ckpt_turn  logs/rsl_rl/go2w_velocity_slope_turn/2026-07-27_20-54-25/model_13345.pt \\
-      --spawn_preset floor
+      --ckpt_turn  logs/rsl_rl/go2w_velocity_slope_turn/2026-07-27_20-54-25/model_13345.pt
 
-  # Start on mid wall / exterior rim
+  # Optional: other spawn presets (default is rim_out = outside crater)
   python scripts/teleop.py ... --spawn_preset mid_slope
-  python scripts/teleop.py ... --spawn_preset rim_out
+  python scripts/teleop.py ... --spawn_preset floor   # crater centre (debug)
+
+
 
   # Stdin-only (no Tk window)
   python scripts/teleop.py ... --no_gui
@@ -81,11 +83,15 @@ POLICY_DEFAULTS = {
     },
 }
 
+# Offsets for Isaac Lab reset_root_state_uniform:
+#   world = default_root_state + env_origins + offset
+# rim_out matches scripts/navigate.py (exterior ramp, outside crater).
 SPAWN_PRESETS = {
-    "floor":     dict(x=0.0,  y=0.0, z=1.15),
-    "mid_slope": dict(x=6.5,  y=0.0, z=2.40),
-    "rim_out":   dict(x=13.0, y=0.0, z=4.50),
+    "rim_out":   dict(x=13.0, y=0.0, z=4.50),  # DEFAULT — outside crater
+    "mid_slope": dict(x=6.5,  y=0.0, z=2.40),  # inner wall
+    "floor":     dict(x=0.0,  y=0.0, z=1.15),  # crater centre (debug only)
 }
+
 
 
 # ---------------------------------------------------------------------------
@@ -230,8 +236,9 @@ def _parse_args():
         "--spawn_preset",
         choices=list(SPAWN_PRESETS.keys()),
         default="rim_out",
-        help="Spawn location on crater",
+        help="Spawn location on crater (default: rim_out = outside crater)",
     )
+
     p.add_argument("--spawn_x", type=float, default=None)
     p.add_argument("--spawn_y", type=float, default=None)
     p.add_argument("--spawn_z", type=float, default=None)
@@ -357,11 +364,181 @@ def _speed(robot, env_idx: int = 0) -> float:
         return float("nan")
 
 
+def _pin_reset_base_params(env_cfg, x: float, y: float, z: float, yaw: float) -> None:
+    """
+    Pin spawn the same way navigate.py does.
+
+    Mutate pose_range keys in place (don't replace the whole params dict) so
+    any shared references / asset_cfg stay intact.
+    """
+    try:
+        params = env_cfg.events.reset_base.params
+        # Ensure dict-like access
+        if not hasattr(params, "__setitem__"):
+            env_cfg.events.reset_base.params = {}
+            params = env_cfg.events.reset_base.params
+        params["pose_range"] = {
+            "x": (float(x), float(x)),
+            "y": (float(y), float(y)),
+            "yaw": (float(yaw), float(yaw)),
+            "z": (float(z) - 0.02, float(z) + 0.02),
+        }
+        params["velocity_range"] = {
+            "x": (0.0, 0.0),
+            "y": (0.0, 0.0),
+            "z": (0.0, 0.0),
+            "roll": (0.0, 0.0),
+            "pitch": (0.0, 0.0),
+            "yaw": (0.0, 0.0),
+        }
+        print(
+            f"[teleop] ✓ Spawn pinned (cfg): x={x:.2f} y={y:.2f} "
+            f"z≈{z:.2f} yaw={math.degrees(yaw):.0f}°"
+        )
+    except Exception as e:
+        print(f"[teleop] WARNING spawn pin (cfg): {e}")
+
+
+def _sync_live_reset_params(env, x: float, y: float, z: float, yaw: float) -> None:
+    """Patch the LIVE event manager term after env construction (cfg alone can miss)."""
+    try:
+        base_env = env.unwrapped
+        em = base_env.event_manager
+        # term cfg lives under em._mode_term_cfgs or get_term_cfg
+        term = None
+        if hasattr(em, "get_term_cfg"):
+            try:
+                term = em.get_term_cfg("reset_base")
+            except Exception:
+                term = None
+        if term is None and hasattr(em, "_mode_term_cfgs"):
+            for mode, cfgs in em._mode_term_cfgs.items():
+                names = em._mode_term_names.get(mode, [])
+                if "reset_base" in names:
+                    term = cfgs[names.index("reset_base")]
+                    break
+        if term is None:
+            print("[teleop] WARNING: live reset_base term not found")
+            return
+        term.params["pose_range"] = {
+            "x": (float(x), float(x)),
+            "y": (float(y), float(y)),
+            "yaw": (float(yaw), float(yaw)),
+            "z": (float(z) - 0.02, float(z) + 0.02),
+        }
+        term.params["velocity_range"] = {
+            "x": (0.0, 0.0),
+            "y": (0.0, 0.0),
+            "z": (0.0, 0.0),
+            "roll": (0.0, 0.0),
+            "pitch": (0.0, 0.0),
+            "yaw": (0.0, 0.0),
+        }
+        print("[teleop] ✓ Live event_manager reset_base params synced")
+    except Exception as e:
+        print(f"[teleop] WARNING live reset_base sync: {e}")
+
+
+def _force_spawn(
+    env,
+    robot,
+    x: float,
+    y: float,
+    z: float,
+    yaw: float,
+    env_idx: int = 0,
+) -> None:
+    """
+    Hard-place using the SAME formula as Isaac Lab reset_root_state_uniform:
+
+        world_pos = default_root_state[:3] + env_origins + (x, y, z)
+
+    Then call the official mdp reset helper so joints/buffers stay consistent.
+    """
+    import torch
+    from isaaclab.envs.mdp.events import reset_root_state_uniform
+
+    try:
+        base_env = env.unwrapped
+        device = robot.data.root_pos_w.device
+        env_ids = torch.tensor([env_idx], device=device, dtype=torch.long)
+
+        pose_range = {
+            "x": (float(x), float(x)),
+            "y": (float(y), float(y)),
+            "z": (float(z), float(z)),
+            "yaw": (float(yaw), float(yaw)),
+        }
+        velocity_range = {
+            "x": (0.0, 0.0),
+            "y": (0.0, 0.0),
+            "z": (0.0, 0.0),
+            "roll": (0.0, 0.0),
+            "pitch": (0.0, 0.0),
+            "yaw": (0.0, 0.0),
+        }
+
+        # Official path (matches navigate / training resets)
+        reset_root_state_uniform(
+            base_env,
+            env_ids,
+            pose_range=pose_range,
+            velocity_range=velocity_range,
+        )
+
+        # Also reset joints to default stance
+        if hasattr(robot, "write_joint_state_to_sim") and hasattr(
+            robot.data, "default_joint_pos"
+        ):
+            q = robot.data.default_joint_pos[env_idx].unsqueeze(0).clone()
+            qd = torch.zeros_like(q)
+            try:
+                robot.write_joint_state_to_sim(q, qd, env_ids=env_ids)
+            except TypeError:
+                robot.write_joint_state_to_sim(q, qd, None, env_ids)
+
+        # Flush to physx + refresh buffers
+        try:
+            if hasattr(robot, "write_data_to_sim"):
+                robot.write_data_to_sim()
+        except Exception:
+            pass
+        try:
+            base_env.scene.write_data_to_sim()
+        except Exception:
+            pass
+        try:
+            base_env.sim.forward()
+        except Exception:
+            pass
+        try:
+            # Refresh articulation data from sim
+            if hasattr(robot, "update"):
+                robot.update(base_env.step_dt)
+        except Exception:
+            pass
+
+        origin = base_env.scene.env_origins[env_idx]
+        pos = robot.data.root_pos_w[env_idx]
+        print(
+            f"[teleop] ✓ Force spawn world=({float(pos[0]):+.2f},"
+            f"{float(pos[1]):+.2f},{float(pos[2]):+.2f}) "
+            f"offset=({x:.2f},{y:.2f},{z:.2f}) "
+            f"env_origin=({float(origin[0]):.2f},{float(origin[1]):.2f},{float(origin[2]):.2f})"
+        )
+    except Exception as e:
+        print(f"[teleop] WARNING force spawn failed: {e}")
+        import traceback
+        traceback.print_exc()
+
+
+
 # ---------------------------------------------------------------------------
 # Tk remote (momentary buttons)
 # ---------------------------------------------------------------------------
 
 def _start_tk_remote(state: TeleopState) -> Optional[threading.Thread]:
+
     try:
         import tkinter as tk
         from tkinter import ttk
@@ -526,7 +703,14 @@ def _start_tk_remote(state: TeleopState) -> Optional[threading.Thread]:
         def tick():
             with state.lock:
                 if state.quit:
-                    root.destroy()
+                    try:
+                        root.quit()
+                    except Exception:
+                        pass
+                    try:
+                        root.destroy()
+                    except Exception:
+                        pass
                     return
                 st = state.status
                 pose = state.pose_str
@@ -541,14 +725,25 @@ def _start_tk_remote(state: TeleopState) -> Optional[threading.Thread]:
                 if state.hold_right:
                     holds.append("R")
                 hold_s = "+".join(holds) if holds else "idle"
-            status_var.set(f"[{name}] {hold_s}  |  {st}\n{pose}")
-            root.after(100, tick)
+            try:
+                status_var.set(f"[{name}] {hold_s}  |  {st}\n{pose}")
+                root.after(100, tick)
+            except Exception:
+                # Widget already torn down
+                return
 
         def on_close():
             state.stop_all()
             with state.lock:
                 state.quit = True
-            root.destroy()
+            try:
+                root.quit()
+            except Exception:
+                pass
+            try:
+                root.destroy()
+            except Exception:
+                pass
 
         root.protocol("WM_DELETE_WINDOW", on_close)
         root.after(100, tick)
@@ -558,12 +753,16 @@ def _start_tk_remote(state: TeleopState) -> Optional[threading.Thread]:
             root.after(500, lambda: root.attributes("-topmost", False))
         except Exception:
             pass
-        root.mainloop()
+        try:
+            root.mainloop()
+        except Exception:
+            pass
 
     t = threading.Thread(target=run, name="teleop-tk", daemon=True)
     t.start()
     print("[teleop] Tk remote launched (momentary hold-to-drive)")
     return t
+
 
 
 # ---------------------------------------------------------------------------
@@ -667,15 +866,22 @@ def main():
     import importlib
     import rexmi_rl  # noqa: F401
 
-    # Spawn
-    pre = SPAWN_PRESETS[args.spawn_preset]
+    # Spawn — default rim_out = outside crater (same as navigate.py)
+    pre = SPAWN_PRESETS.get(args.spawn_preset, SPAWN_PRESETS["rim_out"])
     sx = args.spawn_x if args.spawn_x is not None else pre["x"]
     sy = args.spawn_y if args.spawn_y is not None else pre["y"]
     sz = args.spawn_z if args.spawn_z is not None else pre["z"]
     print(
-        f"[teleop] spawn_preset={args.spawn_preset} → "
+        f"[teleop] spawn_preset={args.spawn_preset!r} → "
         f"x={sx:.2f} y={sy:.2f} z={sz:.2f} yaw={math.degrees(args.spawn_yaw):.0f}°"
     )
+    if abs(sx) < 1.0:
+        print(
+            "[teleop] WARNING: |spawn_x|<1 → crater centre. "
+            "For outside crater use default or --spawn_preset rim_out "
+            "(or --spawn_x 13 --spawn_z 4.5)"
+        )
+
 
     # Env cfg
     task_spec = gym.spec(args.task)
@@ -691,22 +897,34 @@ def main():
             tg.num_cols = 1
     env_cfg.sim.device = args.device
 
+    # ------------------------------------------------------------------
+    # Spawn pin — EXACT same approach as scripts/navigate.py
+    # pose_range values are offsets added to default_root_state + env_origins
+    # by reset_root_state_uniform. Navigate uses x=13, z≈4.50 successfully.
+    # ------------------------------------------------------------------
     try:
         env_cfg.events.reset_base.params = {
             "pose_range": {
-                "x": (sx, sx),
-                "y": (sy, sy),
-                "yaw": (args.spawn_yaw, args.spawn_yaw),
-                "z": (sz - 0.02, sz + 0.02),
+                "x": (float(sx), float(sx)),
+                "y": (float(sy), float(sy)),
+                "yaw": (float(args.spawn_yaw), float(args.spawn_yaw)),
+                "z": (float(sz) - 0.02, float(sz) + 0.02),
             },
             "velocity_range": {
-                "x": (0.0, 0.0), "y": (0.0, 0.0), "z": (0.0, 0.0),
-                "roll": (0.0, 0.0), "pitch": (0.0, 0.0), "yaw": (0.0, 0.0),
+                "x": (0.0, 0.0),
+                "y": (0.0, 0.0),
+                "z": (0.0, 0.0),
+                "roll": (0.0, 0.0),
+                "pitch": (0.0, 0.0),
+                "yaw": (0.0, 0.0),
             },
         }
-        print(f"[teleop] ✓ Spawn pinned")
+        print(
+            f"[teleop] ✓ Spawn pinned (cfg, navigate-style): "
+            f"x={sx:.2f} y={sy:.2f} z≈{sz:.2f} yaw={math.degrees(args.spawn_yaw):.0f}°"
+        )
     except Exception as e:
-        print(f"[teleop] WARNING spawn pin: {e}")
+        print(f"[teleop] WARNING spawn pin (cfg): {e}")
 
     try:
         if hasattr(env_cfg, "terminations"):
@@ -734,6 +952,8 @@ def main():
         cfg=env_cfg,
         render_mode=None if args.headless else "rgb_array",
     )
+    # Also patch LIVE event manager in case construction copied params by value
+    _sync_live_reset_params(env, sx, sy, sz, args.spawn_yaw)
     env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
 
     # Load policies
@@ -788,23 +1008,57 @@ def main():
     if not torch.is_tensor(obs_t):
         obs_t = torch.as_tensor(obs_t, device=args.device)
 
-    # Settle
+    # Hard place with official reset_root_state_uniform using SAME offsets
+    # as navigate pose_range (x=13, z=4.50 for rim_out).
+    _force_spawn(env, robot, sx, sy, sz, args.spawn_yaw)
+
+    # Settle — re-apply exterior spawn every step so auto-reset cannot
+    # drop the robot back on the crater floor.
     with torch.inference_mode():
         zero_actions = torch.zeros_like(policies[initial](obs_t))
     n_settle = max(1, int(round(args.settle_s / 0.02)))
     print(f"[teleop] settle {args.settle_s:.1f}s zero-action…")
-    for _ in range(n_settle):
+    for i in range(n_settle):
         if not simulation_app.is_running():
             break
+        _force_spawn(env, robot, sx, sy, sz, args.spawn_yaw)
         _inject(env, 0.0, 0.0)
-        obs_t, _, _, _ = env.step(zero_actions)
+        obs_t, _, dones, _ = env.step(zero_actions)
         if not torch.is_tensor(obs_t):
             obs_t = torch.as_tensor(obs_t, device=args.device)
+        try:
+            if bool(dones[0]):
+                print(f"[teleop] settle auto-reset at i={i} — re-forcing exterior spawn")
+                _sync_live_reset_params(env, sx, sy, sz, args.spawn_yaw)
+                _force_spawn(env, robot, sx, sy, sz, args.spawn_yaw)
+        except Exception:
+            pass
+
+    # Report final pose so user can confirm exterior spawn
+    try:
+        p0 = robot.data.root_pos_w[0]
+        print(
+            f"[teleop] post-settle pose "
+            f"({float(p0[0]):+.2f},{float(p0[1]):+.2f},{float(p0[2]):+.2f}) "
+            f"yaw={math.degrees(_yaw(robot)):+.0f}°"
+        )
+        if abs(float(p0[0])) < 5.0:
+            print(
+                "[teleop] WARNING: still near crater centre (|x|<5). "
+                "Check Force spawn logs above."
+            )
+        else:
+            print("[teleop] ✓ Outside crater (|x|>=5).")
+    except Exception:
+        pass
+
+
 
     print(
         "[teleop] READY — hold Forward/Back/Left/Right (or WASD). "
         "Release = stop. Policy dropdown or 1/2/3."
     )
+
 
     step = 0
     try:
@@ -864,22 +1118,45 @@ def main():
 
             try:
                 if bool(dones[0]):
-                    print(f"[teleop] WARNING env done at step {step}")
+                    print(
+                        f"[teleop] WARNING env done at step {step} — "
+                        "re-forcing exterior spawn"
+                    )
+                    _sync_live_reset_params(env, sx, sy, sz, args.spawn_yaw)
+                    _force_spawn(env, robot, sx, sy, sz, args.spawn_yaw)
             except Exception:
                 pass
 
             step += 1
 
+
     except KeyboardInterrupt:
         print("\n[teleop] Interrupted.")
     finally:
+        state.stop_all()
         with state.lock:
             state.quit = True
-        state.stop_all()
-        log_f.close()
+        # Let Tk thread destroy its own widgets (avoids Tcl async abort)
+        if tk_thread is not None and tk_thread.is_alive():
+            tk_thread.join(timeout=2.0)
+        try:
+            log_f.close()
+        except Exception:
+            pass
         print(f"[teleop] Log saved: {log_path}")
-        env.close()
-        simulation_app.close()
+        try:
+            env.close()
+        except Exception:
+            pass
+        try:
+            simulation_app.close()
+        except Exception:
+            pass
+        # Hard-exit: prevents Tk/Tcl "async handler deleted by the wrong thread"
+        # abort when the daemon Tk thread is torn down after main ends.
+        os._exit(0)
+
+
 
 
 if __name__ == "__main__":

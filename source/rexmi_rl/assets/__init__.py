@@ -10,8 +10,9 @@ and the joint positions/velocities it should start with.
 
 Current assets
 --------------
-* go2w.py  — Go2W kinematics + actuators (16 DOF). Visual skin selected by
-             REXMI_ROBOT_VISUAL=go2w|rexmi_dog (see assets/robots/visual_reskin/).
+* go2w.py  — Go2W kinematics + actuators (16 DOF). Visual skin defaults to
+             rexmi_dog; override with REXMI_ROBOT_VISUAL=go2w for Unitree look.
+
 """
 
 

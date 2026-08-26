@@ -1,6 +1,6 @@
 # Visual Reskin Status
 
-Updated: 2026-08-17 02:20:00Z
+Updated: 2026-08-19 04:18:00Z
 
 ## solidworks_out inventory
 
@@ -18,21 +18,21 @@ Updated: 2026-08-17 02:20:00Z
 
 ## Readiness
 
-**Ready for apply.** Run:
+**Applied and default.** Runtime uses `rexmi_dog` unless overridden.
 
+Re-apply after new SolidWorks drop-off:
 ```bash
 ./run.sh scripts/apply_visual_reskin.py
 ```
 
-Then enable:
-```bash
-export REXMI_ROBOT_VISUAL=rexmi_dog
-```
-
 ## Runtime switch
 
-- `REXMI_ROBOT_VISUAL=go2w` → original Unitree visuals (default)
-- `REXMI_ROBOT_VISUAL=rexmi_dog` → reskinned asset
+- `REXMI_ROBOT_VISUAL=rexmi_dog` → reskinned asset (**default**)
+- `REXMI_ROBOT_VISUAL=go2w` → original Unitree visuals
+
+```bash
+# Force Unitree look
+export REXMI_ROBOT_VISUAL=go2w
+```
 
 See `MANIFEST.md` for naming rules.
-

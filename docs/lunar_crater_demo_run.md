@@ -266,4 +266,29 @@ python scripts/test_turn_crater.py \
     --spawn_preset floor
 ```
 
+### Manual teleop (hold-to-drive, no autonomy)
+
+Spawns **outside the crater** by default (`rim_out`, same exterior ramp as
+navigate). Visual default is the REXMI reskin (`rexmi_dog`).
+
+```bash
+conda activate env_isaacsim
+cd /home/susan/rexmi_rl
+
+python scripts/teleop.py \
+    --task RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0 \
+    --ckpt_rough logs/rsl_rl/go2w_velocity_rough/2026-06-14_20-03-41/model_8996.pt \
+    --ckpt_rocky logs/rsl_rl/go2w_velocity_rocky_slope/2026-06-30_09-31-48/model_13994.pt \
+    --ckpt_turn  logs/rsl_rl/go2w_velocity_slope_turn/2026-07-27_20-54-25/model_13345.pt
+```
+
+| Flag / env | Default | Notes |
+|------------|---------|--------|
+| spawn | `rim_out` (x=+13 m) | Outside crater. Use `mid_slope` / `floor` only for debug. |
+| visual | `rexmi_dog` | `export REXMI_ROBOT_VISUAL=go2w` for Unitree look |
+| controls | hold WASD / Tk buttons | Release = stop; Space = stop |
+
+Boot log should show `Force spawn … offset=(13.00,0.00,4.50)` and
+`Outside crater (|x|>=5).`
+
 Details: `docs/nav_layer.md`, `docs/turn_isolation_test.md`.

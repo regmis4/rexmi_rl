@@ -1,0 +1,36 @@
+{
+  "sources": [
+    {
+      "run_id": "manual_20260909_01",
+      "hashes": {
+        "samples.csv": "d5e7d9195589342a665e8be57260a9bfaef074c6acf6e041a510c53d5ba24f6b",
+        "metadata.json": "f8ce1e15183c5a48c4db16bfeae161cf4236751a1c82259f245616f758346e04",
+        "events.jsonl": "f5e6036fb855828d35921a68936f15c8af62909afe257dafba33bb61c80504da"
+      },
+      "full_rows": 31828,
+      "retained_rows": 31428,
+      "mass_kg": 21.769593622302637
+    },
+    {
+      "run_id": "manual_20260910_01",
+      "hashes": {
+        "samples.csv": "81227a084c9ef88051fce77ad31bb628b527f1c2efc1920b01c7094721123c00",
+        "metadata.json": "e3388d3ca898fdb53c22df064ef351a28187ddfba0f17595821b426f9f9850cc",
+        "events.jsonl": "748454041945f346c83e0847041886a2f9a011ac868793bd2232691ea0f5ec8e"
+      },
+      "full_rows": 47960,
+      "retained_rows": 47560,
+      "mass_kg": 18.889521982287988
+    }
+  ],
+  "retained_duration_s": 394.94,
+  "retained_rows": 78988,
+  "method": "Virtual concatenation of raw captures; exclude sim_time_s < 2 in each; unique run/episode keys prevent cross-run windows. Pooled RMS is duration weighted. Worst-run RMS preserved separately. Raw files unchanged.",
+  "contact_pct": {
+    "0": 0.5722388210867474,
+    "1": 4.4449789841494916,
+    "2": 25.496277915632753,
+    "3": 52.54469033270877,
+    "4": 16.94181394642224
+  }
+}

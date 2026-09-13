@@ -115,7 +115,16 @@ class TeleopState:
     # Live status for UI
     status: str = "boot"
     pose_str: str = ""
+    scenario: str = "unlabelled"
     quit: bool = False
+
+    def set_scenario(self, label: str) -> None:
+        with self.lock:
+            self.scenario = label.strip()[:120] or "unlabelled"
+
+    def scenario_label(self) -> str:
+        with self.lock:
+            return self.scenario
 
     def set_policy(self, name: str) -> None:
         name = name.strip().lower().replace("-", "_")
@@ -251,6 +260,12 @@ def _parse_args():
                    help="Stdin remote only (no Tk window)")
     p.add_argument("--log_file", default=None,
                    help="CSV path (default logs/nav/teleop_<ts>.csv)")
+    p.add_argument("--joint_log_dir", default=None,
+                   help="Enable physics-rate joint telemetry in a NEW directory (never overwritten)")
+    p.add_argument("--scenario", default="unlabelled",
+                   help="Initial characterization label; change with stdin 'mark <label>'")
+    p.add_argument("--run_notes", default="",
+                   help="Run annotations only; does NOT change simulated payload or terrain")
     p.add_argument("--headless", action="store_true",
                    help="Isaac Sim headless (still need remote)")
     return p.parse_args()
@@ -549,7 +564,7 @@ def _start_tk_remote(state: TeleopState) -> Optional[threading.Thread]:
     def run():
         root = tk.Tk()
         root.title("REXMI Teleop Remote")
-        root.geometry("420x480")
+        root.geometry("460x580")
         root.configure(bg="#1e1e1e")
 
         style = ttk.Style()
@@ -612,6 +627,20 @@ def _start_tk_remote(state: TeleopState) -> Optional[threading.Thread]:
 
         pol_box.bind("<<ComboboxSelected>>", on_policy)
 
+        ttk.Label(frm, text="Scenario label (stop before editing)").pack(anchor="w")
+        scenario_var = tk.StringVar(value=state.scenario_label())
+        scenario_entry = ttk.Entry(frm, textvariable=scenario_var, width=38)
+        scenario_entry.pack(anchor="w", pady=(0, 4))
+
+        def apply_scenario(_evt=None):
+            state.set_scenario(scenario_var.get())
+            print(f"[teleop] scenario={state.scenario_label()}")
+            root.focus_set()
+
+        scenario_entry.bind("<FocusIn>", lambda _evt: state.stop_all())
+        scenario_entry.bind("<Return>", apply_scenario)
+        ttk.Button(frm, text="Apply scenario", command=apply_scenario).pack(anchor="w")
+
         ttk.Label(
             frm,
             text="Hold buttons to drive — release to stop",
@@ -670,6 +699,9 @@ def _start_tk_remote(state: TeleopState) -> Optional[threading.Thread]:
         }
 
         def on_key_press(event):
+            # Text entry must not accidentally drive or switch policies.
+            if isinstance(event.widget, (ttk.Entry, tk.Entry)):
+                return
             k = event.keysym
             if k in ("space", "Space"):
                 state.stop_all()
@@ -777,6 +809,7 @@ def _start_stdin_remote(state: TeleopState) -> threading.Thread:
         "  w <rad/s>            set |ω|\n"
         "  f / b / l / r        HOLD direction (type s to stop)\n"
         "  s                    stop all\n"
+        "  mark <label>         label subsequent joint samples (e.g. uphill_35)\n"
         "  ?                    help\n"
         "  q                    quit\n"
         "Note: stdin is latch-until-stop (no key-release). Prefer Tk for momentary.\n"
@@ -837,6 +870,9 @@ def _start_stdin_remote(state: TeleopState) -> threading.Thread:
             elif cmd == "s":
                 state.stop_all()
                 print("[teleop] STOP")
+            elif cmd == "mark" and len(parts) >= 2:
+                state.set_scenario(" ".join(parts[1:]))
+                print(f"[teleop] scenario={state.scenario_label()}")
             else:
                 print(f"[teleop] unknown: {line.strip()}  (type ? for help)")
 
@@ -976,6 +1012,7 @@ def main():
     initial = args.policy if args.policy in policies else next(iter(policies))
     state = TeleopState()
     state.set_policy(initial)
+    state.set_scenario(args.scenario)
     _patch_command_ranges(env, initial)
     last_policy = initial
 
@@ -991,6 +1028,7 @@ def main():
     os.makedirs("logs/nav", exist_ok=True)
     ts = time.strftime("%Y-%m-%d_%H-%M-%S")
     log_path = args.log_file or os.path.join("logs/nav", f"teleop_{ts}.csv")
+    os.makedirs(os.path.dirname(os.path.abspath(log_path)), exist_ok=True)
     log_f = open(log_path, "w", newline="", buffering=1)
     writer = csv.writer(log_f)
     writer.writerow([
@@ -1061,7 +1099,23 @@ def main():
 
 
     step = 0
+    joint_logger = None
     try:
+        if args.joint_log_dir:
+            from joint_telemetry import JointTelemetry, fingerprint
+
+            joint_logger = JointTelemetry(
+                args.joint_log_dir, env.unwrapped,
+                metadata={
+                    "cli": vars(args),
+                    "checkpoints": {name: fingerprint(ckpt_map[name]) for name in policies},
+                    "robot_asset": fingerprint(env.unwrapped.scene["robot"].cfg.spawn.usd_path),
+                    "notes": args.run_notes,
+                    "payload_warning": "Logger does not add payload; inspect live masses and resolved config.",
+                },
+            )
+            print(f"[teleop] Joint telemetry → {joint_logger.directory}")
+            print("[teleop] Torque/power are actuator-model ESTIMATES; startup settling excluded.")
         while simulation_app.is_running() and step < args.max_steps:
             with state.lock:
                 if state.quit:
@@ -1090,7 +1144,16 @@ def main():
                 obs_t = torch.as_tensor(obs_t, device=args.device)
             actions = policies[pol_name](obs_t)
             # If fully stopped, still run policy (standing) — command is zero
+            if joint_logger is not None:
+                joint_logger.begin_step(step, pol_name, state.scenario_label(), vx, omega)
             obs_t, _, dones, _ = env.step(actions)
+            if joint_logger is not None:
+                base_env = env.unwrapped
+                joint_logger.end_step(
+                    done=bool(dones[0]),
+                    terminated=bool(base_env.reset_terminated[0]),
+                    truncated=bool(base_env.reset_time_outs[0]),
+                )
 
             # Telemetry
             pos = robot.data.root_pos_w[0]
@@ -1133,6 +1196,14 @@ def main():
     except KeyboardInterrupt:
         print("\n[teleop] Interrupted.")
     finally:
+        exit_code = 1 if sys.exc_info()[0] is not None else 0
+        if exit_code:
+            # The Tk-safe hard exit below otherwise hides exceptions entirely.
+            import traceback
+            traceback.print_exc()
+        if joint_logger is not None:
+            joint_logger.close()
+            print(f"[teleop] Joint log saved: {joint_logger.directory} ({joint_logger.sample} samples)")
         state.stop_all()
         with state.lock:
             state.quit = True
@@ -1154,7 +1225,9 @@ def main():
             pass
         # Hard-exit: prevents Tk/Tcl "async handler deleted by the wrong thread"
         # abort when the daemon Tk thread is torn down after main ends.
-        os._exit(0)
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os._exit(exit_code)
 
 
 

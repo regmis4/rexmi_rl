@@ -1,0 +1,29 @@
+[
+  {
+    "family": "Hip \u00b7 direct RS06",
+    "ratio": 1,
+    "efficiency": 1,
+    "motoring_samples": 165233,
+    "outside": 0,
+    "max_module_rpm": 173.85013455449297,
+    "max_module_Nm": 23.5
+  },
+  {
+    "family": "Thigh \u00b7 direct RS06",
+    "ratio": 1,
+    "efficiency": 1,
+    "motoring_samples": 167995,
+    "outside": 0,
+    "max_module_rpm": 286.9963709107696,
+    "max_module_Nm": 23.5
+  },
+  {
+    "family": "Knee \u00b7 RS06 + 2:1 belt",
+    "ratio": 2,
+    "efficiency": 0.95,
+    "motoring_samples": 191485,
+    "outside": 0,
+    "max_module_rpm": 383.72450817541187,
+    "max_module_Nm": 12.368421052631579
+  }
+]

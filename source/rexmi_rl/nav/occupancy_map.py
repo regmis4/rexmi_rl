@@ -408,6 +408,15 @@ class OccupancyMap:
 
         return grid
 
+    def get_visual_grid(self):
+        """Read-only display snapshot: planner costs, measured heights, observed mask.
+
+        Call from the simulation thread. Unknown heights remain masked; this
+        never consults the simulator's hidden terrain mesh.
+        """
+        return (self.get_cost_grid(), self._max_height.copy(),
+                (self._visit_count > 0).copy())
+
     def get_point_cloud(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Return (xs, ys, zs) arrays for the downward height-scan cloud."""
         if not self._cloud_xyz:

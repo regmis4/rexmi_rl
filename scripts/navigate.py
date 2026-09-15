@@ -169,6 +169,8 @@ def _parse_args():
     p.add_argument("--max_steps",   type=int,   default=15000,
                    help="Max sim steps (~300 s at 50 Hz)")
     p.add_argument("--no_dashboard", action="store_true")
+    p.add_argument("--perception_view", action="store_true",
+                   help="Live in-scene LiDAR, observed terrain costs and route overlay")
     p.add_argument("--log_file",    default=None,
                    help="Path to write nav log (CSV: step,x,y,z,yaw,speed,wp_idx,policy,state). "
                         "Default: auto-generated under logs/nav/TIMESTAMP.log")
@@ -547,6 +549,13 @@ def main():
     # ------------------------------------------------------------------
     # 6. Start dashboard
     # ------------------------------------------------------------------
+    perception_view = None
+    if args.perception_view:
+        from rexmi_rl.nav.perception_view import PerceptionView
+        try:
+            perception_view = PerceptionView(nav)
+        except Exception as exc:
+            print(f"[navigate] Perception overlay unavailable: {exc}")
     if not args.no_dashboard:
         nav.start_dashboard()
         print("[navigate] Dashboard window launched")
@@ -628,6 +637,8 @@ def main():
             # Nav tick — updates selector, injects velocity command
             _t0 = time.perf_counter()
             nav.step()
+            if perception_view is not None:
+                perception_view.update()
             _nav_ms = (time.perf_counter() - _t0) * 1000.0
             _nav_step_times.append(_nav_ms)
             if len(_nav_step_times) > 50:
@@ -693,6 +704,8 @@ def main():
         if _log_f is not None:
             _log_f.close()
             print(f"[navigate] Log saved: {_log_path}")
+        if perception_view is not None:
+            perception_view.close()
         nav.stop_dashboard()
         env.close()
         simulation_app.close()

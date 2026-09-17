@@ -271,6 +271,9 @@ python scripts/test_turn_crater.py \
 Spawns **outside the crater** by default (`rim_out`, same exterior ramp as
 navigate). Visual default is the REXMI reskin (`rexmi_dog`).
 
+**Lighting:** crater envs use a black sky and a single distant sun (no Earth HDR
+dome fill) so the bowl reads more like vacuum / lunar surface.
+
 ```bash
 conda activate env_isaacsim
 cd /home/susan/rexmi_rl
@@ -281,6 +284,7 @@ python scripts/teleop.py \
     --ckpt_rocky logs/rsl_rl/go2w_velocity_rocky_slope/2026-06-30_09-31-48/model_13994.pt \
     --ckpt_turn  logs/rsl_rl/go2w_velocity_slope_turn/2026-07-27_20-54-25/model_13345.pt
 ```
+
 
 | Flag / env | Default | Notes |
 |------------|---------|--------|

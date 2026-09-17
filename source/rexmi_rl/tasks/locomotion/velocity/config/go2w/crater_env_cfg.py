@@ -56,6 +56,8 @@ Usage
 
 import math
 
+import isaaclab.sim as sim_utils
+from isaaclab.assets import AssetBaseCfg
 from isaaclab.terrains import TerrainGeneratorCfg
 from isaaclab.utils import configclass
 
@@ -70,6 +72,41 @@ from rexmi_rl.tasks.locomotion.velocity.config.go2w.crater_terrain import (
     CraterType3WallCfg,
     LunarCraterDemoBowlCfg,
 )
+
+
+def _apply_lunar_lighting(env_cfg) -> None:
+    """Black sky + single distant sun (no HDR dome fill) for lunar crater demos.
+
+    Replaces the default Earth HDR DomeLight with a non-emitting black dome and
+    one DistantLight so the scene reads as vacuum with hard lunar shadows.
+    """
+    # Black background only — intensity 0 so it does not act as a second source.
+    env_cfg.scene.sky_light = AssetBaseCfg(
+        prim_path="/World/skyLight",
+        spawn=sim_utils.DomeLightCfg(
+            intensity=0.0,
+            color=(0.0, 0.0, 0.0),
+            texture_file=None,
+            visible_in_primary_ray=False,
+        ),
+    )
+    # Single sun: low elevation for long hard shadows across the crater bowl.
+    # Quaternion: rotate ~55° about world Y so rays come from +X / high-Z.
+    _s = math.sin(math.radians(55.0) * 0.5)
+    _c = math.cos(math.radians(55.0) * 0.5)
+    env_cfg.scene.sun_light = AssetBaseCfg(
+        prim_path="/World/sunLight",
+        spawn=sim_utils.DistantLightCfg(
+            intensity=3500.0,
+            color=(1.0, 0.98, 0.94),
+            angle=0.53,
+        ),
+        init_state=AssetBaseCfg.InitialStateCfg(
+            pos=(0.0, 0.0, 0.0),
+            rot=(_c, 0.0, _s, 0.0),  # (w, x, y, z)
+        ),
+    )
+
 
 
 # ===========================================================================
@@ -145,6 +182,13 @@ class LunarCraterBaseEnvCfg(Go2wRoughEnvCfg):
         #   • Terminations, events, commands
         # ---------------------------------------------------------------
         super().__post_init__()
+
+        # ==============================================================
+        # 0. LUNAR LIGHTING — black sky + single distant sun
+        # ==============================================================
+        # Default locomotion scene uses an Earth HDR dome (soft IBL). For
+        # crater demos we want vacuum-black sky and one hard sun source.
+        _apply_lunar_lighting(self)
 
         # ==============================================================
         # 1. EPISODE LENGTH — long enough to see a full traversal
@@ -704,6 +748,8 @@ class LunarCraterDemoBowlFlatEnvCfg(Go2wFlatEnvCfg):
         self.scene.num_envs = 10
         self.scene.env_spacing = 66.0
 
+        _apply_lunar_lighting(self)
+
         # No curriculum, no noise, no pushes
         if hasattr(self, "curriculum") and hasattr(self.curriculum, "terrain_levels"):
             self.curriculum.terrain_levels = None
@@ -765,6 +811,8 @@ class LunarCraterDemoBowlFastFlatEnvCfg(Go2wFastFlatEnvCfg):
         self.episode_length_s = 300.0
         self.scene.num_envs = 10
         self.scene.env_spacing = 66.0
+
+        _apply_lunar_lighting(self)
 
         if hasattr(self, "curriculum") and hasattr(self.curriculum, "terrain_levels"):
             self.curriculum.terrain_levels = None

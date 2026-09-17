@@ -61,27 +61,7 @@ if _SOURCE_DIR not in sys.path:
 # Policy defaults (train / nav matched)
 # ---------------------------------------------------------------------------
 
-POLICY_DEFAULTS = {
-    "rough": {
-        "vx": 0.45,
-        "omega": 0.40,
-        "ang_range": (-1.0, 1.0),
-        "lin_x_range": (-0.5, 1.0),
-    },
-    "rocky_slope": {
-        "vx": 0.40,
-        "omega": 0.35,
-        "ang_range": (-1.0, 1.0),
-        "lin_x_range": (-0.5, 1.0),
-    },
-    "turn": {
-        # model_13345 Language A band (isolation / reorient)
-        "vx": 0.05,
-        "omega": 0.07,
-        "ang_range": (-0.10, 0.10),
-        "lin_x_range": (0.0, 0.15),
-    },
-}
+from rexmi_rl.drive_adapter import POLICY_DEFAULTS, directional_command
 
 # Offsets for Isaac Lab reset_root_state_uniform:
 #   world = default_root_state + env_origins + offset
@@ -184,16 +164,7 @@ class TeleopState:
             lf = self.hold_left
             rt = self.hold_right
 
-        vx = 0.0
-        omega = 0.0
-        if fx:
-            vx = +vx_m
-        elif bk:
-            vx = -vx_m
-        if lf:
-            omega = +om_m  # CCW / left
-        elif rt:
-            omega = -om_m  # CW / right
+        vx, omega = directional_command(fx, bk, lf, rt, vx_m, om_m)
 
         # Turn policy (13345) was trained with plant vx≈0.05 during yaw.
         # If user only holds Left/Right, still apply vx_mag as plant so the
@@ -275,82 +246,8 @@ def _parse_args():
 # Policy loader (same pattern as navigate / test_turn_crater)
 # ---------------------------------------------------------------------------
 
-def _load_policy(checkpoint_path: str, device: str) -> Callable:
-    import torch
-    from rsl_rl.modules import ActorCritic
-
-    if not os.path.isfile(checkpoint_path):
-        raise FileNotFoundError(f"checkpoint not found: {checkpoint_path}")
-
-    ckpt = torch.load(checkpoint_path, map_location=device, weights_only=False)
-    msd = ckpt["model_state_dict"]
-    obs_dim = msd["actor.0.weight"].shape[1]
-    num_actions = msd["actor.6.weight"].shape[0]
-    hidden_dims = [
-        msd["actor.0.bias"].shape[0],
-        msd["actor.2.bias"].shape[0],
-        msd["actor.4.bias"].shape[0],
-    ]
-    ac = ActorCritic(
-        num_actor_obs=obs_dim,
-        num_critic_obs=obs_dim,
-        num_actions=num_actions,
-        actor_hidden_dims=hidden_dims,
-        critic_hidden_dims=hidden_dims,
-    ).to(device)
-    ac.load_state_dict(msd)
-    ac.eval()
-
-    obs_mean = obs_std = None
-    if "obs_norm_state_dict" in ckpt:
-        nd = ckpt["obs_norm_state_dict"]
-        if "_mean" in nd and "_std" in nd:
-            obs_mean = nd["_mean"].to(device)
-            obs_std = nd["_std"].to(device).clamp(min=1e-6)
-            print(f"[teleop] obs normalizer loaded shape={tuple(obs_mean.shape)}")
-
-    def policy(obs):
-        with torch.inference_mode():
-            o = obs[..., :obs_dim]
-            if obs_mean is not None:
-                o = (o - obs_mean) / obs_std
-            return ac.act_inference(o)
-
-    print(
-        f"[teleop] Loaded {os.path.basename(checkpoint_path)} "
-        f"obs={obs_dim} act={num_actions} hidden={hidden_dims}"
-    )
-    return policy
-
-
-def _inject(env, vx: float, omega: float, env_idx: int = 0) -> None:
-    try:
-        cmd = env.unwrapped.command_manager.get_command("base_velocity")
-        cmd[env_idx, 0] = float(vx)
-        cmd[env_idx, 1] = 0.0
-        cmd[env_idx, 2] = float(omega)
-    except Exception as e:
-        print(f"[teleop] inject failed: {e}")
-
-
-def _patch_command_ranges(env, policy_name: str) -> None:
-    d = POLICY_DEFAULTS[policy_name]
-    try:
-        bv = env.unwrapped.command_manager.cfg.base_velocity
-        bv.ranges.ang_vel_z = d["ang_range"]
-        if hasattr(bv.ranges, "lin_vel_x"):
-            bv.ranges.lin_vel_x = d["lin_x_range"]
-        # Disable heading P-controller so injected ω is used as-is
-        if hasattr(bv, "heading_command"):
-            bv.heading_command = False
-        if hasattr(bv, "rel_heading_envs"):
-            bv.rel_heading_envs = 0.0
-        print(
-            f"[teleop] command ranges for {policy_name}: "
-            f"ang={d['ang_range']} lin_x={d['lin_x_range']}"
-        )
-    except Exception as e:
-        print(f"[teleop] WARNING range patch: {e}")
+from rexmi_rl.drive_adapter import (load_policy as _load_policy, inject_command as _inject,
+                                     patch_command_ranges as _patch_command_ranges, policy_actions)
 
 
 def _yaw(robot, env_idx: int = 0) -> float:
@@ -1142,7 +1039,7 @@ def main():
 
             if not torch.is_tensor(obs_t):
                 obs_t = torch.as_tensor(obs_t, device=args.device)
-            actions = policies[pol_name](obs_t)
+            actions = policy_actions(env, policies[pol_name], vx, omega)
             # If fully stopped, still run policy (standing) — command is zero
             if joint_logger is not None:
                 joint_logger.begin_step(step, pol_name, state.scenario_label(), vx, omega)

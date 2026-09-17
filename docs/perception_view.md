@@ -1,6 +1,7 @@
 # REXMI live perception view
 
 Add `--perception_view` to your existing `scripts/navigate.py` command.
+The default is now checkpoint navigation; see [the launch and control guide](checkpoint_navigation.md).
 Keep your normal task, checkpoint and mission arguments. Add `--no_dashboard`
 if you only want the Isaac Sim scene instead of the separate 2D plots.
 
@@ -14,7 +15,7 @@ cd /home/susan/rexmi_rl
 ./run.sh scripts/navigate.py \
   --task RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0 \
   --checkpoint logs/rsl_rl/go2w_velocity_rocky_slope/2026-06-30_09-31-48/model_13994.pt \
-  --policy_mode rocky_slope --no_turn \
+  --nav_controller checkpoint \
   --perception_view --no_dashboard \
   --max_steps 15000
 ```
@@ -28,18 +29,19 @@ prefix the launch command with
 This workaround applies only to that process; it does not change the environment.
 
 The short live check verified LiDAR and cost rendering. Route geometry has CPU
-test coverage; full autonomous mission validation is separate. The existing
-debug-arrow callback may report a CPU/CUDA mismatch during simulator shutdown.
+test coverage; full autonomous mission validation is separate. Checkpoint navigation disconnects the debug-arrow callback before shutdown;
+legacy mode may still report its previous CPU/CUDA callback warning.
 
 ## What appears
 
 The **REXMI | Perception** window toggles four independent scene layers:
 
 - **Live LiDAR returns:** cyan points from the current simulated LiDAR scan.
-- **Observed terrain costs:** small terrain-following tiles within 12 m of the robot.
+- **Observed terrain costs:** the complete observed mission survey, with detailed nearby tiles and aggregated distant tiles.
   Teal = low planner cost, amber = elevated cost, orange = high cost,
-  red = blocked. Costs include the planner's obstacle inflation.
-- **Route on observed terrain:** cyan route segments lifted above measured terrain.
+  red = detected obstacle / very steep terrain. Muted amber marks the
+  clearance buffer, which the planner avoids but which is not itself an obstacle.
+- **Route on observed terrain:** red route segments lifted above measured terrain.
   Gaps indicate that a path segment has no observed height; it is not drawn at
   an invented elevation. The 2D dashboard still shows the complete planned route.
 - **Sampled LiDAR rays:** at most 32 rays from the sensor origin, off by default
@@ -48,24 +50,29 @@ The **REXMI | Perception** window toggles four independent scene layers:
 Use the normal Isaac Sim viewport camera to orbit/zoom. For a presentation,
 start with costs and route enabled, then toggle points/rays to explain sensing.
 The panel reports the actual number of displayed returns, tiles and route segments.
+Checkpoint mode also separates mapped local coverage, fresh local coverage and
+total surveyed area. Terrain colours do not change merely because a cell ages.
+See [persistent scouting map checks](mapping_memory.md).
 
 ## Data and performance
 
-This is a visualization of the existing stack, not a new perception algorithm.
+This overlay visualizes the selected navigation controller.
 It uses the Isaac Lab RayCaster LiDAR's world-frame hits, not an RTX LiDAR or
-validated flight-sensor model. The existing navigation localizer remains
-simulator-assisted. The accumulated SLAM map is deliberately not overlaid as if
-it were identical to the live scan; those can differ due to localization drift.
+validated flight-sensor model. The navigation localizer remains
+simulator-assisted. Checkpoint navigation uses live world-frame observations and does not feed the
+accumulated SLAM cloud back into its map. Legacy navigation retains its old mapping.
 
 Unknown cells are omitted. Planner cost colors are not safety guarantees or
 resource-composition classifications. The height of each tile comes from the
-map's observed maximum cell height; it is a discrete cell visualization, not a
+map's accumulated upper cell elevation; it is a discrete cell visualization, not a
 reconstructed continuous surface. Vertical walls and steep discontinuities may
 show raised or partially occluded tiles.
 
-Refresh is capped at 5 Hz, 6,000 returns and 4,000 cost cells. Geometry updates
-run on the simulation thread. No physics/collision components are added and no
-controller, checkpoint, sensor configuration or terrain asset is changed.
+Refresh is capped at 5 Hz and 6,000 live returns. Checkpoint mode retains the whole
+survey display using stable chunks: 20 cm nearby tiles and 40 cm distant tiles.
+Legacy mode retains its earlier 4,000-cell local view. Geometry updates
+run on the simulation thread. The overlay adds no physics/collision components and changes no
+trained checkpoint, sensor configuration or terrain asset.
 USD geometry lives under `/RexmiPerception` in the session layer and is removed
 on close; it is not saved to the robot or terrain source assets.
 
@@ -74,3 +81,7 @@ CPU geometry checks:
 ```bash
 python -m unittest discover -s tests -p test_perception_view.py -v
 ```
+
+Checkpoint mode also provides Terrain, Slope, Roughness and Traversal buttons.
+Use `--survey_layer slope` to select an initial diagnostic layer. See the
+[whole-survey guide](terrain_survey.md) for legends, route learning and exports.

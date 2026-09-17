@@ -1,0 +1,23 @@
+{
+  "result": "step_limit",
+  "seed": 42,
+  "sim_seconds": 299.98,
+  "waypoints_reached": 2,
+  "total_waypoints": 4,
+  "manual_intervention": false,
+  "max_cross_track_m": 0.7615880012512193,
+  "policy": "rocky_slope",
+  "policy_switches": 0,
+  "footprint_radius_m": 0.5028250873088836,
+  "cruise_ceiling": 0.4,
+  "hold_failures": 14,
+  "rolling_checkpoints": 4,
+  "final_state": "FOLLOW",
+  "final_reason": "following observed route",
+  "local_recovery_attempts": 0,
+  "last_hold_failure": "hold unavailable: speed=0.02m/s, drift=0.08m",
+  "climb_failures": 4,
+  "backslide_m": 1.7295999336098482,
+  "map_update_ms_mean": 107.52525740706672,
+  "validated": false
+}

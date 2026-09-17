@@ -14,6 +14,26 @@ spec.loader.exec_module(v)
 
 
 class PerceptionGeometryTests(unittest.TestCase):
+    def test_clearance_is_amber_without_changing_planning_costs(self):
+        costs=np.full((2,2),20.)
+        mask=np.array([[False,True],[True,False]])
+        vertices,colors=v.cost_tiles(costs,np.ones((2,2)),np.ones((2,2),bool),
+                                    (0,0),1,(0,0),clearance_mask=mask)
+        self.assertEqual(int(np.sum(colors[:,1]==0)),2)
+        self.assertEqual(int(np.sum(colors[:,1]>.4)),2)
+        np.testing.assert_array_equal(costs,20.)
+    def test_tile_identity_survives_reordering_and_budget_changes(self):
+        g=np.ones((4,4))
+        a,colors=v.cost_tiles(g,g,g.astype(bool),(0,0),1,(0,0),limit=3)
+        pool=v.StableTilePool(3)
+        first,_,_=pool.update(a,colors)
+        slots=pool.slots.copy()
+        second,_,_=pool.update(a.reshape(-1,4,3)[::-1].reshape(-1,3),colors[::-1])
+        self.assertEqual(pool.slots,slots)
+        np.testing.assert_array_equal(first,second)
+        pool.update(a[:8],colors[:2])
+        self.assertEqual(len(pool.slots),2)
+        for key,slot in pool.slots.items(): self.assertEqual(slot,slots[key])
     def test_scan_filters_and_budget(self):
         pts = [[float('nan'),0,0],[float('inf'),0,0],[0,0,0],[1e6,0,0],[1,2,3],[2,3,4]]
         out = v.filter_hits(pts, [0,0,0], limit=1)

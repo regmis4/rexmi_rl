@@ -2,58 +2,14 @@
 # Copyright (c) 2026, REXMI Project.
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""
-Autonomous navigation entry point for REXMI RL.
+"""REXMI navigation entrypoint.
 
-Loads trained RL policy checkpoints and runs a deterministic nav layer on top.
-Policies (auto mode):
+Default: observed-route checkpoint navigation using the teleop rocky_slope
+policy and command adapter. See docs/checkpoint_navigation.md for launch,
+manual takeover, validation status and legacy comparison.
 
-  rough        — moderate terrain / steps
-  rocky_slope  — steep crater walls with boulders (primary loco)
-  turn         — model_13345 plant-and-spin (iso-style handoff, ON by default)
-
-Turn handoff (when |heading_error| ≥ 100°):
-  BRAKE on rocky → settle actions 1 s → 13345 PLANT/YAW(±0.07)/SETTLE → FOLLOW
-
-Usage
------
-  conda activate env_isaacsim
-  cd /home/susan/rexmi_rl
-
-  # Full autonomous traverse WITH turn (default)
-  python scripts/navigate.py \
-      --task RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0 \
-      --ckpt_rough logs/rsl_rl/go2w_velocity_rough/2026-06-14_20-03-41/model_8996.pt \
-      --ckpt_rocky logs/rsl_rl/go2w_velocity_rocky_slope/2026-06-30_09-31-48/model_13994.pt \
-      --ckpt_turn  logs/rsl_rl/go2w_velocity_slope_turn/2026-07-27_20-54-25/model_13345.pt \
-      --mission traverse
-
-  # Path-only (no 13345 pivot)
-  python scripts/navigate.py ... --no_turn
-
-  # Isolation test (turn policy alone on crater)
-  python scripts/test_turn_crater.py \
-      --task RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0 \
-      --checkpoint logs/rsl_rl/go2w_velocity_slope_turn/2026-07-27_20-54-25/model_13345.pt \
-      --spawn_preset floor
-
-  # Other missions
-  python scripts/navigate.py ... --mission survey
-  python scripts/navigate.py ... --mission rim_circuit
-  python scripts/navigate.py ... --policy_mode rocky_slope
-  python scripts/navigate.py ... --no_dashboard
-
-Missions
---------
-  traverse    — enter crater → cross floor → exit opposite side
-  survey      — systematic lawnmower scan of crater floor
-  rim_circuit — clockwise loop around the crater rim
-
-Crater geometry (defaults match LunarCraterDemoBowlEnvCfg)
----------------------------------------------------------
-  --crater_x 0.0 --crater_y 0.0
-  --r_floor 3.0 --r_rim 11.0
-  --spawn_x 13.0   (exterior ramp; robot faces −x toward centre)
+Pass --nav_controller legacy for the original planner/recovery/policy-selector
+implementation. Its configuration flags and behavior remain available below.
 """
 
 
@@ -83,6 +39,19 @@ import rexmi_rl  # noqa: F401 — registers all environments
 def _parse_args():
     p = argparse.ArgumentParser(description="REXMI autonomous navigation demo")
 
+    p.add_argument("--nav_controller", choices=["checkpoint", "legacy"], default="checkpoint")
+    p.add_argument("--headless", action="store_true")
+    p.add_argument("--seed", type=int, default=42)
+    p.add_argument("--capture_file", default=None, help="Optional viewport PNG for a visible test run")
+    p.add_argument("--scan_log", default=None,
+                   help="Optional directory for raw world-frame scans for repeatable mapping comparisons")
+    p.add_argument("--capture_step", type=int, default=750)
+    p.add_argument("--cruise_speed", type=float, default=0.4,
+                   help="Forward ceiling, at most 0.8; above 0.4 is experimental")
+    p.add_argument("--start_paused", action="store_true")
+    p.add_argument("--spawn_y", type=float, default=0.0)
+    p.add_argument("--spawn_z", type=float, default=4.50)
+    p.add_argument("--spawn_yaw", type=float, default=math.pi)
     # Checkpoints — all three required for auto-switching; spin is optional
     p.add_argument("--task", required=True,
                    help="Isaac Lab gym task name")
@@ -169,6 +138,7 @@ def _parse_args():
     p.add_argument("--max_steps",   type=int,   default=15000,
                    help="Max sim steps (~300 s at 50 Hz)")
     p.add_argument("--no_dashboard", action="store_true")
+    p.add_argument("--survey_layer",choices=["terrain","slope","roughness","traversal"],default="terrain")
     p.add_argument("--perception_view", action="store_true",
                    help="Live in-scene LiDAR, observed terrain costs and route overlay")
     p.add_argument("--log_file",    default=None,
@@ -263,13 +233,24 @@ def _load_policy(checkpoint_path: str, nav_env, agent_cfg, device: str):
 
 def main():
     args = _parse_args()
+    if args.nav_controller == "checkpoint":
+        checkpoint = args.ckpt_rocky or args.checkpoint
+        if not checkpoint or not os.path.isfile(checkpoint):
+            raise SystemExit("Checkpoint navigation requires an existing rocky_slope --checkpoint or --ckpt_rocky.")
+        if args.policy_mode == "rough":
+            raise SystemExit("Use --nav_controller legacy for the rough policy.")
+        if args.max_steps < 1 or args.step_thresh <= 0 or not .1 <= args.cruise_speed <= .8:
+            raise SystemExit("Require max_steps > 0, step_thresh > 0 and cruise_speed between 0.1 and 0.8.")
 
     # ------------------------------------------------------------------
     # 1. Boot Isaac Sim
     # ------------------------------------------------------------------
     from isaaclab.app import AppLauncher
-    app_launcher = AppLauncher(headless=False)
+    app_launcher = AppLauncher(headless=args.headless)
     simulation_app = app_launcher.app
+    if args.nav_controller == "checkpoint":
+        from rexmi_rl.nav.checkpoint_runner import run
+        return run(args, simulation_app)
 
     # ------------------------------------------------------------------
     # 2. Post-sim imports

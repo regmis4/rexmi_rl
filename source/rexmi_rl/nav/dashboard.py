@@ -74,6 +74,7 @@ class Dashboard:
         self._waypoints = waypoints
         self._interval  = update_interval_s
         self._zoom_m    = local_zoom_m
+        self._layer = "terrain"
 
         # Matplotlib handles — set up lazily in run()
         self._fig        = None
@@ -105,6 +106,11 @@ class Dashboard:
         self._ax_status = self._fig.add_subplot(gs[1, :])
 
         self._style_axes()
+        if hasattr(self._omap,'roughness'):
+            from matplotlib.widgets import RadioButtons
+            selector=self._fig.add_axes([.38,.925,.25,.07],facecolor='#dddddd')
+            self._layer_buttons=RadioButtons(selector,('terrain','slope','roughness','traversal'))
+            self._layer_buttons.on_clicked(lambda value:setattr(self,'_layer',value))
 
         _flush_interval = 0.05
         _next_redraw    = time.monotonic()
@@ -142,6 +148,8 @@ class Dashboard:
             mission    = self._shared["mission"]
             cmd        = self._shared["cmd"]
             cost_grid  = self._shared["cost_grid"]
+            observed_mask = self._shared.get("observed_mask")
+            clearance_mask = self._shared.get("clearance_mask")
             speed      = self._shared["speed"]
             slam_conv  = self._shared["slam_converged"]
             slam_size  = self._shared["slam_map_size"]
@@ -150,28 +158,47 @@ class Dashboard:
             fxs, fys, _ = self._shared["fwd_cloud_xyz"]   # forward scan (orange)
             pol_str    = self._shared.get("policy_status", "fixed")
             trajectory = list(self._shared.get("trajectory", []))
+            checkpoint = self._shared.get("checkpoint")
+            steering = self._shared.get("steering_target")
+            nav_reason = self._shared.get("nav_reason", "")
+            coverage = self._shared.get("coverage", 0.)
+            age = self._shared.get("observation_age", 0.)
+            mapped = self._shared.get("mapped_coverage")
+            mapped_area = self._shared.get("mapped_area", 0.)
+            layers=self._shared.get('survey_layers')
 
         ws   = self._omap.world_size
         orig = self._omap.origin
         ext  = [orig[0] - ws/2, orig[0] + ws/2,
                 orig[1] - ws/2, orig[1] + ws/2]
 
-        # Costmap color scale — full spectrum across 0°–35° traversability
-        # Cost values: 1=flat, 2=mod slope(~20°), 5=unknown, 6=steep(~35°), 20=blocked
-        # Old: vmin=1, vmax=20 → cost 6 was only at 30% of range, everything looked green
-        # New: use a custom 5-stop colormap so each cost band gets a distinct colour:
-        #   1.0  → deep blue-green   (flat/safe)
-        #   2.0  → cyan-green        (moderate slope ~20°)
-        #   5.0  → dim grey          (unknown — handled by alpha masking below)
-        #   6.0  → orange-red        (steep ~35°, max traversable)
-        #   20.0 → dark crimson      (blocked obstacle)
-        # We use vmin=1, vmax=7 and let 20 saturate to crimson:
-        cmap_kwargs = dict(
-            cmap="RdYlGn_r",
-            vmin=1.0, vmax=7.0,   # full colour spread across traversable range
-            alpha=0.88,
-            interpolation="nearest",
-        )
+        # Same discrete planner-cost bands as the Isaac Sim overlay.
+        import matplotlib.colors as mcolors
+        from matplotlib.lines import Line2D
+        _cmap = mcolors.ListedColormap(["#14A6A6", "#F2A31F", "#FF4A1F"]
+                                     + (["#8C7542"] if clearance_mask is not None else []) + ["#FF0000"])
+        _cmap.set_bad("#555577")
+        _norm = mcolors.BoundaryNorm([0,2,6]+([12] if clearance_mask is not None else [])+[20,1000], _cmap.N)
+        if cost_grid is not None:
+            unknown = ~observed_mask if observed_mask is not None else cost_grid == 5.
+            if clearance_mask is not None:
+                cost_grid=cost_grid.copy()
+                cost_grid[clearance_mask]=12.  # display category, never a planner cost
+            cost_grid = np.ma.masked_where(unknown,cost_grid)
+        cmap_kwargs = dict(cmap=_cmap,norm=_norm,alpha=.88,interpolation="nearest")
+
+        image_grid=cost_grid.T if cost_grid is not None else None
+        layer_legend=None
+        if layers is not None and cost_grid is not None:
+            from .perception_view import survey_colors
+            # The buffer category above is display-only; restore its hazard cost
+            # for the common palette, which receives a separate clearance mask.
+            values=np.asarray(cost_grid.filled(5.)).copy()
+            if clearance_mask is not None: values[clearance_mask]=20.
+            rgb,layer_legend=survey_colors(values,observed_mask,clearance_mask,self._layer,
+                layers['slope'],layers['roughness'],layers['failures'],layers['successes'])
+            image_grid=rgb.transpose(1,0,2)
+            cmap_kwargs=dict(interpolation='nearest')
 
         # ── Left panel: full-world cost map ──────────────────────────────
         ag = self._ax_global
@@ -179,7 +206,7 @@ class Dashboard:
         ag.set_facecolor("#0a0a1a")
 
         if cost_grid is not None:
-            ag.imshow(cost_grid.T, origin="lower", extent=ext, **cmap_kwargs)
+            ag.imshow(image_grid, origin="lower", extent=ext, **cmap_kwargs)
 
         # Crater boundary circles (approximate — proportional to world_size)
         theta = np.linspace(0, 2 * math.pi, 200)
@@ -203,8 +230,8 @@ class Dashboard:
         # A* planned path (bright white, thick — clearly distinct from trajectory)
         if len(path) >= 2:
             ag.plot([p[0] for p in path], [p[1] for p in path],
-                    color="#FFFFFF", linewidth=2.5, alpha=0.95,
-                    zorder=8, linestyle="--", label="A* path")
+                    color="#FF1828", linewidth=2.5, alpha=0.95,
+                    zorder=8, linestyle="--", label="Active route")
 
         # Waypoints
         for i, wp in enumerate(self._waypoints):
@@ -234,7 +261,7 @@ class Dashboard:
         ag.set_ylabel("Y (m)", color="gray", fontsize=7)
         ag.tick_params(colors="gray", labelsize=6)
         ag.set_title(
-            f"Cost Map — full world  "
+            f"{self._layer.title()} — full mission survey  "
             f"({self._omap.n_cells}×{self._omap.n_cells} @ {self._omap.cell_size*100:.0f} cm/cell)",
             color="white", fontsize=9, pad=4,
         )
@@ -243,15 +270,19 @@ class Dashboard:
         import matplotlib.patches as mpatches
         import matplotlib.cm as cm
         import matplotlib.colors as mcolors
-        _cmap = cm.get_cmap("RdYlGn_r")
-        _norm = mcolors.Normalize(vmin=1.0, vmax=7.0)
         _legend_items = [
-            mpatches.Patch(color=_cmap(_norm(1.0)),  label="Clear / flat (0°)"),
-            mpatches.Patch(color=_cmap(_norm(2.0)),  label="Moderate slope (~20°)"),
-            mpatches.Patch(color=_cmap(_norm(6.0)),  label="Steep slope (~35°)"),
-            mpatches.Patch(color=_cmap(_norm(7.0)),  label="Blocked obstacle"),
-            mpatches.Patch(color="#555577",           label="Unknown"),
+            mpatches.Patch(color=_cmap(_norm(1.0)),  label="Low planner cost"),
+            mpatches.Patch(color=_cmap(_norm(2.0)),  label="Elevated cost"),
+            mpatches.Patch(color=_cmap(_norm(6.0)),  label="High cost"),
+            mpatches.Patch(color=_cmap(_norm(20.0)),  label="Obstacle / very steep terrain"),
+            *([mpatches.Patch(color=_cmap(_norm(12.0)), label="Clearance buffer (planner avoids)")]
+              if clearance_mask is not None else []),
+            mpatches.Patch(color="#555577", label="Unknown"),
+            Line2D([0],[0],color="#FF1828",ls="--",label="Active route"),
+            Line2D([0],[0],color="#FFD700",marker="D",ls="",label="Local checkpoint"),
         ]
+        if layer_legend is not None and self._layer!='terrain':
+            _legend_items=[Line2D([],[],color='none',label=item.strip()) for item in layer_legend.split('|')]
         ag.legend(handles=_legend_items, loc="lower left",
                   fontsize=6, framealpha=0.6,
                   facecolor="#111133", edgecolor="#334466",
@@ -267,7 +298,7 @@ class Dashboard:
         ly0, ly1 = pose.y - z, pose.y + z
 
         if cost_grid is not None:
-            al.imshow(cost_grid.T, origin="lower", extent=ext, **cmap_kwargs)
+            al.imshow(image_grid, origin="lower", extent=ext, **cmap_kwargs)
 
         # Robot trajectory trace in local zoom (magenta — recent path history)
         if len(trajectory) >= 2:
@@ -281,8 +312,8 @@ class Dashboard:
         # A* planned path (bright white dashed — clearly distinct from magenta trail)
         if len(path) >= 2:
             al.plot([p[0] for p in path], [p[1] for p in path],
-                    color="#FFFFFF", linewidth=2.5, alpha=0.95,
-                    zorder=8, linestyle="--", label="A* path")
+                    color="#FF1828", linewidth=2.5, alpha=0.95,
+                    zorder=8, linestyle="--", label="Active route")
 
         # Waypoints in local view
         for i, wp in enumerate(self._waypoints):
@@ -326,6 +357,11 @@ class Dashboard:
         # ── Status bar ────────────────────────────────────────────────────
         ax_s = self._ax_status
         ax_s.cla()
+        for ax in (ag,al):
+            if checkpoint is not None:
+                ax.scatter(*checkpoint,color="#FFD700",marker="D",s=55,zorder=15,label="Local checkpoint")
+            if steering is not None:
+                ax.scatter(*steering,color="white",marker="+",s=60,zorder=15,label="Steering target")
         ax_s.set_facecolor("#111122")
         ax_s.axis("off")
 
@@ -333,6 +369,9 @@ class Dashboard:
                      if wp_idx < len(self._waypoints) else "DONE")
         slope_deg = (math.degrees(math.atan(local_out.slope_ahead))
                      if local_out and not math.isnan(local_out.slope_ahead) else 0.0)
+        if layers is not None:
+            cell=self._omap.world_to_cell(pose.x,pose.y)
+            if cell is not None: slope_deg=float(np.degrees(np.arctan(layers['slope'][cell])))
         cmd_str   = f"cmd=({cmd[0]:+.2f}, {cmd[1]:+.2f}, {cmd[2]:+.2f})"
 
         if slam_conv:
@@ -359,6 +398,10 @@ class Dashboard:
             f"State: {rec_status}"
             f"{fwd_str}"
         )
+        if nav_reason:
+            status += f"\n{nav_reason} | fresh={coverage:.0%} | oldest={age:.1f}s"
+            if mapped is not None:
+                status += f" | mapped={mapped:.0%} | surveyed={mapped_area:.1f} m²"
         ax_s.text(0.01, 0.5, status,
                   transform=ax_s.transAxes,
                   color="#00FFFF", fontsize=8.0,

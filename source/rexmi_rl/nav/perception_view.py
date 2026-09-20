@@ -45,7 +45,7 @@ def cost_tiles(cost, height, observed, origin, cell_size, robot_xy,
     values = cost[rows, cols]
     colors = np.tile([0.08, 0.65, 0.65], (len(rows), 1))
     colors[values >= 2] = [0.95, 0.64, 0.12]
-    colors[values >= 6] = [1.0, 0.29, 0.12]
+    colors[values >= 6] = [1.0, 0.0, 1.0]
     colors[(values >= 20) | ~np.isfinite(values)] = [1.0, 0.0, 0.0]
     if clearance_mask is not None:
         colors[np.asarray(clearance_mask)[rows,cols]] = [.55,.46,.26]
@@ -62,15 +62,15 @@ def survey_colors(cost, observed, clearance=None, layer='terrain', slope=None,
     if layer=='terrain':
         colors[:]=[.08,.65,.65]
         colors[cost>=2]=[.95,.64,.12]
-        colors[cost>=6]=[1.,.29,.12]
-        legend='Teal: low cost | yellow/orange: higher cost'
+        colors[cost>=6]=[1.,0.,1.]
+        legend='Teal: low cost | yellow/magenta: higher cost'
     elif layer in ('slope','roughness'):
         values=np.degrees(np.arctan(slope)) if layer=='slope' else roughness*100
-        maximum=50. if layer=='slope' else 10.
+        maximum=35. if layer=='slope' else 10.
         t=np.clip(np.nan_to_num(values)/maximum,0,1)[...,None]
         colors[:]=(1-t)*np.array([.08,.65,.65])+t*np.array([1.,.65,.08])
         colors[~np.isfinite(values)]=.32
-        legend=('Slope: teal 0° → gold 50°' if layer=='slope' else
+        legend=('Slope: teal 0° → gold 35°' if layer=='slope' else
                 'Roughness RMS: teal 0 → gold 10 cm | grey: insufficient samples')
     else:
         good=np.max(successes,axis=-1)>0
@@ -82,8 +82,10 @@ def survey_colors(cost, observed, clearance=None, layer='terrain', slope=None,
     buffer=np.zeros(cost.shape,bool) if clearance is None else clearance
     colors[(cost>=20)&~buffer]=[1.,0.,0.]
     colors[buffer]=[.55,.46,.26]
+    if slope is not None:
+        colors[observed & (slope > np.tan(np.radians(35.)))]=[1.,.29,.12]
     colors[~observed]=[.33,.33,.47]
-    return colors,legend+' | red: hazard/slope limit | cream: planning margin'
+    return colors,legend+' | red: obstacle | orange: slope >35° (blocked) | cream: obstacle clearance'
 
 
 def survey_tiles(height, observed, colors, origin, cell_size, robot_xy, radius=12.):
@@ -112,12 +114,13 @@ def survey_tiles(height, observed, colors, origin, cell_size, robot_xy, radius=1
             z=blocks(height)[r,c].max(axis=-1)
             block_colors=colors.reshape(n//2,2,m//2,2,3).transpose(0,2,1,3,4).reshape(n//2,m//2,4,3)[r,c]
             # Red hazards outrank cream; retain other high diagnostic values.
-            red=(block_colors[:,:,0]>.99)&(block_colors[:,:,1]<.05)
+            red=np.all(np.isclose(block_colors,[1.,0.,0.]),axis=-1)
+            steep=np.all(np.isclose(block_colors,[1.,.29,.12]),axis=-1)
             cream=np.all(np.isclose(block_colors,[.55,.46,.26]),axis=-1)
             excluded=np.all(np.isclose(block_colors,[.65,.25,.85]),axis=-1)
             failed=np.all(np.isclose(block_colors,[1.,.55,.12]),axis=-1)
             success=np.all(np.isclose(block_colors,[.12,.75,.3]),axis=-1)
-            rank=block_colors[:,:,0]+red*10+cream*5+excluded*3+failed*2+success
+            rank=block_colors[:,:,0]+red*10+steep*11+cream*5+excluded*3+failed*2+success
             chosen=block_colors[np.arange(len(r)),rank.argmax(axis=-1)]
             groups.append((np.c_[x,y,z+.045],chosen,cell_size*.86))
     r,c=np.nonzero(valid & ~coarse)
@@ -176,9 +179,10 @@ class PerceptionView:
     """Live returns + measured terrain cost tiles + observed portions of A* path."""
     ROOT = '/RexmiPerception'
 
-    def __init__(self, nav, hz=5.0):
+    def __init__(self, nav, hz=30.0, point_limit=2000):
         import omni.usd
         from pxr import Sdf, Usd, UsdGeom
+        self.point_limit = point_limit
         self.nav = nav
         self.stage = omni.usd.get_context().get_stage()
         if self.stage.GetPrimAtPath(self.ROOT):
@@ -186,6 +190,8 @@ class PerceptionView:
         self._Usd, self._Geom, self._Sdf = Usd, UsdGeom, Sdf
         self.interval = 1.0 / hz
         self.next_update = 0.0
+        self._tile_key = None
+        self._tile_count = 0
         self.enabled = True
         self.window = None
         self.show = dict(lidar=True, costs=True, path=True, rays=False)
@@ -195,8 +201,8 @@ class PerceptionView:
         with Usd.EditContext(self.stage, self.stage.GetSessionLayer()):
             UsdGeom.Xform.Define(self.stage, self.ROOT)
             self.points = UsdGeom.Points.Define(self.stage, self.ROOT + '/LiveLidar')
-            self.points.CreatePointsAttr([(0.0, 0.0, 0.0)] * 6000)
-            self.points.CreateWidthsAttr([0.0] * 6000)
+            self.points.CreatePointsAttr([(0.0, 0.0, 0.0)] * self.point_limit)
+            self.points.CreateWidthsAttr([0.0] * self.point_limit)
             self.points.SetWidthsInterpolation('vertex')
             self.points.CreateDisplayColorAttr([(0.15, 0.90, 1.0)])
             self.tiles = UsdGeom.Xform.Define(self.stage,self.ROOT+'/ObservedCosts')
@@ -222,8 +228,14 @@ class PerceptionView:
                         with ui.HStack():
                             for name in LAYER_NAMES:
                                 ui.Button(name.title(),clicked_fn=lambda key=name:setattr(self,'layer',key))
+                    if getattr(nav,'requests',None) is not None:
+                        with ui.HStack():
+                            pick=ui.CheckBox(width=22)
+                            pick.model.set_value(nav.shared.get('manual_checkpoint_mode',False))
+                            pick.model.add_value_changed_fn(lambda model:nav.requests.put(('checkpoint_mode',float(model.as_bool),0.)))
+                            ui.Label('Manual checkpoints: click dashboard map',word_wrap=True)
                     self.legend=ui.Label('',word_wrap=True)
-                    ui.Label('Red line: route | red tiles: obstacle / steep terrain | gold: checkpoint', word_wrap=True)
+                    ui.Label('Red line: route | red tiles: obstacle | orange: slope >35° | gold: checkpoint', word_wrap=True)
                     ui.Label('Muted amber: clearance buffer (planner avoids)', word_wrap=True)
                     ui.Label('Unseen cells omitted. Colors are planner costs, not safety guarantees.', word_wrap=True)
                     self.status = ui.Label('Waiting for sensor data', word_wrap=True)
@@ -262,7 +274,7 @@ class PerceptionView:
         if nav._lidar is not None:
             data = nav._lidar.data
             origin = data.pos_w[nav._env_idx].detach().cpu().numpy()
-            hits = filter_hits(data.ray_hits_w[nav._env_idx].detach().cpu().numpy(), origin)
+            hits = filter_hits(data.ray_hits_w[nav._env_idx].detach().cpu().numpy(), origin, limit=self.point_limit)
         cost, height, observed = nav._omap.get_visual_grid()
         with nav._lock:
             path = list(nav.shared['planned_path'])
@@ -273,32 +285,40 @@ class PerceptionView:
             mapped = nav.shared.get('mapped_coverage')
             mapped_area = nav.shared.get('mapped_area')
         started=time.perf_counter()
-        if hasattr(nav._omap,'roughness'):
-            palette,legend=survey_colors(cost,observed,nav._omap.clearance_mask,self.layer,
-                                        nav._omap.slope,nav._omap.roughness,
-                                        nav._omap.failures,nav._omap.successes)
-            vertices,colors=survey_tiles(height,observed,palette,nav._omap.origin,
-                                        nav._omap.cell_size,(pose.x,pose.y))
-            if hasattr(self,'legend'): self.legend.text=legend
-        else:
-            vertices,colors=cost_tiles(cost,height,observed,nav._omap.origin,
-                                       nav._omap.cell_size,(pose.x,pose.y))
-        tile_count=len(colors)
+        tile_key = (getattr(nav._omap,'revision',None),
+                    getattr(nav._omap,'traversal_revision',None),self.layer,
+                    int(np.floor(pose.x)),int(np.floor(pose.y)))
+        update_tiles = tile_key != self._tile_key or tile_key[0] is None
+        if update_tiles:
+            if hasattr(nav._omap,'roughness'):
+                palette,legend=survey_colors(cost,observed,nav._omap.clearance_mask,self.layer,
+                                            nav._omap.slope,nav._omap.roughness,
+                                            nav._omap.failures,nav._omap.successes)
+                vertices,colors=survey_tiles(height,observed,palette,nav._omap.origin,
+                                            nav._omap.cell_size,(pose.x,pose.y))
+                if hasattr(self,'legend'): self.legend.text=legend
+            else:
+                vertices,colors=cost_tiles(cost,height,observed,nav._omap.origin,
+                                           nav._omap.cell_size,(pose.x,pose.y))
+            self._tile_count=len(colors)
+        tile_count=self._tile_count
         route = drape_path(path, height, observed, nav._omap.origin, nav._omap.cell_size)
         ray_ends = hits[::max(1, int(np.ceil(len(hits) / 32)))]
         rays = np.stack((np.broadcast_to(origin, ray_ends.shape), ray_ends), axis=1).reshape(-1, 3)
         # Defining new USD prims requires composition updates. Do it outside
         # Sdf.ChangeBlock; that batch is only safe for existing attributes.
-        with self._Usd.EditContext(self.stage,self.stage.GetSessionLayer()):
-            self._update_tiles(vertices,colors)
+        if update_tiles:
+            with self._Usd.EditContext(self.stage,self.stage.GetSessionLayer()):
+                self._update_tiles(vertices,colors)
+            self._tile_key=tile_key
         with self._Usd.EditContext(self.stage, self.stage.GetSessionLayer()), self._Sdf.ChangeBlock():
             for key, prim in [('lidar',self.points),('costs',self.tiles),('path',self.route),('rays',self.rays)]:
                 prim.GetVisibilityAttr().Set('inherited' if self.show[key] else 'invisible')
             # Keep point topology stable for Hydra as scan return counts change.
-            point_buffer = np.broadcast_to(origin, (6000, 3)).copy()
+            point_buffer = np.broadcast_to(origin, (self.point_limit, 3)).copy()
             point_buffer[:len(hits)] = hits
             self.points.GetPointsAttr().Set(point_buffer.tolist())
-            self.points.GetWidthsAttr().Set([0.035] * len(hits) + [0.0] * (6000 - len(hits)))
+            self.points.GetWidthsAttr().Set([0.035] * len(hits) + [0.0] * (self.point_limit - len(hits)))
             self._set_curve(self.route, route)
             self._set_curve(self.rays, rays)
             for marker, xy, size in [(self.checkpoint_marker,checkpoint,.3), (self.target_marker,steering,.15)]:
@@ -314,7 +334,7 @@ class PerceptionView:
         self.render_ms=1000*(time.perf_counter()-started)
         if self.status is not None:
             self.status.text = (f'{len(hits):,} live returns | {tile_count:,} observed tiles\n'
-                                f'Full survey | {self.render_ms:.0f} ms update | display capped at 5 Hz\n'
+                                f'Full survey | {self.render_ms:.0f} ms update | live target {1/self.interval:.0f} Hz\n'
                                 'Navigation pose uses the existing simulator-assisted localizer.')
             if coverage is not None:
                 self.status.text += f'\nFresh local coverage {coverage:.0%} | oldest {age:.1f}s'

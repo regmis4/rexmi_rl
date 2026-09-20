@@ -7,6 +7,126 @@ from test_checkpoint_navigation import m,c,surface,module
 v=module('survey_perception','nav/perception_view.py')
 
 class SurveyTests(unittest.TestCase):
+    def test_fast_plane_filters_match_original_2d_filters(self):
+        from pathlib import Path
+        source=Path(m.__file__).read_text()
+        source=source.replace('sums = moments(weights,powers)',
+            "sums = [ndi.correlate(weights,k,mode='constant') for k in [np.ones_like(xx),xx,yy,xx*xx,xx*yy,yy*yy]]")
+        source=source.replace('np.stack(moments(weights*z,powers[:3]),axis=-1)',
+            "np.stack([ndi.correlate(weights*z,k,mode='constant') for k in [np.ones_like(xx),xx,yy]],axis=-1)")
+        scope={};exec(compile(source,'reference_map','exec'),scope)
+        fast=m.ObservedTerrainMap(world_size=12.)
+        reference=scope['ObservedTerrainMap'](world_size=12.)
+        x,y=np.meshgrid(np.arange(-4.9,5.,.1),np.arange(-4.9,5.,.1),indexing='ij')
+        z=.45*x+.2*y+np.where((abs(x-1)<.35)&(abs(y)<.35),.5,0.)
+        points=np.c_[x.ravel(),y.ravel(),z.ravel()]
+        for g in (fast,reference):g.ingest(points,(0,0,1),0);g.rebuild(0)
+        for name in ('known','hazard','blocked'):np.testing.assert_array_equal(getattr(fast,name),getattr(reference,name))
+        for name in ('gx','gy','cost'):np.testing.assert_allclose(getattr(fast,name),getattr(reference,name),atol=1e-5)
+
+    def test_radius_retention_forgets_evidence_without_resurrection(self):
+        g=surface();near=g.world_to_cell(0,0);far=g.world_to_cell(4,0)
+        g.record_traversal([(4,0)],0,failed=True)
+        g.retain_radius((0,0),2.);g.rebuild(1.)
+        self.assertTrue(g.known[near]);self.assertFalse(g.known[far])
+        self.assertFalse(np.isfinite(g._bin_low[far]).any())
+        self.assertFalse(g.failures[far].any())
+        g.rebuild(2.);self.assertFalse(g.known[far])
+        self.assertFalse(g.segment_clear((0,0),(4,0)))
+
+    def test_click_mode_waits_then_plans_and_restores_mission_progress(self):
+        g=surface();waypoints=[SimpleNamespace(x=1.,y=0.),SimpleNamespace(x=3.,y=0.)]
+        control=c.CheckpointController(g,waypoints);control.wp_idx=1
+        self.assertFalse(control.choose_checkpoint((0,0),(2,0),0))
+        control.checkpoint_mode(True,0)
+        self.assertEqual(control.state,'HOLD')
+        self.assertTrue(control.choose_checkpoint((0,0),(2,0),1))
+        self.assertEqual(control.state,'OBSERVE');self.assertEqual(control.waypoints[0].x,2)
+        for t in (1.2,1.4,1.6): g.rebuild(t)
+        command=control.tick((0,0),0,0,3.)
+        self.assertEqual(control.state,'FOLLOW');self.assertGreater(command.vx,0.)
+        control.request('stop',4.);self.assertEqual(control.state,'HOLD')
+        control.checkpoint_mode(False,5.)
+        self.assertIs(control.waypoints,waypoints);self.assertEqual(control.wp_idx,1)
+        self.assertEqual(control.state,'HOLD')
+
+    def test_click_rejects_unknown_obstacles_and_unreachable_targets(self):
+        g=surface();control=c.CheckpointController(g,[SimpleNamespace(x=3.,y=0.)])
+        control.checkpoint_mode(True,0)
+        for target in [(100,100),(float('nan'),0)]:
+            self.assertFalse(control.choose_checkpoint((0,0),target,1))
+        cell=g.world_to_cell(2,0);g.blocked[cell]=True
+        self.assertFalse(control.choose_checkpoint((0,0),(2,0),1))
+        g.blocked[cell]=False
+        g.known[g.world_to_cell(1,0)[0],:]=False
+        self.assertFalse(control.choose_checkpoint((0,0),(2,0),1))
+        self.assertEqual(control.state,'HOLD')
+
+    def test_dashboard_click_only_enqueues_in_enabled_map(self):
+        from queue import SimpleQueue
+        from threading import Lock
+        dashboard=module('click_dashboard','nav/dashboard.py')
+        requests=SimpleQueue();shared={'manual_checkpoint_mode':False}
+        view=dashboard.Dashboard(shared,Lock(),surface(),[],request_queue=requests)
+        view._ax_global=object();view._ax_local=object()
+        view._fig=SimpleNamespace(canvas=SimpleNamespace(toolbar=SimpleNamespace(mode='')))
+        event=SimpleNamespace(button=1,inaxes=view._ax_global,xdata=1.2,ydata=-.8)
+        view._on_map_click(event);self.assertTrue(requests.empty())
+        shared['manual_checkpoint_mode']=True;view._on_map_click(event)
+        self.assertEqual(requests.get(),('target',1.2,-.8))
+        view._fig.canvas.toolbar.mode='pan';view._on_map_click(event)
+        self.assertTrue(requests.empty())
+
+    def test_35_degree_limit_applies_to_routes_and_cream_exits(self):
+        for degrees in (34.9,35.1):
+            g=surface(math.tan(math.radians(degrees)));cell=g.world_to_cell(0,0)
+            self.assertFalse(g.hazard[cell])
+            self.assertEqual(bool(g.blocked[cell]),degrees>35)
+            self.assertEqual(g.segment_clear((0,0),(.2,0),g.footprint_radius),degrees<35)
+            colors,legend=v.survey_colors(g.cost,g.known,g.clearance_mask,slope=g.slope)
+            if degrees>35:
+                np.testing.assert_allclose(colors[cell],[1.,.29,.12])
+                self.assertFalse(g.clearance_mask[cell])
+
+    def test_steep_boundary_does_not_inflate_onto_gentler_ground(self):
+        g=m.ObservedTerrainMap(world_size=12.)
+        x,y=np.meshgrid(np.arange(-4.9,5.,.1),np.arange(-4.9,5.,.1),indexing='ij')
+        z=np.where(x<0,.5*x,.9*x)
+        g.ingest(np.c_[x.ravel(),y.ravel(),z.ravel()],(0,0,1),0);g.rebuild(0)
+        column=g.world_to_cell(0,0)[1]
+        for row in range(15,45):
+            cell=(row,column)
+            self.assertFalse(g.hazard[cell])
+            self.assertEqual(bool(g.blocked[cell]),g.slope[cell]>math.tan(math.radians(35)))
+        self.assertFalse(g.clearance_mask[15:45,column].any())
+
+    def test_distant_steep_tile_remains_orange(self):
+        cost=np.ones((4,4));slope=np.zeros((4,4));slope[0,0]=1.;cost[0,0]=20.
+        colors,_=v.survey_colors(cost,np.ones((4,4),bool),slope=slope)
+        _,coarse=v.survey_tiles(np.zeros((4,4)),np.ones((4,4),bool),colors,(0,0),.2,(30,30))
+        self.assertTrue(np.any(np.all(np.isclose(coarse,[1.,.29,.12]),axis=1)))
+
+    def test_demo_boulder_is_offset_sensed_and_avoidable(self):
+        import ast
+        from pathlib import Path
+        tree=ast.parse((Path(__file__).resolve().parents[1]/'source/rexmi_rl/tasks/locomotion/velocity/config/go2w/crater_terrain.py').read_text())
+        helper=next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='_add_floor_demo_boulder')
+        cfgclass=next(n for n in tree.body if isinstance(n,ast.ClassDef) and n.name=='LunarCraterDemoBowlCfg')
+        fields={n.target.id:ast.literal_eval(n.value) for n in cfgclass.body if isinstance(n,ast.AnnAssign) and n.target.id.startswith('floor_boulder_')}
+        cfg=SimpleNamespace(**fields);scope={'np':np}
+        exec(compile(ast.Module(body=[helper],type_ignores=[]),'terrain_helper','exec'),scope)
+        x,y=np.meshgrid(np.arange(-4.9,5.,.1),np.arange(-4.9,5.,.1),indexing='ij');h=np.zeros_like(x)
+        scope['_add_floor_demo_boulder'](h,x,y,cfg)
+        self.assertAlmostEqual(h.max(),.45)
+        self.assertEqual(h[np.unravel_index(np.argmin(x*x+y*y),h.shape)],0.)
+        g=m.ObservedTerrainMap(world_size=12.,footprint_radius=.5)
+        g.ingest(np.c_[x.ravel(),y.ravel(),h.ravel()],(0,0,1),0);g.rebuild(0)
+        self.assertTrue(g.hazard[g.world_to_cell(*cfg.floor_boulder_xy)])
+        route,complete=c.observed_route(g,(-1.,.8),(3.,.8),0.)
+        self.assertTrue(complete)
+        self.assertTrue(all(g.segment_clear(a,b) for a,b in zip(route,route[1:])))
+        self.assertTrue(any(abs(y-.8)>.6 for x,y in route))
+
     def test_roughness_removes_plane_slope_and_retains_texture(self):
         def make(textured):
             g=m.ObservedTerrainMap(world_size=12.)
@@ -84,6 +204,49 @@ class SurveyTests(unittest.TestCase):
         control.velocity_world=np.array([.2,0.])
         self.assertTrue(control.motion_clear((0,0),0,.2,c.Motion(-.2,0.)))
         self.assertIn('approach direction',g.segment_reason((0,0),(.4,0)))
+
+    def cream_corridor(self):
+        g=surface()
+        cell=g.world_to_cell(.3,.1)
+        g.blocked[cell]=True;g.cost[cell]=20.
+        g.obstacle_distance[cell]=g.footprint_radius+.05
+        return g,cell
+
+    def test_slow_motion_uses_extra_margin_but_route_does_not(self):
+        g,cell=self.cream_corridor()
+        control=c.CheckpointController(g,[SimpleNamespace(x=3.,y=.1)])
+        self.assertFalse(g.segment_clear((.1,.1),(.5,.1)))
+        self.assertTrue(control.motion_clear((.1,.1),0,0,c.Motion(.2,0)))
+        self.assertFalse(control.motion_clear((.1,.1),0,0,c.Motion(.4,0)))
+        g.obstacle_distance[cell]=g.footprint_radius-.01
+        self.assertFalse(control.motion_clear((.1,.1),0,0,c.Motion(.2,0)))
+        self.assertIn('footprint',control.motion_rejection)
+
+    def test_drift_into_extra_margin_does_not_cancel_safe_slow_motion(self):
+        g,cell=self.cream_corridor()
+        control=c.CheckpointController(g,[SimpleNamespace(x=3.,y=.1)])
+        control.velocity_world=np.array([.3,0.])
+        self.assertTrue(control.motion_clear((.1,.1),0,.3,c.Motion(.2,0)))
+        g.obstacle_distance[cell]=g.footprint_radius-.01
+        self.assertFalse(control.motion_clear((.1,.1),0,.3,c.Motion(.2,0)))
+        self.assertIn('drift stopping corridor',control.motion_rejection)
+
+    def test_cream_corner_checks_preserve_body_clearance(self):
+        g=surface();cell=g.world_to_cell(.3,.1)
+        g.blocked[cell]=True;g.obstacle_distance[cell]=g.footprint_radius+.05
+        a,b=(.1,.1),(.3,.3)
+        self.assertFalse(g.segment_clear(a,b))
+        self.assertTrue(g.segment_clear(a,b,g.footprint_radius))
+        g.obstacle_distance[cell]=g.footprint_radius-.01
+        self.assertFalse(g.segment_clear(a,b,g.footprint_radius))
+        g.obstacle_distance[cell]=g.footprint_radius+.05
+        g.fresh[cell]=False
+        self.assertFalse(g.segment_clear(a,b,g.footprint_radius))
+
+    def test_cream_permission_never_overrides_unknown_or_red(self):
+        for attr,value in [('known',False),('fresh',False),('hazard',True),('slope',2.)]:
+            g,cell=self.cream_corridor();getattr(g,attr)[cell]=value
+            self.assertFalse(g.segment_clear((.1,.1),(.5,.1),g.footprint_radius),attr)
 
     def test_yellow_tiles_do_not_force_stop(self):
         g=surface();g.cost[g.known]=6.

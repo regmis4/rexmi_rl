@@ -633,6 +633,15 @@ def _add_boulders_radial(h, X, Y, rng, n, h_min, h_max, r_min, r_max,
         h += bh[k] * np.exp(-((X - bx[k])**2 + (Y - by[k])**2) / (2.0 * s))
 
 
+def _add_floor_demo_boulder(h, X, Y, cfg):
+    """Deterministic off-centre rock, part of the sensed/collidable heightfield."""
+    bx, by = cfg.floor_boulder_xy
+    rx, ry = cfg.floor_boulder_radii
+    rho = np.sqrt(((X-bx)/rx)**2 + ((Y-by)/ry)**2)
+    # Broad flat top and steep sides: an obstacle, not a climbable ramp.
+    h += cfg.floor_boulder_height * np.clip((1.-rho)/.25, 0., 1.)
+
+
 @height_field_to_mesh
 def lunar_crater_demo_bowl(difficulty: float, cfg) -> np.ndarray:
     """
@@ -906,6 +915,8 @@ def lunar_crater_demo_bowl(difficulty: float, cfg) -> np.ndarray:
                          cfg.boulder_radius_min, cfg.boulder_radius_max,
                          0.0, 0.0, r_floor + 0.5, r_rim - 0.8)
 
+    _add_floor_demo_boulder(h, X, Y, cfg)
+
     # 8b. Exterior rim boulder field (r = r_rim+0.3 to r_rim+9 — wide dense ring)
     #     Wide, flat-ish boulders: sigma=0.28-0.55m, height=0.08-0.40m
     _add_boulders_radial(h, X, Y, rng,
@@ -962,6 +973,11 @@ class LunarCraterDemoBowlCfg(HfTerrainBaseCfg):
 
     # --- Azimuthal variation (±5° swing at mid-wall) ---
     az_variation_m: float = 0.8
+
+    # Off-centre floor obstacle; zero height disables it for comparisons.
+    floor_boulder_xy: tuple = (1.5, 0.8)
+    floor_boulder_radii: tuple = (0.425, 0.325)
+    floor_boulder_height: float = 0.45
 
     # --- Crater wall boulders (2× density per user request) ---
     boulder_count:      int   = 20

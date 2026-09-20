@@ -20,6 +20,9 @@ def run(args, app):
     env = view = remote = None
     grid = path = None
     dashboard = None
+    from concurrent.futures import ThreadPoolExecutor
+    exporter = ThreadPoolExecutor(max_workers=1)
+    export_job = None
     dashboard_stop = threading.Event()
     try:
         import gymnasium as gym
@@ -83,17 +86,18 @@ def run(args, app):
         control=CheckpointController(grid,waypoints,cruise_speed=args.cruise_speed)
         requests=queue.SimpleQueue()
         if args.start_paused: control.request('stop',0.)
+        if args.manual_checkpoints: control.checkpoint_mode(True,0.)
         lock=threading.Lock()
         empty=np.array([])
-        shared=dict(pose=localizer.get_pose(),wp_idx=0,planned_path=[],local_out=None,
+        shared=dict(manual_checkpoint_mode=args.manual_checkpoints,pose=localizer.get_pose(),wp_idx=0,planned_path=[],local_out=None,
                     recovery_status='OBSERVE',mission=args.mission,cmd=(0.,0.,0.),cost_grid=grid.get_cost_grid(),
                     speed=0.,slam_converged=False,slam_map_size=0,slam_rms=0.,slam_icp_count=0,
                     fwd_cloud_xyz=(empty,empty,empty),policy_status='rocky_slope',trajectory=[])
         nav=SimpleNamespace(_sim_localizer=localizer,_lidar=sensors['lidar'],_env_idx=0,
-                            _omap=grid,_lock=lock,shared=shared)
+                            _omap=grid,_lock=lock,shared=shared,requests=requests if not args.no_dashboard else None)
         if args.perception_view:
             from rexmi_rl.nav.perception_view import PerceptionView
-            view=PerceptionView(nav)
+            view=PerceptionView(nav,hz=args.overlay_hz,point_limit=args.lidar_display_points)
             view.layer=getattr(args,"survey_layer","terrain")
         if not args.headless:
             import omni.ui as ui
@@ -105,13 +109,15 @@ def run(args, app):
                     with ui.HStack():
                         ui.Button('STOP',clicked_fn=lambda:requests.put(('stop',0.,0.)))
                         ui.Button('RESUME AUTO',clicked_fn=lambda:requests.put(('resume',0.,0.)))
+                    ui.Button('CLICK CHECKPOINT MODE',clicked_fn=lambda:requests.put(('checkpoint_mode',1.,0.)))
+                    ui.Button('RESTORE MISSION (paused)',clicked_fn=lambda:requests.put(('checkpoint_mode',0.,0.)))
                     ui.Label('Manual controls suspend autonomy; release to stop.')
                     for label,vx,omega in [('Forward',.4,0.),('Back',-.4,0.),('Left',0.,.35),('Right',0.,-.35)]:
                         ui.Button(label,mouse_pressed_fn=lambda x,y,b,m,v=vx,w=omega:requests.put(('manual',v,w)),
                                   mouse_released_fn=lambda x,y,b,m:requests.put(('manual',0.,0.)))
         if not args.no_dashboard and not args.headless:
             from rexmi_rl.nav.dashboard import Dashboard
-            dashboard=Dashboard(shared,lock,grid,waypoints)
+            dashboard=Dashboard(shared,lock,grid,waypoints,request_queue=requests)
             threading.Thread(target=dashboard.run,args=(dashboard_stop,),daemon=True).start()
         # Optional terminal commands. Never require stdin to run unattended.
         def terminal():
@@ -128,12 +134,18 @@ def run(args, app):
         path.parent.mkdir(parents=True,exist_ok=True)
         path.with_suffix('.events.jsonl').write_text('')
         dt=env.unwrapped.step_dt
-        def export_survey():
-            # Atomic replacement retains the previous complete export on interruption.
+        def write_survey(snapshot):
             temporary=path.with_suffix('.map.tmp')
             with temporary.open('wb') as out:
-                np.savez_compressed(out,**grid.survey_snapshot())
+                np.savez_compressed(out,**snapshot)
             temporary.replace(path.with_suffix('.map.npz'))
+        def export_survey(final=False):
+            nonlocal export_job
+            if export_job is not None:
+                if not final and not export_job.done(): return
+                export_job.result()
+            export_job=exporter.submit(write_survey,grid.survey_snapshot())
+            if final: export_job.result()
         try:
             material=robot.root_physx_view.get_material_properties().detach().cpu().numpy()
             properties={'robot_static_friction_range':[float(material[...,0].min()),float(material[...,0].max())],
@@ -186,9 +198,11 @@ def run(args, app):
                             scan_record[name+'_origin']=sensor_origin
                             scan_record[name+'_range']=max_range
                     started=time.perf_counter()
+                    if args.map_retention == 'radius': grid.retain_radius(xy,args.map_keep_radius)
                     grid.rebuild(now)
                     map_update_ms.append(1000*(time.perf_counter()-started))
                     with lock:
+                        shared.update(cost_grid=grid.get_cost_grid(),observed_mask=grid.known.copy(),clearance_mask=grid.clearance_mask)
                         shared['survey_layers']={k:getattr(grid,k).copy() for k in
                                                  ('slope','roughness','failures','successes')}
                     if args.scan_log:
@@ -197,8 +211,20 @@ def run(args, app):
                         np.savez_compressed(scan_dir/f'{step:06d}.npz',**scan_record)
                 while not requests.empty():
                     action,vx,omega=requests.get()
-                    control.request(action,now,vx,omega)
+                    if action=='checkpoint_mode':
+                        if vx and args.no_dashboard:
+                            control.request('stop',now);control.reason='checkpoint picking requires dashboard; relaunch without --no_dashboard'
+                        else: control.checkpoint_mode(bool(vx),now)
+                    elif action=='target': control.choose_checkpoint(xy,(vx,omega),now)
+                    elif action=='resume' and getattr(control,'manual_checkpoint_mode',False) and control.checkpoint is None:
+                        pass
+                    else: control.request(action,now,vx,omega)
+                    with lock: shared['manual_checkpoint_mode']=getattr(control,'manual_checkpoint_mode',False)
+                    if dashboard: dashboard._waypoints=control.waypoints
                 motion=control.tick(xy,pose.yaw,speed,now,upright=up,velocity=velocity)
+                if control.state=='COMPLETE' and getattr(control,'manual_checkpoint_mode',False):
+                    control.request('stop',now)
+                    control.reason='selected checkpoint reached; click another point'
                 if now-last_export>=30.:
                     export_survey();last_export=now
                 if control.climb_failures>exported_failures:
@@ -214,8 +240,7 @@ def run(args, app):
                 with lock:
                     shared.update(pose=pose,wp_idx=control.wp_idx,planned_path=list(control.path),
                                   recovery_status=control.state,cmd=(motion.vx,0.,motion.omega),
-                                  cost_grid=grid.get_cost_grid(),observed_mask=grid.known.copy(),
-                                  clearance_mask=grid.clearance_mask,speed=speed,trajectory=list(trajectory),
+                                  speed=speed,trajectory=list(trajectory),
                                   checkpoint=control.checkpoint,steering_target=control.target,
                                   nav_reason=control.reason,coverage=quality['coverage'],observation_age=quality['age'],
                                   mapped_coverage=quality['mapped_coverage'],mapped_area=quality['mapped_area'])
@@ -229,7 +254,7 @@ def run(args, app):
                         from omni.kit.viewport.utility import get_active_viewport,capture_viewport_to_file
                         Path(args.capture_file).parent.mkdir(parents=True,exist_ok=True)
                         capture=capture_viewport_to_file(get_active_viewport(),file_path=args.capture_file)
-                description=(f'{control.state}: {control.reason}\nWP {control.wp_idx}/{len(waypoints)} | '
+                description=(f'{control.state}: {control.reason}\nWP {control.wp_idx}/{len(control.waypoints)} | '
                              f'checkpoint ({cp[0]:.1f}, {cp[1]:.1f})\n'
                              f'command {motion.vx:+.2f} m/s, {motion.omega:+.2f} rad/s\n'
                              f'mapped {quality["mapped_coverage"]:.0%} | fresh {quality["coverage"]:.0%}\n'
@@ -244,14 +269,14 @@ def run(args, app):
                                  float(np.degrees(np.arctan(grid.slope[grid.world_to_cell(*xy)]))),
                                  float(grid.roughness[grid.world_to_cell(*xy)]),control.climb_failures,
                                  control.backslide_distance,control.route_decision,view.render_ms if view else 0.])
-                if control.state=='COMPLETE': result='complete';break
+                if control.state=='COMPLETE' and not getattr(control,'manual_checkpoint_mode',False): result='complete';break
                 if args.headless and control.state=='HOLD': result='hold';break
                 actions=policy_actions(env,policy,motion.vx,motion.omega)
                 _,_,done,_=env.step(actions)
                 if bool(done[0]):
                     result='unexpected_environment_reset';break
         summary=dict(result=result,seed=args.seed,sim_seconds=now,waypoints_reached=control.wp_idx,
-                     total_waypoints=len(waypoints),manual_intervention=control.intervened,
+                     total_waypoints=len(control.waypoints),manual_intervention=control.intervened,
                      max_cross_track_m=max_error,policy='rocky_slope',policy_switches=0,
                      footprint_radius_m=radius,cruise_ceiling=args.cruise_speed,
                      hold_failures=control.hold_failures,rolling_checkpoints=control.rolling_checkpoints,
@@ -266,8 +291,9 @@ def run(args, app):
         print('[checkpoint] RESULT '+json.dumps(summary),flush=True)
     finally:
         if grid is not None and path is not None:
-            try: export_survey()
+            try: export_survey(final=True)
             except Exception as exc: print(f'[survey] final export failed: {exc}')
+        exporter.shutdown(wait=True)
         if view: view.close()
         if remote: remote.destroy()
         if dashboard: dashboard_stop.set()

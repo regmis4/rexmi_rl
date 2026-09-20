@@ -52,7 +52,7 @@ class MapTests(unittest.TestCase):
             grid=surface(slope)
             cell=grid.world_to_cell(0,0)
             self.assertFalse(grid.hazard[cell])
-            self.assertFalse(grid.blocked[cell])
+            self.assertEqual(bool(grid.blocked[cell]), slope > math.tan(math.radians(35)))
             self.assertAlmostEqual(grid.gx[cell],slope,delta=.08)
 
     def test_flat_top_boulder_and_boulder_on_slope(self):

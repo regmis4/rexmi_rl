@@ -9,6 +9,7 @@ from scipy import ndimage as ndi
 
 
 class ObservedTerrainMap:
+    MAX_SLOPE_DEG = 35.0
     STEP_THRESH = 0.20
     FRESH_SECONDS = 8.0
     SUBDIVISIONS = 4  # 5 cm evidence bins within each 20 cm planning cell
@@ -132,6 +133,21 @@ class ObservedTerrainMap:
         self._scan_low[hit],self._scan_high[hit] = np.inf,-np.inf
         self._scan_time = None
 
+    def retain_radius(self, xy, radius):
+        """Forget evidence outside a rolling radius; caller rebuilds before use."""
+        self._fuse_scan()
+        axis=(np.arange(self.n_cells)+.5)*self.cell_size-self.world_size/2
+        outside=(axis[:,None]+self.origin[0]-xy[0])**2+(axis[None,:]+self.origin[1]-xy[1])**2 > radius**2
+        self._retention_mask=~outside
+        for name in ('height','low','_bin_low','_bin_high'):
+            getattr(self,name)[outside]=np.nan
+        self.last_seen[outside]=-np.inf
+        for name in ('samples','_bin_count','_clear_count','_raise_count','_clear_candidate','_raise_candidate','failures','successes'):
+            getattr(self,name)[outside]=0
+        self._scan_low[outside]=np.inf;self._scan_high[outside]=-np.inf
+        self.roughness[outside]=np.nan;self.roughness_support[outside]=0
+        self.traversal_revision+=1
+
     def rebuild(self, now):
         self._fuse_scan()
         self.now = now
@@ -143,28 +159,39 @@ class ObservedTerrainMap:
             self.fresh[:] = False
             self.cost[:] = 5
             self.blocked[:] = False
+            self.fresh[:] = False
+            self.hazard[:] = False
+            self.surface[:] = np.nan
+            self._mapped_area = 0.
+            self.revision += 1
             return
         z = np.where(measured, .5 * (self.low + self.height), 0.)
         # Local least-squares ground plane from a 2.2 m neighbourhood. Two
         # passes suppress elevated returns before fitting the supporting ground.
         d = np.arange(-5, 6) * self.cell_size
         xx, yy = np.meshgrid(d, d, indexing='ij')
-        kernels = [np.ones_like(xx), xx, yy, xx*xx, xx*yy, yy*yy]
+        # Plane moments are separable outer products. Two 11-tap passes
+        # replace each 121-tap 2D filter without changing neighbourhoods.
+        def moments(values, powers):
+            first={p:ndi.correlate1d(values,d**p,axis=0,mode='constant') for p in {a for a,b in powers}}
+            return [ndi.correlate1d(first[p],d**q,axis=1,mode='constant') for p,q in powers]
+        powers=[(0,0),(1,0),(0,1),(2,0),(1,1),(0,2)]
         weights = measured.astype(float)
         for _ in range(2):
-            sums = [ndi.correlate(weights, k, mode='constant') for k in kernels]
-            rhs = np.stack([ndi.correlate(weights*z, k, mode='constant')
-                            for k in kernels[:3]], axis=-1)
+            sums = moments(weights,powers)
+            rhs = np.stack(moments(weights*z,powers[:3]),axis=-1)
             matrix = np.empty((*z.shape, 3, 3))
             matrix[..., 0, 0], matrix[..., 0, 1], matrix[..., 0, 2] = sums[:3]
             matrix[..., 1, 0], matrix[..., 1, 1], matrix[..., 1, 2] = sums[1], sums[3], sums[4]
             matrix[..., 2, 0], matrix[..., 2, 1], matrix[..., 2, 2] = sums[2], sums[4], sums[5]
             matrix += np.eye(3) * 1e-5
-            fit = np.linalg.solve(matrix, rhs[..., None])[..., 0]
+            active = sums[0] > 0
+            fit = np.zeros_like(rhs)
+            fit[active] = np.linalg.solve(matrix[active], rhs[active, ..., None])[..., 0]
             ground, gx, gy = fit[..., 0], fit[..., 1], fit[..., 2]
             residual = z - ground
             weights = measured * np.where(residual > self.STEP_THRESH * .5, .10, 1.)
-        support = ndi.convolve(measured.astype(float), np.ones((11, 11)), mode='constant')
+        support = np.rint(ndi.uniform_filter(measured.astype(float),size=11,mode='constant')*121)
         distance, nearest = ndi.distance_transform_edt(~measured, sampling=self.cell_size,
                                                      return_indices=True)
         self.gx, self.gy = gx, gy
@@ -217,6 +244,7 @@ class ObservedTerrainMap:
         # Unknown expanses and occluded holes never become free by interpolation.
         supported = (support >= 6) & (distance <= self.cell_size * 1.42)
         self.known = measured | (supported & ~ndi.maximum_filter(self.hazard, size=3))
+        if hasattr(self,'_retention_mask'): self.known &= self._retention_mask
         self.surface = np.where(measured, self.height, np.where(self.known, ground, np.nan))
         self.surface_seen = self.last_seen[tuple(nearest)]
         self.fresh = self.known & (now-self.surface_seen <= self.FRESH_SECONDS)
@@ -224,15 +252,16 @@ class ObservedTerrainMap:
                              if self.hazard.any() else np.full(self.hazard.shape, np.inf))
         self.obstacle_distance = obstacle_distance
         inflated = obstacle_distance <= self.footprint_radius + self.clearance
-        # >50° local ground is outside this controller's initial operating band.
-        # This is a conservative configuration limit, not a measured policy limit.
-        self.blocked = inflated | (self.known & (self.slope > math.tan(math.radians(50))))
+        # User-reported operating ceiling; steep cells are not inflated.
+        # Roughness does not override this limit or guarantee traction below it.
+        self.blocked = inflated | (self.known & (self.slope > math.tan(math.radians(self.MAX_SLOPE_DEG))))
         self.cost = np.where(self.known, 1. + 4.*self.slope, 5.).astype(np.float32)
         near = np.maximum(0., 1. - obstacle_distance / (self.footprint_radius + self.clearance + .6))
         self.cost[self.known] += 4 * near[self.known]
         # Excess relief adds difficulty, never a presumed traction reward.
         self.cost[self.known] += np.minimum(4.,10.*np.maximum(0.,np.nan_to_num(self.roughness[self.known])-.06))
         self.cost[self.blocked] = 20.
+        self._mapped_area=float(measured.sum()*self.cell_size**2)
         self.revision += 1
 
     def traversable(self, cell, require_fresh=False):
@@ -244,9 +273,10 @@ class ObservedTerrainMap:
         def allowed_cell(cell):
             allowed = self.traversable(cell,require_fresh=require_fresh)
             if not allowed and escape_clearance is not None and cell is not None:
-                allowed = (self.fresh[cell] and not self.hazard[cell]
-                           and self.obstacle_distance[cell] >= escape_clearance - 1e-6
-                           and self.slope[cell] <= math.tan(math.radians(50)))
+                allowed = (self.known[cell] and self.fresh[cell] and not self.hazard[cell]
+                           and self.obstacle_distance[cell] <= self.footprint_radius + self.clearance
+                           and self.obstacle_distance[cell] >= max(self.footprint_radius, escape_clearance) - 1e-6
+                           and self.slope[cell] <= math.tan(math.radians(self.MAX_SLOPE_DEG)))
             return allowed
         heading=self.heading_bin(math.atan2(b[1]-a[1],b[0]-a[0])) if length>1e-9 else None
         previous = None
@@ -264,15 +294,16 @@ class ObservedTerrainMap:
     def clearance_exit(self, xy, goal=None):
         """Exit a newly inflated safety margin without entering the body envelope.
 
-        Never relax actual footprint clearance or allow motion toward a hazard.
+        Never relax actual footprint clearance. The extra planning buffer may
+        be crossed while reconnecting to the normal route.
         This handles a newly observed side boulder placing the robot itself in
         the extra 10 cm planning margin. A blocked footprint still requires HOLD.
         """
         start = self.world_to_cell(*xy)
         if start is None or not self.fresh[start]:
             return [], None
-        clearance = float(self.obstacle_distance[start])
-        if clearance < self.footprint_radius or self.hazard[start]:
+        clearance = self.footprint_radius
+        if self.obstacle_distance[start] < self.footprint_radius or self.hazard[start]:
             return [], None
         candidates=[]
         for dr in range(-5,6):
@@ -346,7 +377,7 @@ class ObservedTerrainMap:
             if cell is None or not self.known[cell]: return 'unobserved terrain'
             if not self.fresh[cell]: return 'stale immediate observations'
             if self.hazard[cell]: return 'detected obstacle'
-            if self.slope[cell]>math.tan(math.radians(50)): return 'terrain exceeds slope limit'
+            if self.slope[cell]>math.tan(math.radians(self.MAX_SLOPE_DEG)): return 'terrain exceeds slope limit'
             if self.obstacle_distance[cell]<self.footprint_radius: return 'obstacle inside robot footprint clearance'
             if self.blocked[cell] and escape_clearance is None: return 'additional obstacle planning margin'
             if check_direction and length>1e-9 and not self.direction_allowed(
@@ -371,20 +402,22 @@ class ObservedTerrainMap:
     @property
     def clearance_mask(self):
         """Planning margin around hazards, distinct from hazardous terrain."""
-        steep=self.known & (self.slope>math.tan(math.radians(50)))
+        steep=self.known & (self.slope>math.tan(math.radians(self.MAX_SLOPE_DEG)))
         return self.blocked & ~self.hazard & ~steep
 
     def get_visual_grid(self):
         return self.get_cost_grid(), self.surface.copy(), self.known.copy()
 
     def quality(self, position, radius=2.):
-        r, c = np.indices(self.known.shape)
         cell = self.world_to_cell(*position)
         if cell is None:
             return dict(coverage=0., age=math.inf, mapped_coverage=0., mapped_area=0.)
-        area = (r-cell[0])**2 + (c-cell[1])**2 <= (radius/self.cell_size)**2
-        seen = area & self.known
-        return dict(coverage=float((area & self.fresh).sum()/area.sum()),
+        span=math.ceil(radius/self.cell_size)
+        r0,r1=max(0,cell[0]-span),min(self.n_cells,cell[0]+span+1)
+        c0,c1=max(0,cell[1]-span),min(self.n_cells,cell[1]+span+1)
+        area=(np.arange(r0,r1)[:,None]-cell[0])**2+(np.arange(c0,c1)[None,:]-cell[1])**2 <= (radius/self.cell_size)**2
+        seen=area & self.known[r0:r1,c0:c1]
+        return dict(coverage=float((area & self.fresh[r0:r1,c0:c1]).sum()/area.sum()),
                     mapped_coverage=float(seen.sum()/area.sum()),
-                    mapped_area=float(np.isfinite(self.height).sum()*self.cell_size**2),
-                    age=float(np.max(self.now-self.surface_seen[seen])) if seen.any() else math.inf)
+                    mapped_area=getattr(self,'_mapped_area',0.),
+                    age=float(np.max(self.now-self.surface_seen[r0:r1,c0:c1][seen])) if seen.any() else math.inf)

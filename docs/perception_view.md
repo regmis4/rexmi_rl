@@ -2,26 +2,28 @@
 
 Add `--perception_view` to your existing `scripts/navigate.py` command.
 The default is now checkpoint navigation; see [the launch and control guide](checkpoint_navigation.md).
-Keep your normal task, checkpoint and mission arguments. Add `--no_dashboard`
-if you only want the Isaac Sim scene instead of the separate 2D plots.
+The launch below opens the dashboard and waits for your first checkpoint click.
 
 ## Launch command
 
 Run from the repository root. This opens Isaac Sim with the existing rocky-slope
-checkpoint and the live perception panel:
+checkpoint, live perception panel and click-to-go dashboard:
 
 ```bash
 cd /home/susan/rexmi_rl
-./run.sh scripts/navigate.py \
+LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libgcc_s.so.1 ./run.sh scripts/navigate.py \
   --task RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0 \
   --checkpoint logs/rsl_rl/go2w_velocity_rocky_slope/2026-06-30_09-31-48/model_13994.pt \
   --nav_controller checkpoint \
-  --perception_view --no_dashboard \
+  --perception_view --manual_checkpoints \
+  --map_retention radius --map_keep_radius 20 \
+  --lidar_display_points 2000 --overlay_hz 30 \
   --max_steps 15000
 ```
 
 Close the simulator window or press Ctrl+C in the launching terminal to stop.
-Remove `--no_dashboard` to also display the existing 2D costmaps.
+Left-click terrain in either dashboard map to select your first destination.
+Remove `--manual_checkpoints` to run the ordered autonomous mission instead.
 
 On this workstation, if an RTX extension reports a missing `GCC_12.0.0` symbol,
 prefix the launch command with
@@ -29,17 +31,16 @@ prefix the launch command with
 This workaround applies only to that process; it does not change the environment.
 
 The short live check verified LiDAR and cost rendering. Route geometry has CPU
-test coverage; full autonomous mission validation is separate. Checkpoint navigation disconnects the debug-arrow callback before shutdown;
-legacy mode may still report its previous CPU/CUDA callback warning.
+test coverage; full autonomous mission validation is separate. Checkpoint navigation disconnects the debug-arrow callback before shutdown.
 
 ## What appears
 
 The **REXMI | Perception** window toggles four independent scene layers:
 
 - **Live LiDAR returns:** cyan points from the current simulated LiDAR scan.
-- **Observed terrain costs:** the complete observed mission survey, with detailed nearby tiles and aggregated distant tiles.
-  Teal = low planner cost, amber = elevated cost, orange = high cost,
-  red = detected obstacle / very steep terrain. Muted amber marks the
+- **Observed terrain costs:** the retained terrain map, with detailed nearby tiles and aggregated distant tiles.
+  Teal = low planner cost, amber = elevated cost, magenta = high cost,
+  red = detected obstacle; orange = slope above 35° (blocked, no added slope buffer). Muted amber marks the
   clearance buffer, which the planner avoids but which is not itself an obstacle.
 - **Route on observed terrain:** red route segments lifted above measured terrain.
   Gaps indicate that a path segment has no observed height; it is not drawn at
@@ -60,7 +61,7 @@ This overlay visualizes the selected navigation controller.
 It uses the Isaac Lab RayCaster LiDAR's world-frame hits, not an RTX LiDAR or
 validated flight-sensor model. The navigation localizer remains
 simulator-assisted. Checkpoint navigation uses live world-frame observations and does not feed the
-accumulated SLAM cloud back into its map. Legacy navigation retains its old mapping.
+accumulated SLAM cloud back into its map.
 
 Unknown cells are omitted. Planner cost colors are not safety guarantees or
 resource-composition classifications. The height of each tile comes from the
@@ -68,9 +69,11 @@ map's accumulated upper cell elevation; it is a discrete cell visualization, not
 reconstructed continuous surface. Vertical walls and steep discontinuities may
 show raised or partially occluded tiles.
 
-Refresh is capped at 5 Hz and 6,000 live returns. Checkpoint mode retains the whole
-survey display using stable chunks: 20 cm nearby tiles and 40 cm distant tiles.
-Legacy mode retains its earlier 4,000-cell local view. Geometry updates
+Live overlay refresh targets 30 Hz with up to 6,000 live returns. Terrain tiles
+are reused until the map, selected layer, traversal evidence or robot display
+region changes. Map reconstruction remains at 5 Hz simulation time; the separate
+Matplotlib dashboard retains its 2 Hz redraw to avoid CPU contention. Actual
+overlay refresh depends on simulator throughput and CPU/USD update costs. The retained map uses stable chunks: 20 cm nearby tiles and 40 cm distant tiles. Geometry updates
 run on the simulation thread. The overlay adds no physics/collision components and changes no
 trained checkpoint, sensor configuration or terrain asset.
 USD geometry lives under `/RexmiPerception` in the session layer and is removed
@@ -85,3 +88,26 @@ python -m unittest discover -s tests -p test_perception_view.py -v
 Checkpoint mode also provides Terrain, Slope, Roughness and Traversal buttons.
 Use `--survey_layer slope` to select an initial diagnostic layer. See the
 [whole-survey guide](terrain_survey.md) for legends, route learning and exports.
+
+
+The overlay now defaults to 2,000 displayed LiDAR returns; use
+`--lidar_display_points 1000` for a lighter view or `6000` for maximum density.
+`--overlay_hz` controls its target refresh rate. These checkpoint-launch options
+change display density, not sensing or obstacle evidence. See
+[checkpoint navigation](checkpoint_navigation.md#click-to-go-and-display-performance)
+for rolling map retention and dashboard click-to-go controls.
+
+
+## Choosing a checkpoint
+
+Launch with `--manual_checkpoints --perception_view` and leave out `--no_dashboard`.
+Enable **Manual checkpoints** in the perception overlay, then **left-click terrain
+in the separate REXMI Nav Dashboard**: either the full map on the left or the
+zoomed map on the right. Clicking the 3D Isaac Sim scene does not select a goal.
+The robot plans a route, follows it, and waits for another click after arrival.
+
+The default map is now a **20 m rolling radius**. Terrain beyond that distance is
+forgotten and removed from the displayed cost map. Adjust it with
+`--map_keep_radius 15`, or explicitly use `--map_retention full` to retain the
+whole survey. Forgetting limits accumulated map content; it does not shrink the
+fixed map-array allocation or guarantee a particular frame rate.

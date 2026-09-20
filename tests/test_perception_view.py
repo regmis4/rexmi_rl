@@ -14,6 +14,34 @@ spec.loader.exec_module(v)
 
 
 class PerceptionGeometryTests(unittest.TestCase):
+    def test_high_cost_and_steep_colours_are_distinct(self):
+        cost=np.array([[6.,20.,20.]])
+        colors,legend=v.survey_colors(cost,np.ones_like(cost,bool),slope=np.array([[.1,.8,.1]]))
+        np.testing.assert_allclose(colors[0],[[1,0,1],[1,.29,.12],[1,0,0]])
+        self.assertIn('orange: slope >35',legend)
+
+    def test_live_frames_reuse_tiles_until_map_or_layer_changes(self):
+        from unittest.mock import MagicMock,patch
+        from types import SimpleNamespace
+        from threading import Lock
+        g=SimpleNamespace(revision=1,traversal_revision=0,origin=(0,0),cell_size=1.,
+                          get_visual_grid=lambda:(np.ones((2,2)),np.zeros((2,2)),np.ones((2,2),bool)))
+        view=v.PerceptionView.__new__(v.PerceptionView)
+        view.nav=SimpleNamespace(_omap=g,_lidar=None,_lock=Lock(),shared={'planned_path':[]},
+                    _sim_localizer=SimpleNamespace(get_pose=lambda:SimpleNamespace(x=0.,y=0.,z=0.)))
+        view.point_limit=2000;view._tile_key=None;view._tile_count=0;view.layer='terrain';view.status=None
+        view._Usd=MagicMock();view._Sdf=MagicMock();view.stage=MagicMock()
+        view.show=dict(lidar=True,costs=True,path=True,rays=False)
+        for name in ('points','tiles','route','rays','checkpoint_marker','target_marker','_set_curve','_update_tiles'):
+            setattr(view,name,MagicMock())
+        view._update();view._update()
+        self.assertEqual(view._update_tiles.call_count,1)
+        self.assertEqual(view.points.GetPointsAttr().Set.call_count,2)
+        g.revision+=1;view._update()
+        self.assertEqual(view._update_tiles.call_count,2)
+        view.layer='slope';view._update()
+        self.assertEqual(view._update_tiles.call_count,3)
+
     def test_clearance_is_amber_without_changing_planning_costs(self):
         costs=np.full((2,2),20.)
         mask=np.array([[False,True],[True,False]])

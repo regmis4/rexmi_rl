@@ -67,7 +67,8 @@ class Dashboard:
 
     def __init__(self, shared, lock, omap, waypoints,
                  update_interval_s: float = 0.5,
-                 local_zoom_m: float = 10.0):
+                 local_zoom_m: float = 10.0, request_queue=None):
+        self._requests = request_queue
         self._shared    = shared
         self._lock      = lock
         self._omap      = omap
@@ -85,6 +86,18 @@ class Dashboard:
     # ------------------------------------------------------------------
     # Main loop (runs in daemon thread)
     # ------------------------------------------------------------------
+
+    def _on_map_click(self, event):
+        if self._requests is None or event.button != 1 or event.inaxes not in (self._ax_global,self._ax_local):
+            return
+        if event.xdata is None or event.ydata is None:
+            return
+        if self._fig.canvas.toolbar and self._fig.canvas.toolbar.mode:
+            return  # pan/zoom gestures never command the robot
+        with self._lock:
+            enabled = self._shared.get('manual_checkpoint_mode', False)
+        if enabled:
+            self._requests.put(('target',float(event.xdata),float(event.ydata)))
 
     def run(self, stop_event: threading.Event) -> None:
         """Dashboard main loop. Called by Navigator.start_dashboard()."""
@@ -105,6 +118,7 @@ class Dashboard:
         self._ax_local  = self._fig.add_subplot(gs[0, 1])
         self._ax_status = self._fig.add_subplot(gs[1, :])
 
+        self._fig.canvas.mpl_connect("button_press_event", self._on_map_click)
         self._style_axes()
         if hasattr(self._omap,'roughness'):
             from matplotlib.widgets import RadioButtons
@@ -175,7 +189,7 @@ class Dashboard:
         # Same discrete planner-cost bands as the Isaac Sim overlay.
         import matplotlib.colors as mcolors
         from matplotlib.lines import Line2D
-        _cmap = mcolors.ListedColormap(["#14A6A6", "#F2A31F", "#FF4A1F"]
+        _cmap = mcolors.ListedColormap(["#14A6A6", "#F2A31F", "#FF00FF"]
                                      + (["#8C7542"] if clearance_mask is not None else []) + ["#FF0000"])
         _cmap.set_bad("#555577")
         _norm = mcolors.BoundaryNorm([0,2,6]+([12] if clearance_mask is not None else [])+[20,1000], _cmap.N)
@@ -281,8 +295,8 @@ class Dashboard:
             Line2D([0],[0],color="#FF1828",ls="--",label="Active route"),
             Line2D([0],[0],color="#FFD700",marker="D",ls="",label="Local checkpoint"),
         ]
-        if layer_legend is not None and self._layer!='terrain':
-            _legend_items=[Line2D([],[],color='none',label=item.strip()) for item in layer_legend.split('|')]
+        if layer_legend is not None:
+            _legend_items=[Line2D([],[],color='none',label=item.strip()) for item in layer_legend.split('|')] + _legend_items[-2:]
         ag.legend(handles=_legend_items, loc="lower left",
                   fontsize=6, framealpha=0.6,
                   facecolor="#111133", edgecolor="#334466",

@@ -138,6 +138,11 @@ def _parse_args():
     p.add_argument("--max_steps",   type=int,   default=15000,
                    help="Max sim steps (~300 s at 50 Hz)")
     p.add_argument("--no_dashboard", action="store_true")
+    p.add_argument("--map_retention", choices=["full", "radius"], default="radius", help="Default: forget terrain beyond --map_keep_radius; full retains the survey")
+    p.add_argument("--map_keep_radius", type=float, default=20., help="Radius in metres retained in radius mode")
+    p.add_argument("--lidar_display_points", type=int, default=2000, help="Display only; sensing keeps all returns")
+    p.add_argument("--overlay_hz", type=float, default=30.)
+    p.add_argument("--manual_checkpoints", action="store_true", help="Wait for dashboard map clicks")
     p.add_argument("--survey_layer",choices=["terrain","slope","roughness","traversal"],default="terrain")
     p.add_argument("--perception_view", action="store_true",
                    help="Live in-scene LiDAR, observed terrain costs and route overlay")
@@ -241,6 +246,11 @@ def main():
             raise SystemExit("Use --nav_controller legacy for the rough policy.")
         if args.max_steps < 1 or args.step_thresh <= 0 or not .1 <= args.cruise_speed <= .8:
             raise SystemExit("Require max_steps > 0, step_thresh > 0 and cruise_speed between 0.1 and 0.8.")
+
+    if args.lidar_display_points < 1 or args.lidar_display_points > 6000 or not 1 <= args.overlay_hz <= 60 or not math.isfinite(args.map_keep_radius) or args.map_keep_radius < 5:
+        raise SystemExit("Use 1–6000 displayed points, 1–60 overlay Hz and retention radius >=5 m.")
+    if args.manual_checkpoints and (args.headless or args.no_dashboard or args.nav_controller != 'checkpoint'):
+        raise SystemExit("Manual checkpoints require checkpoint control and a visible dashboard.")
 
     # ------------------------------------------------------------------
     # 1. Boot Isaac Sim

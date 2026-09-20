@@ -193,6 +193,40 @@ class CheckpointController:
         omega=float(np.clip(.8*wrap_angle(self.hold_heading-yaw),-.2,.2))
         return Motion(vx,omega)
 
+    def checkpoint_mode(self, enabled, now):
+        if enabled and not getattr(self, 'manual_checkpoint_mode', False):
+            self.saved_mission = (self.waypoints, self.wp_idx)
+        elif not enabled and getattr(self, 'manual_checkpoint_mode', False):
+            self.waypoints, self.wp_idx = self.saved_mission
+        self.manual_checkpoint_mode = enabled
+        self.request('stop', now)
+        self.path, self.checkpoint, self.target, self.mission_route = [], None, None, []
+        self.reason = 'click observed terrain in dashboard to choose checkpoint' if enabled else 'mission restored; press RESUME AUTO'
+
+    def choose_checkpoint(self, xy, target, now):
+        if not getattr(self, 'manual_checkpoint_mode', False):
+            return False
+        self.request('stop', now)
+        self.path, self.checkpoint, self.target, self.mission_route = [], None, None, []
+        if not np.isfinite(target).all() or not self.grid.traversable(self.grid.world_to_cell(*target)):
+            self.reason = 'checkpoint rejected: select observed terrain outside obstacles, clearance and steep slopes'
+            return False
+        start=xy
+        if not self.grid.traversable(self.grid.world_to_cell(*xy)):
+            exit_path,_ = self.grid.clearance_exit(xy,goal=target)
+            if exit_path: start=exit_path[-1]
+        route, complete = observed_route(self.grid, start, target)
+        if not complete:
+            self.reason = 'checkpoint rejected: no observed route to selected point'
+            return False
+        from types import SimpleNamespace
+        self.waypoints = [SimpleNamespace(x=float(target[0]), y=float(target[1]), label='Selected checkpoint')]
+        self.wp_idx = 0
+        self.route_mission = -1
+        self.escape_clearance = None
+        self.request('resume', now)
+        return True
+
     def request(self, action, now, vx=0., omega=0.):
         if action == 'resume':
             self.drive_samples=[]
@@ -254,7 +288,7 @@ class CheckpointController:
                 self.planning_failure='current position needs a fresh scan'
             elif self.grid.hazard[cell]:
                 self.planning_failure='hazard mapped at current position'
-            elif self.grid.slope[cell]>math.tan(math.radians(50)):
+            elif self.grid.slope[cell]>math.tan(math.radians(self.grid.MAX_SLOPE_DEG)):
                 self.planning_failure='current terrain exceeds slope limit'
             else:
                 self.planning_failure='robot footprint or clearance overlaps a mapped hazard'
@@ -314,8 +348,11 @@ class CheckpointController:
         prediction alone is insufficient to authorize forward motion.
         """
         self.motion_rejection=''
+        # Route selection keeps the full planning margin. Slow execution may
+        # use its extra buffer, but never the actual body envelope.
+        margin = self.grid.footprint_radius if abs(motion.vx) <= .20 + 1e-6 else None
         if abs(motion.vx)<1e-6:
-            return self.grid.segment_clear(xy,xy,self.escape_clearance)
+            return self.grid.segment_clear(xy,xy,margin)
         # Reverse uses the same observed footprint and stopping checks.
         direction=1. if motion.vx>0 else -1.
         accel=max(.1,self.braking_accel or .2)
@@ -327,11 +364,11 @@ class CheckpointController:
         if drift>.10:
             drift_distance=drift**2/(2*accel)+.1
             drift_end=tuple(np.asarray(xy)+drift_distance*self.velocity_world/drift)
-            if not self.grid.segment_clear(xy,drift_end,self.escape_clearance,check_direction=False):
-                self.motion_rejection='drift stopping corridor: '+self.grid.segment_reason(xy,drift_end,self.escape_clearance,check_direction=False)
+            if not self.grid.segment_clear(xy,drift_end,self.grid.footprint_radius,check_direction=False):
+                self.motion_rejection='drift stopping corridor: '+self.grid.segment_reason(xy,drift_end,self.grid.footprint_radius,check_direction=False)
                 return False
-        if not self.grid.segment_clear(xy,straight,self.escape_clearance):
-            self.motion_rejection=self.grid.segment_reason(xy,straight,self.escape_clearance)
+        if not self.grid.segment_clear(xy,straight,margin):
+            self.motion_rejection=self.grid.segment_reason(xy,straight,margin)
             return False
         horizon=max(.4,motion.vx**2/(2*accel)+.3)
         previous=xy
@@ -343,8 +380,8 @@ class CheckpointController:
                 dy=motion.vx*(1-math.cos(motion.omega*t))/motion.omega
             point=(xy[0]+dx*math.cos(yaw)-dy*math.sin(yaw),
                    xy[1]+dx*math.sin(yaw)+dy*math.cos(yaw))
-            if not self.grid.segment_clear(previous,point,self.escape_clearance):
-                self.motion_rejection=self.grid.segment_reason(previous,point,self.escape_clearance)
+            if not self.grid.segment_clear(previous,point,margin):
+                self.motion_rejection=self.grid.segment_reason(previous,point,margin)
                 return False
             previous=point
         return True
@@ -361,7 +398,7 @@ class CheckpointController:
             distance=float(self.grid.obstacle_distance[cell])
             if distance<self.grid.footprint_radius or self.grid.hazard[cell]:
                 return None
-            self.escape_clearance=distance
+            self.escape_clearance=self.grid.footprint_radius
         wp=self.waypoints[self.wp_idx]
         goal=(wp.x,wp.y)
         bearing=math.atan2(goal[1]-xy[1],goal[0]-xy[0])

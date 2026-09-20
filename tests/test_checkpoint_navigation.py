@@ -522,6 +522,8 @@ class AdapterTests(unittest.TestCase):
         env=SimpleNamespace(unwrapped=SimpleNamespace(command_manager=cm,
                             observation_manager=SimpleNamespace(compute=compute)))
         np.testing.assert_allclose(d.policy_actions(env,lambda obs:obs,.4,-.35),[[.4,0,-.35]])
+        np.testing.assert_allclose(d.policy_actions(env,lambda obs:obs,0,0,vy=.2),[[0,.2,0]])
+        np.testing.assert_allclose(d.policy_actions(env,lambda obs:obs,0,0,vy=-.2),[[0,-.2,0]])
         np.testing.assert_allclose(d.policy_actions(env,lambda obs:obs,0,0),[[0,0,0]])
 
 if __name__=='__main__': unittest.main()

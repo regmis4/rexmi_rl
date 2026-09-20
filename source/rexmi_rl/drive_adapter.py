@@ -72,11 +72,11 @@ def load_policy(checkpoint_path: str, device: str) -> Callable:
     return policy
 
 
-def inject_command(env, vx: float, omega: float, env_idx: int = 0) -> None:
+def inject_command(env, vx: float, omega: float, env_idx: int = 0, *, vy: float = 0.0) -> None:
     try:
         cmd = env.unwrapped.command_manager.get_command("base_velocity")
         cmd[env_idx, 0] = float(vx)
-        cmd[env_idx, 1] = 0.0
+        cmd[env_idx, 1] = float(vy)
         cmd[env_idx, 2] = float(omega)
     except Exception as e:
         raise RuntimeError("Velocity command injection failed") from e
@@ -110,12 +110,12 @@ def directional_command(forward=False, back=False, left=False, right=False, vx=0
             omega if left else -omega if right else 0.0)
 
 
-def policy_actions(env, policy, vx, omega, env_idx=0):
+def policy_actions(env, policy, vx, omega, env_idx=0, *, vy=0.0):
     """Inject before observation/inference, without advancing observation history.
 
     Both teleop and checkpoint control use this ordering so Stop reaches the
     policy on this tick, rather than using the preceding tick's command.
     """
-    inject_command(env, vx, omega, env_idx)
+    inject_command(env, vx, omega, env_idx, vy=vy)
     obs = env.unwrapped.observation_manager.compute(update_history=False)['policy']
     return policy(obs)

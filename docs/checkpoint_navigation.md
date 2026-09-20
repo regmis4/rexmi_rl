@@ -229,3 +229,10 @@ checks used the same policy, seed, 1,000 displayed points and 20 m retention. Me
 map rebuild fell from 97.1 ms to 39.9 ms after separable filtering. Both waited in
 HOLD for selection and exported successfully. These short stationary checks are
 not a sustained driving-FPS measurement or a live click-to-arrival validation.
+
+## Sideways-motion assessment
+
+The rough checkpoint has demonstrated sideways motion on nominally level terrain.
+See [rough policy assessment](rough_policy_lateral_assessment.md) for measured drift,
+training ranges and the reproduction command. Navigation still uses rocky-slope;
+autonomous sidestepping and policy transitions are not enabled by this study.

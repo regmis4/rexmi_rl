@@ -1,0 +1,118 @@
+{"event": "mission_stage", "time": 0.0, "position": [0.0, 0.0], "stage": "climb to safe exterior", "goal": [11.100000000000001, 4.100000000000001], "goal_mode": "any_exit", "goal_description": "any supported gentle exit"}
+{"event": "saved_path_start", "time": 3.0, "route": [[0.0260005015879869, -0.0714771524071693], [0.7000000000000028, -0.5], [1.8999999999999986, -0.8999999999999986], [2.1000000000000014, -0.8999999999999986], [2.700000000000003, -1.0999999999999979], [3.1000000000000014, -1.2999999999999972], [4.5, -2.6999999999999993], [4.700000000000003, -2.6999999999999993], [5.300000000000004, -2.8999999999999986], [5.5, -2.8999999999999986], [5.899999999999999, -3.099999999999998], [6.100000000000001, -3.299999999999997], [6.700000000000003, -3.099999999999998], [6.900000000000006, -2.5], [7.300000000000004, -2.099999999999998], [7.300000000000004, -1.8999999999999986], [7.5, -1.2999999999999972], [7.700000000000003, -1.0999999999999979], [7.700000000000003, -0.5], [7.900000000000006, -0.29999999999999716], [7.700000000000003, 0.30000000000000426], [7.700000000000003, 1.8999999999999986], [8.300000000000004, 2.1000000000000014], [8.5, 2.3000000000000043], [9.300000000000004, 2.700000000000003], [9.900000000000006, 3.3000000000000043], [11.100000000000001, 4.100000000000001]], "metadata": {"result_path": "/home/susan/rexmi_rl/outputs/remote_autonomy/slope-fit-20261024-04/result.json", "result_sha256": "3a56ca3ed18bff83bbe24d6457816fefa37e7e3e1baa52d293dc7802e76281b3", "route_name": "any_exit", "map_path": "/home/susan/rexmi_rl/logs/telemetry/manual-ascent-fr4H8xPa/display_map.npz", "map_sha256": "fa573c4e1a08e6652a58e6a2e9e69e3bea7981dd907c8b40ade788e706461859", "parameters": {"easy_angle_deg": 15.0, "exponential_scale_deg": 6.0, "uphill_weight": 1.0, "roughness_interaction": 0.5, "cross_weight": 1.0, "terrain_weight": 1.0}, "predicted_metrics": {"length_m": 17.247348980724645, "displayed_cost_m": 112.58892065363204, "peak_uphill_deg": 31.09866391617579, "metres_above_25deg": 2.4046458338960663, "peak_cross_slope_deg": 29.6395209386937, "metres_in_display_exclusions": 0.0, "start": [0.0260005015879869, -0.0714771524071693], "end": [11.100000000000001, 4.100000000000001], "cost_components": {"base": 112.58892065363209, "uphill": 27.480143269219035, "terrain": 45.28556078664319, "rough_slope": 80.20268575335182, "cross": 7.830442700659318}, "fitted_score": 273.38775316350547, "distance_to_manual_m": 5.993976680202243, "local_peak_uphill_deg": 34.5268845914387, "local_metres_above_25deg": 2.1218031214214492, "local_metres_above_35deg": 0.0, "local_peak_cross_deg": 23.610081821255978}}, "snapshot": {"status": "saved", "path": "/home/susan/rexmi_rl/outputs/remote_autonomy/blue-path-unguarded-20261024-01/run.planning/request-4yzkxhce.npz", "time": 3.0, "position": [0.020204421132802963, -0.08588346838951111], "yaw": 1.6296781802822586}, "unguarded": true}
+{"event": "remote_transition", "time": 3.0, "previous": "OBSERVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 9.44, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 9.44, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 11.14, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 11.64, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 12.06, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 12.18, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 12.46, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 12.88, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 13.4, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 13.66, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 14.120000000000001, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 14.58, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 14.98, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 15.18, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 15.58, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 16.42, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 16.82, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 19.06, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 19.68, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 19.7, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 20.38, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 22.38, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 22.76, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 22.8, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 23.22, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 23.66, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 24.04, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 27.02, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 27.44, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 27.62, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 27.96, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 28.36, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 28.740000000000002, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 30.96, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 31.28, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 31.64, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 32.0, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 32.480000000000004, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 33.02, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 33.14, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 33.46, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 35.38, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 35.7, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 36.14, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 36.68, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 37.6, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 38.0, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 38.12, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 38.82, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 38.82, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 40.38, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 40.38, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 43.0, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 43.0, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 43.9, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 44.46, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 44.72, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 45.0, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 45.38, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 45.9, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 46.44, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 48.160000000000004, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 48.7, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 49.82, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 50.22, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 51.14, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 51.620000000000005, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 53.64, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 54.14, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 54.52, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 54.88, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 56.78, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 57.28, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 57.28, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 58.22, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 58.22, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 58.800000000000004, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 59.980000000000004, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 60.24, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 60.54, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 60.94, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 61.86, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 62.7, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 63.76, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 64.06, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 65.4, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 65.96000000000001, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 65.96000000000001, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 68.78, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 68.9, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 69.38, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 69.38, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 70.78, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 70.78, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 73.5, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 73.5, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 75.14, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 75.14, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 76.96000000000001, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 79.68, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 80.08, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 80.76, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 81.16, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 83.14, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 83.72, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 86.36, "previous": "DRIVE", "state": "SETTLE", "reason": "selected endpoint reached; observe actual settling"}
+{"event": "remote_transition", "time": 89.36, "previous": "SETTLE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 98.18, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 98.18, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 100.3, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 100.3, "previous": "DRIVE", "state": "TURN", "reason": "hold yaw button until measured heading"}
+{"event": "remote_transition", "time": 100.68, "previous": "TURN", "state": "DRIVE", "reason": "measured turn complete"}
+{"event": "remote_transition", "time": 101.44, "previous": "DRIVE", "state": "SETTLE", "reason": "selected endpoint reached; observe actual settling"}
+{"event": "mission_stage", "time": 102.3, "position": [11.402654647827148, 3.9961695671081543], "stage": "complete", "goal": [11.100000000000001, 4.100000000000001], "goal_mode": "any_exit", "goal_description": "any supported gentle exit"}
+{"event": "remote_transition", "time": 102.3, "previous": "SETTLE", "state": "COMPLETE", "reason": "selected exterior endpoint reached upright and settled"}

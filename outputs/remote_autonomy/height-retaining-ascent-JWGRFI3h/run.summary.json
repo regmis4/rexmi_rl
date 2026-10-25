@@ -1,0 +1,394 @@
+{
+  "result": "hold",
+  "seed": 42,
+  "sim_seconds": 67.92,
+  "waypoints_reached": 0,
+  "diagnostic": false,
+  "controller": "ascent",
+  "mission": "ascent",
+  "terrain_prior": {
+    "coordinate_frame": "world",
+    "coverage": 1.0,
+    "description": "Top-down simulator terrain mesh survey; development ground truth, not onboard LiDAR",
+    "geometry_id": "87552488ff3913451653dc60010d0bdbe3f7f063c53fcd6860289d83bfb25671",
+    "hit_count": 409600,
+    "kind": "simulator_development",
+    "radius_m": 16.0,
+    "ray_count": 409600,
+    "sample_spacing_m": 0.05,
+    "seed": 42,
+    "task": "RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0",
+    "version": 1,
+    "mission_radius_m": 16.0,
+    "mission_coverage": 1.0,
+    "loaded_from": "/home/susan/rexmi_rl/outputs/ascent_full_survey/trial01/run.prior.npz",
+    "file_sha256": "30a170c590a8c61eae4fb6193905971ac6459ddf0af05d009cce3ce8b188edd4"
+  },
+  "ascent_architecture": "remote",
+  "perception_overlay_requested": false,
+  "perception_overlay_enabled": false,
+  "perception_overlay_tiles": 0,
+  "spawn": [
+    0.0,
+    0.0,
+    1.15,
+    1.5707963267948966
+  ],
+  "goal": [
+    0.0,
+    13.0
+  ],
+  "ascent_mode": "characterize",
+  "model_id": null,
+  "probability_model_qualified": false,
+  "source_id": "988ec89765d431fd5e6aac0803ff297ec74a56adf57a9faaf9e408a772e573a8",
+  "policy_sha256": "c8c997e2bff200522e01dfa45c0b85201777b919034bb3671fca452ae56e9aaa",
+  "min_up_z": 0.6059637367725372,
+  "peak_actual_speed_mps": 1.3674550739398186,
+  "peak_command_mps": 0.4,
+  "min_active_up_z": 0.6059637367725372,
+  "peak_active_speed_mps": 0.5921913030042819,
+  "peak_slope_speed_mps": 0.5921913030042819,
+  "slope_overspeed_seconds": 1.2200000000000006,
+  "controller_ms_mean": 1.0733404138882436,
+  "controller_ms_p95": 1.3348659995244814,
+  "recovery_controller_timing_ms": {
+    "admission": {
+      "count": 0,
+      "mean": null,
+      "p95": null,
+      "maximum": null
+    },
+    "continued_reverse": {
+      "count": 0,
+      "mean": null,
+      "p95": null,
+      "maximum": null
+    },
+    "core_observation": {
+      "count": 0,
+      "mean": null,
+      "p95": null,
+      "maximum": null
+    },
+    "termination": {
+      "count": 0,
+      "mean": null,
+      "p95": null,
+      "maximum": null
+    }
+  },
+  "recovery_admission_timing": [],
+  "checkpoint_replay": null,
+  "replayed_selections": 0,
+  "total_waypoints": 1,
+  "manual_intervention": false,
+  "max_cross_track_m": 0.0,
+  "policy": "rocky_slope",
+  "policy_switches": 0,
+  "flat_sidesteps": false,
+  "switch_events": [],
+  "footprint_radius_m": 0.5028254449367523,
+  "cruise_ceiling": 0.4,
+  "body_envelope": {
+    "half_length": 0.4726333677768707,
+    "half_width": 0.27362521588802335
+  },
+  "hold_failures": 0,
+  "rolling_checkpoints": 0,
+  "final_state": "HOLD",
+  "final_reason": "physical envelope: oriented trajectory uses an excluded approach direction",
+  "local_recovery_attempts": 1,
+  "last_hold_failure": "",
+  "climb_failures": 1,
+  "backslide_m": 0.7951165306998104,
+  "turn_repositions": 0,
+  "route_profile": {
+    "length_m": 23.585673755689776,
+    "ascent_m": 4.209441793772143,
+    "uphill_over_25deg_m": 2.1489186961120708,
+    "max_uphill_deg": 32.77981921931752,
+    "max_side_slope_deg": 27.8435735381952,
+    "max_ground_slope_deg": 34.68262212317665,
+    "max_footprint_slope_deg": 34.91203287471226
+  },
+  "motion_events": [
+    {
+      "event": "physical_approach_failure",
+      "time": 54.42,
+      "position": [
+        0.12612497806549072,
+        5.798696994781494
+      ],
+      "reason": "travel made no useful progress within shared budget",
+      "attempt_id": "height-retaining-ascent-JWGRFI3h-run:1"
+    }
+  ],
+  "escape_events": [
+    {
+      "event": "exclusion_update",
+      "time": 54.42,
+      "attempt_id": "height-retaining-ascent-JWGRFI3h-run:1",
+      "position": [
+        0.12612497806549072,
+        5.798696994781494
+      ],
+      "heading": 1.5268042120235181,
+      "radius_m": 0.6028254449367523,
+      "heading_bins": [
+        1,
+        2,
+        3
+      ],
+      "all_directions": false,
+      "reason": "travel made no useful progress within shared budget"
+    },
+    {
+      "event": "maneuver_start",
+      "time": 54.42,
+      "direction": -1,
+      "endpoint": [
+        -0.43410459774895815,
+        2.851470701742094
+      ],
+      "deadline": 174.42000000000002,
+      "no_progress_allowance_s": 8.0,
+      "purpose": "gentle staging",
+      "reason": "travel made no useful progress within shared budget"
+    }
+  ],
+  "failed_climbs": [
+    {
+      "attempt_id": "height-retaining-ascent-JWGRFI3h-run:1",
+      "position": [
+        0.12612497806549072,
+        5.798696994781494
+      ],
+      "radius_m": 0.6028254449367523,
+      "heading": 1.5268042120235181,
+      "time": 54.42,
+      "reason": "travel made no useful progress within shared budget"
+    }
+  ],
+  "route_purpose": "mission",
+  "retreat_goal": null,
+  "retreat_candidates": [],
+  "preferred_uphill_deg": 20.0,
+  "max_uphill_deg": 33.0,
+  "max_side_slope_deg": 32.0,
+  "learned_no_go_cells": 0,
+  "route_options": [
+    {
+      "profile": "terrain-checkpoints",
+      "complete": true,
+      "selected": true,
+      "score": 1537.0845077605488,
+      "endpoint": [
+        0.0,
+        13.0
+      ],
+      "path": [
+        [
+          0.020204421132802963,
+          -0.08588346838951111
+        ],
+        [
+          -1.5,
+          0.7000000000000028
+        ],
+        [
+          0.7000000000000028,
+          1.5
+        ],
+        [
+          -0.09999999999999787,
+          7.700000000000003
+        ],
+        [
+          4.899999999999999,
+          6.5
+        ],
+        [
+          0.0,
+          13.0
+        ]
+      ],
+      "route_path": [
+        [
+          0.020204421132802963,
+          -0.08588346838951111
+        ],
+        [
+          -1.5,
+          0.7000000000000028
+        ],
+        [
+          0.7000000000000028,
+          1.5
+        ],
+        [
+          -0.09999999999999787,
+          7.700000000000003
+        ],
+        [
+          4.899999999999999,
+          6.5
+        ],
+        [
+          0.0,
+          13.0
+        ]
+      ],
+      "reachability": {
+        "probability": null,
+        "interval": null,
+        "validated": false,
+        "reason": "no calibrated model; characterization only",
+        "successes": 0,
+        "failures": 0,
+        "prior": null
+      },
+      "tier": "unvalidated",
+      "retreat": true,
+      "recent_approach_cost": 0.0,
+      "rejection": "",
+      "length_m": 23.585673755689776,
+      "ascent_m": 4.209441793772143,
+      "uphill_over_25deg_m": 2.1489186961120708,
+      "max_uphill_deg": 32.77981921931752,
+      "max_side_slope_deg": 27.8435735381952,
+      "max_ground_slope_deg": 34.68262212317665,
+      "max_footprint_slope_deg": 34.91203287471226,
+      "cost_components": {
+        "base": 1008.4633794994595,
+        "roughness": 198.19263607263565,
+        "discontinuity": 330.4284921884537,
+        "unknown": 0.0,
+        "total": 1537.0845077605488,
+        "supported_fraction": 1.0,
+        "peak_rms_m": 0.08124782145023346,
+        "peak_step_m": 0.2510659396648407,
+        "model": "square support-neighborhood; experimental soft costs"
+      },
+      "traversal_objective": "gentle-additive-v1",
+      "objective_components": {
+        "turn": 13.341551590802604,
+        "base": 821.6374541512599,
+        "longitudinal": 41.26683595372002,
+        "cross_linear": 121.28360167769532,
+        "uphill": 182.78801244632248,
+        "downhill": 0.0,
+        "cross_quadratic": 321.3885413072137,
+        "cliff_room": 0.0,
+        "failure_memory": 0.0,
+        "untested": 35.3785106335346
+      },
+      "checkpoint_planner": {
+        "profile": "terrain-checkpoints",
+        "connected": true,
+        "has_route": true,
+        "uphill_limit": 33.0,
+        "nodes": 74,
+        "directed_checks": 5402,
+        "accepted_links": 1888,
+        "turn_checks": 2626,
+        "build_budget_exhausted": false,
+        "profile_budget_exhausted": false,
+        "wall_seconds": 7.528541023006255,
+        "rejection": "",
+        "complete": true,
+        "rank": [
+          182.78801244632248,
+          1537.0845077605486
+        ],
+        "expansions": 317,
+        "transitions": 2626,
+        "transition_budget": 100000,
+        "budget_exhausted": false,
+        "search_seconds": 0.4826721780045773,
+        "preserve_checkpoint_height": true,
+        "progress_rejected_links": 1226,
+        "sampled_height_budget_m": 0.2,
+        "objective": "uphill burden then terrain cost"
+      },
+      "height_retention_status": "sampled 0.20 m ascent preference checked",
+      "max_body_slope_deg": 34.91203287471226,
+      "selection_rule": "no calibrated probability; integrated uphill burden first, shared terrain cost second",
+      "success_selection": {
+        "probability_used": null,
+        "comparable_whole_leg": true,
+        "domain_validated": false,
+        "prediction_scope": "planning snapshot; whole-leg approach success, not a settling guarantee",
+        "model_id": null,
+        "probability_status": "unavailable for route ranking",
+        "objective": "characterization_cost_fallback",
+        "reason": "no calibrated probability; integrated uphill burden first, shared terrain cost second",
+        "comparable_validated_count": 0,
+        "candidate_count": 1,
+        "display": "Success probability unavailable \u2014 uphill burden then terrain cost (characterization)"
+      },
+      "terrain_rank": [
+        182.78801244632248,
+        1537.0845077605488
+      ]
+    }
+  ],
+  "route_searches": [
+    {
+      "profile": "terrain-checkpoints",
+      "connected": true,
+      "has_route": true,
+      "uphill_limit": 33.0,
+      "nodes": 74,
+      "directed_checks": 5402,
+      "accepted_links": 1888,
+      "turn_checks": 2626,
+      "build_budget_exhausted": false,
+      "profile_budget_exhausted": false,
+      "wall_seconds": 7.528541023006255,
+      "rejection": "",
+      "complete": true,
+      "rank": [
+        182.78801244632248,
+        1537.0845077605486
+      ],
+      "expansions": 317,
+      "transitions": 2626,
+      "transition_budget": 100000,
+      "budget_exhausted": false,
+      "search_seconds": 0.4826721780045773,
+      "preserve_checkpoint_height": true,
+      "progress_rejected_links": 1226,
+      "sampled_height_budget_m": 0.2,
+      "objective": "uphill burden then terrain cost"
+    }
+  ],
+  "mission_route_complete": true,
+  "map_update_ms_mean": 104.8083962088319,
+  "validated": false,
+  "joint_diagnostics": {
+    "directory": "/home/susan/rexmi_rl/outputs/remote_autonomy/height-retaining-ascent-JWGRFI3h/joints",
+    "physics_samples": 13584,
+    "completed_control_steps": 3396,
+    "partial_step": null,
+    "final_error": null,
+    "logging_timing_ms": {
+      "control_pre_step_logging": {
+        "count": 3396,
+        "mean_ms": 0.06948585925271786,
+        "maximum_ms": 3.0329549990710802
+      },
+      "physics_sample_logging": {
+        "count": 13584,
+        "mean_ms": 0.38000730902926994,
+        "maximum_ms": 78.0561020001187
+      },
+      "control_post_step_logging": {
+        "count": 3396,
+        "mean_ms": 0.00239124267074585,
+        "maximum_ms": 0.011169999197591096
+      }
+    },
+    "alignment": "nav CSV is pre-step; physics rows follow the same control_step. Navigation startup settling is included. Raw actions are before wrapper clipping; physics joint targets show processed actuator commands. Missing contact counts remain unavailable; raw per-body forces do not establish slip."
+  }
+}

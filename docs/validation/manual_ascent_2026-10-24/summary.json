@@ -1,0 +1,197 @@
+{
+  "run": "/home/susan/rexmi_rl/logs/telemetry/manual-ascent-fr4H8xPa",
+  "physics_hz": 200.0,
+  "control_hz": 50.0,
+  "raw_samples": 36347,
+  "retained_samples": 36344,
+  "excluded_partial_tail": 3,
+  "complete_control_steps": 9086,
+  "recorded_duration_s": 181.72,
+  "no_sample_gaps": true,
+  "pose_and_command_logs_agree": true,
+  "reset_events": 0,
+  "policies": [
+    "rocky_slope"
+  ],
+  "close_marker_present": false,
+  "shutdown": "Requested SIGINT stopped the process; final close marker was not written. Last incomplete control step excluded.",
+  "first_command_s": 10.5,
+  "exterior_criterion": "First radius >= 11 m, geometric reference only; final position and terrain shown separately.",
+  "exterior_time_s": 139.48,
+  "elapsed_to_exterior_s": 128.98,
+  "settled_start_xyz": [
+    0.0260005015879869,
+    -0.0714771524071693,
+    0.8666204810142517
+  ],
+  "final_xyz": [
+    5.168349266052246,
+    11.89430809020996,
+    4.296802997589111
+  ],
+  "final_radius_m": 12.968669904070227,
+  "peak_body_z_m": 4.740708827972412,
+  "body_height_gain_to_peak_m": 3.8740883469581604,
+  "peak_tilt_after_first_command_deg": 40.22788114579781,
+  "path_length_10hz_m": 24.999562824576177,
+  "command_modes_to_exterior": {
+    "forward": {
+      "seconds": 27.66,
+      "net_body_dz_m": 1.4168800711631775
+    },
+    "turn only": {
+      "seconds": 26.86,
+      "net_body_dz_m": 0.4185112714767447
+    },
+    "zero input": {
+      "seconds": 74.46000000000001,
+      "net_body_dz_m": 2.0049598217010507
+    }
+  },
+  "best_zero_input_segments": [
+    {
+      "start_s": 33.76,
+      "end_s": 52.52,
+      "duration_s": 18.76,
+      "vx": 0.0,
+      "omega": 0.0,
+      "mode": "zero input",
+      "dz_m": 0.7629480361938481,
+      "displacement_xy_m": 2.254636155644209,
+      "peak_tilt_deg": 36.01157830618324,
+      "mean_cost": 7.635516868725515,
+      "mean_wheel_abs_rad_s": 4.164539749562723,
+      "start_xy": [
+        -0.5979240536689758,
+        4.76015567779541
+      ],
+      "end_xy": [
+        -2.610208034515381,
+        5.777061462402344
+      ]
+    },
+    {
+      "start_s": 54.72,
+      "end_s": 68.86,
+      "duration_s": 14.14,
+      "vx": 0.0,
+      "omega": 0.0,
+      "mode": "zero input",
+      "dz_m": 0.5500173568725586,
+      "displacement_xy_m": 1.052252573510474,
+      "peak_tilt_deg": 33.90555164116614,
+      "mean_cost": 9.653495460790825,
+      "mean_wheel_abs_rad_s": 5.423684053814985,
+      "start_xy": [
+        -2.577286958694458,
+        5.818896770477295
+      ],
+      "end_xy": [
+        -2.7094438076019287,
+        6.862817287445068
+      ]
+    },
+    {
+      "start_s": 113.34,
+      "end_s": 121.46000000000001,
+      "duration_s": 8.120000000000001,
+      "vx": 0.0,
+      "omega": 0.0,
+      "mode": "zero input",
+      "dz_m": 0.34819936752319336,
+      "displacement_xy_m": 0.8671320414262305,
+      "peak_tilt_deg": 32.724454896029904,
+      "mean_cost": 8.381737672636662,
+      "mean_wheel_abs_rad_s": 4.710640817839771,
+      "start_xy": [
+        3.688830852508545,
+        7.4967942237854
+      ],
+      "end_xy": [
+        4.456149578094482,
+        7.900700092315674
+      ]
+    },
+    {
+      "start_s": 86.32000000000001,
+      "end_s": 89.82000000000001,
+      "duration_s": 3.5,
+      "vx": 0.0,
+      "omega": 0.0,
+      "mode": "zero input",
+      "dz_m": 0.10190606117248535,
+      "displacement_xy_m": 0.4438669173746764,
+      "peak_tilt_deg": 26.769658920213576,
+      "mean_cost": 8.573477450779507,
+      "mean_wheel_abs_rad_s": 4.723939858630432,
+      "start_xy": [
+        0.022110404446721,
+        7.93516731262207
+      ],
+      "end_xy": [
+        0.4526696503162384,
+        8.04304027557373
+      ]
+    },
+    {
+      "start_s": 77.0,
+      "end_s": 80.3,
+      "duration_s": 3.3000000000000003,
+      "vx": 0.0,
+      "omega": 0.0,
+      "mode": "zero input",
+      "dz_m": 0.08489084243774414,
+      "displacement_xy_m": 0.390904401346053,
+      "peak_tilt_deg": 14.233985082043905,
+      "mean_cost": 11.252586353186405,
+      "mean_wheel_abs_rad_s": 2.888080198240156,
+      "start_xy": [
+        -1.2268317937850952,
+        7.541662216186523
+      ],
+      "end_xy": [
+        -0.8594192266464233,
+        7.675132274627685
+      ]
+    }
+  ],
+  "missing_columns": [
+    "wheel_contact_count_est"
+  ],
+  "max_command_m_s": 0.4,
+  "max_command_rad_s": 0.35,
+  "displayed_path_cost": {
+    "definition": "Integral C(x,y) ds along measured XY; exact cell crossings on a 10 Hz polyline.",
+    "units": "displayed terrain cost \u00d7 metre",
+    "total_displayed_cost_m": 170.19224735735105,
+    "distance_m": 24.99986326263816,
+    "distance_weighted_mean_cost": 6.807727129119952,
+    "peak_cell_cost": 20.0,
+    "nominal_wheelbase_m": 0.4505454148531053,
+    "wheelbase_sections": 56,
+    "full_50hz_total_cost_m": 173.03147318360178,
+    "full_50hz_distance_m": 25.338091689898846,
+    "sampling_difference_percent": 1.6682462746315574,
+    "to_first_exterior_cost_m": 158.98788817295153,
+    "to_first_exterior_distance_m": 21.539636458861864,
+    "scope": "Settled pre-command start to last complete recorded position, including actual drift/repositioning; startup excluded. Endpoints retained.",
+    "limitations": "Displayed-cost integral, not the history-dependent sustained-climb objective, energy, or success probability. Stationary time has no cost; actual motion during zero input does. No planner mask penalty added."
+  },
+  "files_sha256": {
+    "run/samples.csv": "e7fbf5641d0d27abec54ee9c6bf2130af210467fb3968336f9f2e5321149a563",
+    "run/metadata.json": "083c84e47067c02cca13283555d860d562707a6393f8fc0d2e43254fc5bac5de",
+    "run/events.jsonl": "5c222e56245689fb8e90428a026752f08cb1dda3cb3581d83226f4250e6317a1",
+    "run.csv": "51cada72eefe843d79c660c12bfda642a8ec2992f14904ed420c0fef9881ea1e",
+    "map_samples.csv": "695716025a54e179d82173444b2bdb11f8a7805ff320c3762b54ed167da10120",
+    "display_map.npz": "fa573c4e1a08e6652a58e6a2e9e69e3bea7981dd907c8b40ade788e706461859",
+    "manual_capture.json": "7ded3230f2e40f2ac5adb09e68cf15fc3790131f1fb6934350df1bb8281108a1"
+  },
+  "limits": [
+    "Single human-driven ascent, not autonomous success or calibrated success probability.",
+    "Initial spawn drop/settling excluded from ascent gain; all raw data preserved.",
+    "Cost and terrain values are frozen reference-map estimates, not traction measurements.",
+    "Contact loading is force magnitude >5 N; exact slip requires contact kinematics and friction data.",
+    "Wheel torque/power are actuator-model estimates. Raw LiDAR frames were not recorded.",
+    "Zero-input versus powered intervals have different terrain/posture; not a causal comparison."
+  ]
+}

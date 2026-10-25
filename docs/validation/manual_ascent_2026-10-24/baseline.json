@@ -1,0 +1,26 @@
+{
+  "purpose": "Measured human route for offline comparison only; never a supplied autonomous route.",
+  "trajectory": "baseline_route.csv",
+  "source_run": "/home/susan/rexmi_rl/logs/telemetry/manual-ascent-fr4H8xPa",
+  "seed": 42,
+  "task": "RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0",
+  "policy": [
+    "rocky_slope"
+  ],
+  "start_xyz": [
+    0.0260005015879869,
+    -0.0714771524071693,
+    0.8666204810142517
+  ],
+  "start_yaw_rad": 1.6278018676923722,
+  "actual_exit_xyz": [
+    5.168349266052246,
+    11.89430809020996,
+    4.296802997589111
+  ],
+  "first_exterior_time_s": 139.48,
+  "reference_map_sha256": "fa573c4e1a08e6652a58e6a2e9e69e3bea7981dd907c8b40ade788e706461859",
+  "close_marker_present": false,
+  "startup_excluded": true,
+  "raw_files_unchanged": true
+}

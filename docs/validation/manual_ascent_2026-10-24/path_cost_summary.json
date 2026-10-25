@@ -1,0 +1,17 @@
+{
+  "definition": "Integral C(x,y) ds along measured XY; exact cell crossings on a 10 Hz polyline.",
+  "units": "displayed terrain cost \u00d7 metre",
+  "total_displayed_cost_m": 170.19224735735105,
+  "distance_m": 24.99986326263816,
+  "distance_weighted_mean_cost": 6.807727129119952,
+  "peak_cell_cost": 20.0,
+  "nominal_wheelbase_m": 0.4505454148531053,
+  "wheelbase_sections": 56,
+  "full_50hz_total_cost_m": 173.03147318360178,
+  "full_50hz_distance_m": 25.338091689898846,
+  "sampling_difference_percent": 1.6682462746315574,
+  "to_first_exterior_cost_m": 158.98788817295153,
+  "to_first_exterior_distance_m": 21.539636458861864,
+  "scope": "Settled pre-command start to last complete recorded position, including actual drift/repositioning; startup excluded. Endpoints retained.",
+  "limitations": "Displayed-cost integral, not the history-dependent sustained-climb objective, energy, or success probability. Stationary time has no cost; actual motion during zero input does. No planner mask penalty added."
+}

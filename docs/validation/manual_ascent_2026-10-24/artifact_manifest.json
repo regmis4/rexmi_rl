@@ -1,0 +1,28 @@
+{
+  "source_directory": "/home/susan/rexmi_rl/logs/telemetry/manual-ascent-fr4H8xPa/analysis",
+  "source_data_sha256": {
+    "run/samples.csv": "e7fbf5641d0d27abec54ee9c6bf2130af210467fb3968336f9f2e5321149a563",
+    "run/metadata.json": "083c84e47067c02cca13283555d860d562707a6393f8fc0d2e43254fc5bac5de",
+    "run/events.jsonl": "5c222e56245689fb8e90428a026752f08cb1dda3cb3581d83226f4250e6317a1",
+    "run.csv": "51cada72eefe843d79c660c12bfda642a8ec2992f14904ed420c0fef9881ea1e",
+    "map_samples.csv": "695716025a54e179d82173444b2bdb11f8a7805ff320c3762b54ed167da10120",
+    "display_map.npz": "fa573c4e1a08e6652a58e6a2e9e69e3bea7981dd907c8b40ade788e706461859",
+    "manual_capture.json": "7ded3230f2e40f2ac5adb09e68cf15fc3790131f1fb6934350df1bb8281108a1"
+  },
+  "artifacts": {
+    "report.md": "998dd3fd2d78479fc4109fe31f1b5a765fbd666cf73f4dff13c250d096a2fc4d",
+    "route_cost_map.png": "1836e54137d0c46353932642e63eed951463e915432bfc63748634a02aad68ce",
+    "total_path_cost.png": "41bdd43141a6abf8274055a9132078a3adb6b82a59525f94e6f21d7a13fe5206",
+    "motion_and_commands.png": "0043fe48d5b31ecf95233dcdc4aea4a10e5c05b4f061f1518abfee2b95d46e34",
+    "zero_input_detail.png": "c9a75992d3db3a6e49a303a684596a0d082e87f6d73a317fdf8fa30b3e0451c0",
+    "summary.json": "d652de7769e007f6af02213a8f00a1ed91112f4f38ee3c1a8c22f6bbdd1ec083",
+    "baseline.json": "bd90f581a747fa42c5c1f319f31270881ab6d82919d1b32169744cb1a15303c9",
+    "baseline_route.csv": "ed398d752df8ea87ce316e323813c7e55340029ca8e0342180339f10a5de2500",
+    "path_cost_summary.json": "458dc15320926c4a299dd84fe2b702ae4e729df3d516f10f02c1b96ad04acd41",
+    "path_cost_profile.csv": "1eca62728622fe7968bceb8e4af898b5a838b1170c140113485453ceb3fe7573",
+    "wheelbase_cost_sections.csv": "ff66520667ceca30f9954da76f3863993a7ac5d8601c3f2305e2d319792ce1e4",
+    "command_segments.csv": "b0f74af1426f1fcf811ab1932e24a1645403aee04c7316c90cf0229df4af76d3"
+  },
+  "analysis_source_sha256": "6baf0cfb1c420382c081146b7c4cb2e00419d45c8b86c49bce6e0f5c5a3488f1",
+  "experience_source_sha256": "36d21ee750fe38657cce5740b428313321b28d1fd7b250b9259578fcd5298cbf"
+}

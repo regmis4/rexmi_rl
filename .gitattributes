@@ -1,0 +1,2 @@
+# Preserve recorded telemetry bytes and hashes, including CSV CRLF endings.
+*.csv -text whitespace=cr-at-eol

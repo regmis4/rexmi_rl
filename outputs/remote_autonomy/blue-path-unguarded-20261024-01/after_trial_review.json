@@ -1,0 +1,99 @@
+{
+  "verdict": "One autonomous simulated saved-path ascent completed; recovery was not exercised.",
+  "completion": {
+    "time_s": 102.3,
+    "position": [
+      11.402654647827148,
+      3.9961695671081543,
+      4.734456539154053
+    ],
+    "endpoint_distance_m": 0.3199696776975636,
+    "radius_m": 12.082628200300439,
+    "dwell_start_s": 101.68,
+    "dwell_span_s": 0.6199999999999903,
+    "dwell_samples": 32,
+    "dwell_max_speed_mps": 0.11266050283779,
+    "dwell_max_abs_yaw_rate": 0.11127633850924738,
+    "dwell_min_up_z": 0.9673388674855232,
+    "dwell_max_endpoint_distance_m": 0.35338957390887354
+  },
+  "continuity": {
+    "nav_rows": 5116,
+    "nav_bad_rows": [],
+    "physics_rows": 20460,
+    "physics_bad_rows": [],
+    "physics_control_steps": 5115,
+    "all_control_steps_have_four_substeps": true,
+    "policy_action_count": 5115,
+    "policy_actions_contiguous": true,
+    "physics_episodes": [
+      "0"
+    ],
+    "event_episodes": [
+      0
+    ],
+    "physics_policies": [
+      "rocky_slope"
+    ],
+    "event_policies": [
+      "rocky_slope"
+    ],
+    "capture_end": {
+      "event": "capture_end",
+      "sim_time_s": 102.29999999997945,
+      "episode": 0,
+      "samples": 20460
+    },
+    "final_physics_nav_xyz_max_difference": 0.0
+  },
+  "cross_track": {
+    "max_m": 1.0015834688080012,
+    "time_s": 95.32000000000001,
+    "position": [
+      12.09925651550293,
+      4.168233871459961,
+      4.569306373596191
+    ],
+    "endpoint_distance_m": 1.0015834688080012,
+    "first_endpoint_disk_time_s": 86.36,
+    "max_before_first_endpoint_arrival_m": 0.21103320799274086,
+    "interpretation": "Maximum equals endpoint distance after initial endpoint arrival: exterior overshoot/return, not a one-metre deviation during the main climb."
+  },
+  "milestones": {
+    "first_radius_11_time_s": 85.06,
+    "furthest_route_progress_m": 17.247348980724656
+  },
+  "events": {
+    "navigation_event_counts": {
+      "mission_stage": 2,
+      "saved_path_start": 1,
+      "remote_transition": 115
+    },
+    "joint_event_counts": {
+      "capture_start": 1,
+      "segment": 2,
+      "policy_action": 5115,
+      "capture_end": 1
+    },
+    "recovery_actions": 0,
+    "manual_intervention": false,
+    "policy_switches": 0,
+    "negative_forward_command_samples": 0,
+    "geometry_or_guard_events": []
+  },
+  "provenance": {
+    "archived_sources_checked": 34,
+    "archived_source_hash_mismatches": [],
+    "saved_result_copy_hash_matches": true,
+    "unguarded": true,
+    "motion_vetoes": false,
+    "physical_failure_classifier": false
+  },
+  "limitations": [
+    "Recovery actions were implemented but none executed; no recovery effectiveness claim.",
+    "One saved-path trial on seed42 with full-crater simulator development survey and same-crater fitted preferences; no repeatability or generalization claim.",
+    "Motion guardrails were explicitly disabled; this is not guarded-autonomy or hardware qualification.",
+    "Legacy CSV climb_failures=0 is not a validated zero-failure count; summary correctly marks climb_failures=null and classifier unavailable.",
+    "Final settling means the configured0.6s low-speed upright criterion; it does not mean motionless or sustained long-duration station keeping."
+  ]
+}

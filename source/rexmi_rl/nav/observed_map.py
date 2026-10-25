@@ -41,6 +41,7 @@ class ObservedTerrainMap:
         self.blocked = self.known.copy()
         self.hazard = self.known.copy()
         self.obstacle_distance = np.full(shape, np.inf)
+        self.steep_distance = np.full(shape, np.inf)
         self.gx = np.zeros(shape)
         self.gy = np.zeros(shape)
         self.slope = np.zeros(shape)
@@ -48,6 +49,13 @@ class ObservedTerrainMap:
         self.roughness_support = np.zeros(shape,np.uint8)
         self.failures = np.zeros((*shape,8),np.uint8)
         self.successes = np.zeros((*shape,8),np.uint16)
+        self.approach_blocked = np.zeros((*shape,8),bool)
+        self.difficulty_episodes = np.zeros(shape,np.uint8)
+        self.no_go = np.zeros(shape,bool)
+        self.no_go_depth = np.zeros(shape)
+        self.failed_climbs = []
+        self.uphill_limit_deg = self.MAX_SLOPE_DEG
+        self.side_limit_deg = self.MAX_SLOPE_DEG
         self.traversal_revision = 0
         self.residual = np.zeros(shape)
         self.cost = np.full(shape, 5., np.float32)
@@ -121,7 +129,10 @@ class ObservedTerrainMap:
             widening = (~new) & (~narrowing) & (~ordinary)
             old[new | confirmed | widening] = value[new | confirmed | widening]
             streak[hit] = np.where(confirmed,0,streak[hit])
-        self._bin_low[hit],self._bin_high[hit] = low,high
+        # Independently confirmed/EWMA endpoints can cross when a formerly
+        # broad interval collapses. Preserve both proposals as an enclosing
+        # interval; do not let the lower bound exceed the upper bound.
+        self._bin_low[hit],self._bin_high[hit] = np.minimum(low,high),np.maximum(low,high)
         self._bin_count[hit] = np.minimum(count.astype(int)+1,32)
         touched = hit.any(axis=-1)
         lows = self._bin_low[touched]
@@ -254,7 +265,10 @@ class ObservedTerrainMap:
         inflated = obstacle_distance <= self.footprint_radius + self.clearance
         # User-reported operating ceiling; steep cells are not inflated.
         # Roughness does not override this limit or guarantee traction below it.
-        self.blocked = inflated | (self.known & (self.slope > math.tan(math.radians(self.MAX_SLOPE_DEG))))
+        steep=self.known & (self.slope > math.tan(math.radians(self.MAX_SLOPE_DEG)))
+        self.steep_distance=(ndi.distance_transform_edt(~steep,sampling=self.cell_size)
+                             if steep.any() else np.full(shape=self.known.shape,fill_value=np.inf))
+        self.blocked = inflated | steep | self.no_go
         self.cost = np.where(self.known, 1. + 4.*self.slope, 5.).astype(np.float32)
         near = np.maximum(0., 1. - obstacle_distance / (self.footprint_radius + self.clearance + .6))
         self.cost[self.known] += 4 * near[self.known]
@@ -268,23 +282,61 @@ class ObservedTerrainMap:
         return (cell is not None and self.known[cell] and not self.blocked[cell]
                 and (not require_fresh or self.fresh[cell]))
 
-    def segment_clear(self, a, b, escape_clearance=None, require_fresh=True, check_direction=True):
+    def exit_traversable(self, cell, require_fresh=False):
+        """Permit leaving a learned exclusion, never a geometric obstacle."""
+        return (cell is not None and self.known[cell] and (not require_fresh or self.fresh[cell])
+                and not self.hazard[cell] and self.obstacle_distance[cell]>=self.footprint_radius+self.clearance
+                and self.slope[cell]<=math.tan(math.radians(self.MAX_SLOPE_DEG)))
+
+    def grade_reason(self, a, b, uphill_limit=None, side_limit=None):
+        delta=np.subtract(b,a);length=float(np.linalg.norm(delta))
+        if length<1e-9:return ''
+        up=self.uphill_limit_deg if uphill_limit is None else uphill_limit
+        side=self.side_limit_deg if side_limit is None else side_limit
+        for t in np.linspace(0,1,max(2,math.ceil(length/(self.cell_size*.5))+1)):
+            cell=self.world_to_cell(*(np.asarray(a)+t*delta))
+            if cell is None or not self.known[cell]:return 'unobserved grade'
+            along=math.degrees(math.atan((self.gx[cell]*delta[0]+self.gy[cell]*delta[1])/length))
+            across=math.degrees(math.atan(abs(-self.gx[cell]*delta[1]+self.gy[cell]*delta[0])/length))
+            if along>up+1e-6:return f'uphill grade {along:.1f} exceeds autonomous limit {up:.0f} degrees'
+            if across>side+1e-6:return f'side slope {across:.1f} exceeds autonomous limit {side:.0f} degrees'
+        return ''
+
+    def segment_clear(self, a, b, escape_clearance=None, require_fresh=True, check_direction=True,
+                      no_go_exit=False, *, observation_support=None):
+        observed = self.fresh if observation_support is None else observation_support
         length = np.linalg.norm(np.subtract(b, a))
+        if check_direction and self.grade_reason(a,b):return False
         def allowed_cell(cell):
-            allowed = self.traversable(cell,require_fresh=require_fresh)
+            allowed = (self.traversable(cell,require_fresh=False)
+                       and (not require_fresh or observed[cell]))
             if not allowed and escape_clearance is not None and cell is not None:
-                allowed = (self.known[cell] and self.fresh[cell] and not self.hazard[cell]
+                allowed = (self.known[cell] and observed[cell] and not self.hazard[cell]
+                           and not self.no_go[cell]
                            and self.obstacle_distance[cell] <= self.footprint_radius + self.clearance
                            and self.obstacle_distance[cell] >= max(self.footprint_radius, escape_clearance) - 1e-6
                            and self.slope[cell] <= math.tan(math.radians(self.MAX_SLOPE_DEG)))
+            if not allowed and no_go_exit and cell is not None and self.no_go[cell]:
+                margin=self.footprint_radius if escape_clearance is not None else self.footprint_radius+self.clearance
+                allowed=(self.known[cell] and (observed[cell] or not require_fresh)
+                         and not self.hazard[cell] and self.obstacle_distance[cell]>=margin
+                         and self.slope[cell]<=math.tan(math.radians(self.MAX_SLOPE_DEG)))
             return allowed
         heading=self.heading_bin(math.atan2(b[1]-a[1],b[0]-a[0])) if length>1e-9 else None
         previous = None
+        first=self.world_to_cell(*a)
+        depth=self.no_go_depth[first] if first is not None else 0.
         for t in np.linspace(0, 1, max(2, math.ceil(length / (self.cell_size * .4)) + 1)):
             p = np.asarray(a) + t * np.subtract(b, a)
             cell = self.world_to_cell(*p)
             if not allowed_cell(cell) or (check_direction and heading is not None and not self.direction_allowed(cell,heading)):
                 return False
+            if no_go_exit and check_direction:
+                # Only a commanded escape must move monotonically outwards.
+                # Predicted inertial drift is checked against physical hazards,
+                # not treated as an intentional retry of the learned exclusion.
+                if self.no_go_depth[cell]>depth+1e-6: return False
+                depth=self.no_go_depth[cell]
             if previous is not None and cell[0]!=previous[0] and cell[1]!=previous[1]:
                 if not allowed_cell((cell[0],previous[1])) or not allowed_cell((previous[0],cell[1])):
                     return False
@@ -340,9 +392,167 @@ class ObservedTerrainMap:
         if cells: self.traversal_revision+=1
 
     def direction_allowed(self, cell, heading):
-        return cell is not None and self.failures[cell[0],cell[1],heading]<2
+        return (cell is not None and self.failures[cell[0],cell[1],heading]<2
+                and not self.approach_blocked[cell[0],cell[1],heading])
 
-    def edge_cost(self, cell, dr, dc, previous_heading):
+    def record_difficulty(self, xy, yaw):
+        """Confirmed episodes block an approach immediately; recurrence closes a zone.
+
+        Unlike raw scan retention, learned exclusions survive for this mission.
+        Escape may leave a learned zone, never bypass a geometric obstacle.
+        """
+        centre=self.world_to_cell(*xy)
+        if centre is None: return
+        radius=max(.35,self.footprint_radius+.1)
+        extent=math.ceil(radius/self.cell_size)
+        direction=self.heading_bin(yaw)
+        for dr in range(-extent,extent+1):
+            for dc in range(-extent,extent+1):
+                r,k=centre[0]+dr,centre[1]+dc
+                if (math.hypot(dr,dc)*self.cell_size>radius or not
+                        (0<=r<self.n_cells and 0<=k<self.n_cells) or not self.known[r,k]):continue
+                self.difficulty_episodes[r,k]=min(255,int(self.difficulty_episodes[r,k])+1)
+                for heading in ((direction-1)%8,direction,(direction+1)%8):
+                    self.approach_blocked[r,k,heading]=True
+                if self.difficulty_episodes[r,k]>=2:self.no_go[r,k]=True
+        self.no_go_depth=ndi.distance_transform_edt(self.no_go,sampling=self.cell_size)
+        self.blocked|=self.no_go
+        self.cost[self.no_go]=20.
+        self.traversal_revision+=1
+        self.revision+=1
+
+    def exclude_failed_climb(self, xy, reason, now):
+        """Stop re-entering a failed hillside from a marginally different yaw.
+
+        A route exclusion is evidence of an unsuccessful approach, not a new
+        claim about friction or geometric slope. A checked downhill exit remains
+        possible from inside it.
+        """
+        radius=max(1.2,2.5*self.footprint_radius)
+        if any(math.dist(xy,z['position'])<radius*.7 for z in self.failed_climbs):return
+        axis=(np.arange(self.n_cells)+.5)*self.cell_size-self.world_size/2
+        area=((axis[:,None]+self.origin[0]-xy[0])**2+(axis[None,:]+self.origin[1]-xy[1])**2<=radius**2)
+        self.no_go|=area & self.known
+        self.no_go_depth=ndi.distance_transform_edt(self.no_go,sampling=self.cell_size)
+        self.blocked|=self.no_go;self.cost[self.no_go]=20.
+        self.failed_climbs.append(dict(position=list(xy),radius_m=radius,reason=reason,time=now))
+        self.revision+=1;self.traversal_revision+=1
+
+    def _support_cells(self, a, b=None, reserve=0.):
+        """Grid cells intersecting the swept circular body envelope."""
+        a=np.asarray(a);b=a if b is None else np.asarray(b)
+        radius=self.footprint_radius+reserve
+        lo=self.world_to_cell(*(np.minimum(a,b)-radius-self.cell_size))
+        hi=self.world_to_cell(*(np.maximum(a,b)+radius+self.cell_size))
+        if lo is None or hi is None: return None
+        rr,cc=np.meshgrid(np.arange(lo[0],hi[0]+1),np.arange(lo[1],hi[1]+1),indexing='ij')
+        points=np.stack((self.origin[0]+(rr+.5)*self.cell_size-self.world_size/2,
+                         self.origin[1]+(cc+.5)*self.cell_size-self.world_size/2),axis=-1)
+        delta=b-a
+        t=np.clip(np.sum((points-a)*delta,axis=-1)/max(1e-12,float(delta@delta)),0,1)
+        mask=np.linalg.norm(points-a-t[...,None]*delta,axis=-1)<=radius+self.cell_size*.71
+        return rr[mask],cc[mask]
+
+    def max_support_slope(self, a, b=None, reserve=0.):
+        """Maximum measured slope in degrees; missing evidence is not a cliff.
+
+        This classifies slope danger only. support_reason/segment_clear still
+        prevent authorizing motion across unknown or stale ground.
+        """
+        cells=self._support_cells(a,b,reserve)
+        if cells is None: return math.nan
+        slopes=self.slope[cells]
+        measured=self.known[cells] & np.isfinite(slopes)
+        return math.degrees(math.atan(float(slopes[measured].max()))) if measured.any() else math.nan
+
+    def support_reason(self, a, b=None, reserve=0.):
+        """Known ground under a swept body footprint, without changing tile colours.
+
+        Steep cells have no inflated display buffer. Checking only the centre
+        of a turning robot can therefore miss a wheel hanging over that edge.
+        The optional reserve allows for drift during a slow alignment turn.
+        """
+        cells=self._support_cells(a,b,reserve)
+        if cells is None: return 'body footprint extends outside observed map'
+        if not self.known[cells].all(): return 'unobserved ground under body/turn envelope'
+        # segment_clear checks freshness along the immediate motion corridor.
+        # Perimeter cells may be occluded by the robot itself. Preserve their
+        # measured static geometry instead of requiring every wheel-adjacent
+        # sample to be reobserved continuously; unknown ground stays excluded.
+        # Ordinary obstacle checks already inflate by the body radius. Do not
+        # add another grid-cell margin to cream exits. Only an extra turn-drift
+        # reserve needs a separate obstacle-envelope check here.
+        if reserve>0 and self.hazard[cells].any(): return 'obstacle in body/turn envelope'
+        slopes=self.slope[cells]
+        if not np.isfinite(slopes).all(): return 'unmeasured slope under body/turn envelope'
+        if (slopes>math.tan(math.radians(self.MAX_SLOPE_DEG))).any():
+            return 'slope >35 degrees in body/turn envelope'
+        return ''
+
+    def planning_support(self):
+        """Apply the execution footprint to route centres, with no extra reserve.
+
+        Tile colours describe terrain at a cell; a centre-only route beside a
+        cliff could still place wheels on that cliff. Do not repeatedly offer
+        such a route to a follower that correctly rejects its body envelope.
+        """
+        radius=self.footprint_radius/self.cell_size+.71
+        axis=np.arange(-math.ceil(radius),math.ceil(radius)+1)
+        disk=axis[:,None]**2+axis[None,:]**2<=radius**2
+        ground=self.known & np.isfinite(self.slope) & (self.slope<=math.tan(math.radians(self.MAX_SLOPE_DEG)))
+        return ndi.minimum_filter(ground,footprint=disk,mode='constant',cval=0)
+
+    def support_exposure(self, xy):
+        """Observed steep cells overlapping the body, not measured foot contacts."""
+        cells=self._support_cells(xy)
+        if cells is None or not self.known[cells].all() or not np.isfinite(self.slope[cells]).all():
+            return None
+        steep=self.slope[cells]>math.tan(math.radians(self.MAX_SLOPE_DEG))
+        return set(zip(cells[0][steep].tolist(),cells[1][steep].tolist())),len(cells[0])
+
+    def support_exit_check(self, points, inherited, require_clear_end=True):
+        """Allow a bounded departure from existing steep overlap, not entry.
+
+        Normal planning remains unchanged. Every footprint must be observed;
+        newly swept cells must be fresh. Existing steep overlap may only shrink.
+        The 25-degree ascent preference is not applied to this short escape;
+        actual centre terrain and travel grades still stay within 35 degrees.
+        """
+        if not points or not inherited:return 'no partial steep overlap to leave',{}
+        first=self._support_cells(points[0])
+        if first is None:return 'current footprint outside map',{}
+        original=set(zip(first[0].tolist(),first[1].tolist()))
+        if len(inherited)/len(original)>.25:return 'too much of the footprint overlaps steep terrain',{}
+        previous=points[0];remaining=set(inherited);counts=[]
+        start=self.world_to_cell(*previous)
+        depth=self.no_go_depth[start] if start is not None else 0.
+        for point in points:
+            cell=self.world_to_cell(*point)
+            if cell is None or not self.known[cell] or not self.fresh[cell]:
+                return 'backout centre needs fresh observed ground',{}
+            if self.hazard[cell] or self.obstacle_distance[cell]<self.footprint_radius:
+                return 'obstacle inside backout footprint',{}
+            if self.slope[cell]>math.tan(math.radians(self.MAX_SLOPE_DEG)):
+                return 'backout centre would enter terrain above 35 degrees',{}
+            if self.no_go_depth[cell]>depth+1e-6:return 'backout would enter a learned exclusion',{}
+            depth=self.no_go_depth[cell]
+            detail=self.grade_reason(previous,point,uphill_limit=self.MAX_SLOPE_DEG,side_limit=self.MAX_SLOPE_DEG)
+            if detail:return detail,{}
+            cells=self._support_cells(point)
+            if cells is None or not self.known[cells].all():return 'unobserved ground in backout footprint',{}
+            if not np.isfinite(self.slope[cells]).all():return 'unmeasured backout slope',{}
+            footprint=set(zip(cells[0].tolist(),cells[1].tolist()))
+            entered=footprint-original
+            if any(not self.fresh[p] for p in entered):return 'newly swept backout ground is stale',{}
+            steep=self.slope[cells]>math.tan(math.radians(self.MAX_SLOPE_DEG))
+            exposed=set(zip(cells[0][steep].tolist(),cells[1][steep].tolist()))
+            if not exposed.issubset(remaining):return 'backout increases or re-enters cliff exposure',{}
+            remaining=exposed;counts.append(len(exposed));previous=point
+        if require_clear_end and remaining:return 'backout endpoint still overlaps steep terrain',{}
+        return '',dict(initial_steep_cells=len(inherited),final_steep_cells=len(remaining),
+                       peak_steep_cells=max(counts),distance_m=sum(math.dist(a,b) for a,b in zip(points,points[1:])))
+
+    def edge_cost(self, cell, dr, dc, previous_heading, profile='balanced'):
         norm=math.hypot(dr,dc)
         if norm<1e-9: return 0.
         heading=self.heading_bin(math.atan2(dc,dr))
@@ -352,13 +562,84 @@ class ObservedTerrainMap:
         failures=float(self.failures[cell[0],cell[1],heading])
         turn=min((heading-previous_heading)%8,(previous_heading-heading)%8)
         untested=.3 if self.successes[cell[0],cell[1],heading]==0 else 0.
-        return norm*(float(self.cost[cell])+2.*abs(along)+4.*across+6.*failures+untested)+.8*turn
+        # A 34-degree climb is not merely a slightly more costly 20-degree
+        # climb. Price sustained steep exposure across the entire mission route.
+        # These are planning preferences below the unchanged 35-degree ceiling,
+        # not new claims about traction or measured policy limits.
+        grade=math.degrees(math.atan(along))
+        side=math.degrees(math.atan(across))
+        if grade>self.uphill_limit_deg+1e-6 or side>self.side_limit_deg+1e-6:return math.inf
+        uphill=12.*(max(0.,grade-15.)/20.)**2
+        downhill=4.*(max(0.,-grade-20.)/15.)**2
+        sidehill=8.*(side/35.)**2
+        multiplier={'direct':.35,'balanced':1.,'gentle':2.5}[profile]
+        uphill*=multiplier
+        sidehill*=math.sqrt(multiplier)
+        # Prefer room for the whole robot beside a cliff, without painting an
+        # extra forbidden band around every steep tile. Local motion still
+        # checks the actual swept footprint before authorizing travel.
+        edge_room=24.*max(0.,1.-self.steep_distance[cell]/(self.footprint_radius+.3))**2
+        slope_ratio=min(1.,float(self.slope[cell])/math.tan(math.radians(self.MAX_SLOPE_DEG)))
+        turning=.8*turn*(1.+2.*slope_ratio**2)
+        return norm*(float(self.cost[cell])+2.*abs(along)+4.*across+uphill+downhill+sidehill+edge_room+6.*failures+untested)+turning
+
+    def directional_costs(self, profile='balanced', uphill_limit=None, offsets=None):
+        """Vectorized A* costs; avoid recomputing trigonometry for every edge."""
+        offsets=offsets or ((1,0),(1,1),(0,1),(-1,1),(-1,0),(-1,-1),(0,-1),(1,-1))
+        values=np.empty((*self.known.shape,len(offsets)),float)
+        multiplier={'direct':.35,'balanced':1.,'gentle':2.5}[profile]
+        uphill_limit=self.uphill_limit_deg if uphill_limit is None else uphill_limit
+        room=24.*np.maximum(0.,1.-self.steep_distance/(self.footprint_radius+.3))**2
+        for index,(dr,dc) in enumerate(offsets):
+            heading=self.heading_bin(math.atan2(dc,dr))
+            norm=math.hypot(dr,dc)
+            along=(self.gx*dr+self.gy*dc)/norm
+            across=np.abs(-self.gx*dc+self.gy*dr)/norm
+            grade=np.degrees(np.arctan(along));side=np.degrees(np.arctan(across))
+            cost=(self.cost.astype(float)+2.*np.abs(along)+4.*across
+                  +multiplier*12.*(np.maximum(0.,grade-15.)/20.)**2
+                  +4.*(np.maximum(0.,-grade-20.)/15.)**2
+                  +math.sqrt(multiplier)*8.*(side/35.)**2+room
+                  +6.*self.failures[:,:,heading]+.3*(self.successes[:,:,heading]==0))
+            permitted=((self.failures[:,:,heading]<2)&~self.approach_blocked[:,:,heading]
+                       &(grade<=uphill_limit+1e-6)&(side<=self.side_limit_deg+1e-6))
+            values[:,:,index]=np.where(permitted,norm*cost,np.inf)
+        turn=.8*(1.+2.*np.minimum(1.,self.slope/math.tan(math.radians(self.MAX_SLOPE_DEG)))**2)
+        return values,turn
+
+    def route_profile(self, path):
+        """Describe the whole selected route, not just the next checkpoint."""
+        length=ascent=steep_length=0.;max_up=max_side=max_slope=max_body=0.
+        for a,b in zip(path,path[1:]):
+            delta=np.subtract(b,a);distance=float(np.linalg.norm(delta))
+            if distance<1e-9: continue
+            body=self.max_support_slope(a,b)
+            if math.isfinite(body):max_body=max(max_body,body)
+            steps=max(1,math.ceil(distance/self.cell_size))
+            for t in np.linspace(0,1,steps+1)[1:]:
+                cell=self.world_to_cell(*(np.asarray(a)+t*delta))
+                if cell is None or not self.known[cell]: continue
+                along=(self.gx[cell]*delta[0]+self.gy[cell]*delta[1])/distance
+                across=abs(-self.gx[cell]*delta[1]+self.gy[cell]*delta[0])/distance
+                grade=math.degrees(math.atan(along))
+                slope=math.degrees(math.atan(self.slope[cell]))
+                length+=distance/steps;ascent+=max(0.,along)*distance/steps
+                if grade>25.: steep_length+=distance/steps
+                max_up=max(max_up,grade);max_side=max(max_side,math.degrees(math.atan(across)))
+                max_slope=max(max_slope,slope)
+        return dict(length_m=length,ascent_m=ascent,uphill_over_25deg_m=steep_length,
+                    max_uphill_deg=max_up,max_side_slope_deg=max_side,max_ground_slope_deg=max_slope,
+                    max_footprint_slope_deg=max_body)
 
     def route_cost(self, path, yaw=0., require_fresh=False):
         """Sample every edge with the same directional costs used by A*."""
         total=0.;heading=self.heading_bin(yaw)
         for a,b in zip(path,path[1:]):
             if not self.segment_clear(a,b,require_fresh=require_fresh): return math.inf
+            # Cached routes must meet the same body-support requirement as a
+            # newly planned route. A clear centreline cannot preserve an old
+            # route after a steep edge is discovered beside it.
+            if self.support_reason(a,b): return math.inf
             delta=np.subtract(b,a);length=float(np.linalg.norm(delta))
             if length<1e-9: continue
             steps=max(1,math.ceil(float(np.max(np.abs(delta)))/self.cell_size-1e-8))
@@ -377,13 +658,14 @@ class ObservedTerrainMap:
             if cell is None or not self.known[cell]: return 'unobserved terrain'
             if not self.fresh[cell]: return 'stale immediate observations'
             if self.hazard[cell]: return 'detected obstacle'
+            if self.no_go[cell]: return 'excluded failed approach; use committed downhill exit'
             if self.slope[cell]>math.tan(math.radians(self.MAX_SLOPE_DEG)): return 'terrain exceeds slope limit'
             if self.obstacle_distance[cell]<self.footprint_radius: return 'obstacle inside robot footprint clearance'
             if self.blocked[cell] and escape_clearance is None: return 'additional obstacle planning margin'
             if check_direction and length>1e-9 and not self.direction_allowed(
                     cell,self.heading_bin(math.atan2(b[1]-a[1],b[0]-a[0]))):
-                return 'approach direction excluded after repeated traversal failures'
-        return 'diagonal obstacle-corner clearance'
+                return 'approach direction excluded after traversal failure'
+        return (self.grade_reason(a,b) if check_direction else '') or 'diagonal obstacle-corner clearance'
 
     def survey_snapshot(self):
         return dict(height=self.height.copy(),low=self.low.copy(),surface=self.surface.copy(),
@@ -391,9 +673,14 @@ class ObservedTerrainMap:
                     clearance=self.clearance_mask.copy(),slope=self.slope.copy(),gx=self.gx.copy(),gy=self.gy.copy(),
                     roughness=self.roughness.copy(),roughness_support=self.roughness_support.copy(),
                     failures=self.failures.copy(),successes=self.successes.copy(),cost=self.cost.copy(),
+                    approach_blocked=self.approach_blocked.copy(),no_go=self.no_go.copy(),
+                    difficulty_episodes=self.difficulty_episodes.copy(),
                     last_seen=self.last_seen.copy(),samples=self.samples.copy(),
                     bin_low=self._bin_low.copy(),bin_high=self._bin_high.copy(),bin_count=self._bin_count.copy(),
                     origin=np.asarray(self.origin),cell_size=self.cell_size,sim_time=self.now,
+                    uphill_limit_deg=self.uphill_limit_deg,side_limit_deg=self.side_limit_deg,
+                    failed_climb_positions=np.asarray([z['position'] for z in self.failed_climbs]).reshape(-1,2),
+                    failed_climb_radii=np.asarray([z['radius_m'] for z in self.failed_climbs]),
                     footprint_radius=self.footprint_radius,clearance_m=self.clearance)
 
     def get_cost_grid(self):
@@ -403,7 +690,7 @@ class ObservedTerrainMap:
     def clearance_mask(self):
         """Planning margin around hazards, distinct from hazardous terrain."""
         steep=self.known & (self.slope>math.tan(math.radians(self.MAX_SLOPE_DEG)))
-        return self.blocked & ~self.hazard & ~steep
+        return self.blocked & ~self.hazard & ~steep & ~self.no_go
 
     def get_visual_grid(self):
         return self.get_cost_grid(), self.surface.copy(), self.known.copy()

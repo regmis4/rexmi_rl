@@ -1,0 +1,1857 @@
+{
+  "source": "/home/susan/rexmi_rl/outputs/remote_autonomy/reachable-height-objective/stable_capture/request-d55yep2q.npz",
+  "source_sha256": "fa573c4e1a08e6652a58e6a2e9e69e3bea7981dd907c8b40ade788e706461859",
+  "start": [
+    0.020204421132802963,
+    -0.08588346838951111
+  ],
+  "goal": [
+    0.0,
+    13.0
+  ],
+  "yaw": 1.6296781802822586,
+  "inventory": {
+    "legacy_count": 74,
+    "neutral_count": 360,
+    "total_nodes": 434,
+    "directed_pairs": 8908,
+    "grid_spacing_m": 1.6,
+    "legacy_provenance": {
+      "source": "validated survey candidates with live validation",
+      "survey_candidates": 72,
+      "live_candidates": 72,
+      "survey_retained": 71,
+      "survey_rejected_current": 1,
+      "live_retained": 1,
+      "live_covered": 71
+    },
+    "limitation": "Finite sampled anchors and sparse straight links; not continuous-space optimality",
+    "objective_supported_edges": 8354,
+    "objective_unavailable": {
+      "unobserved extended wheelbase height support": 554
+    }
+  },
+  "elapsed_seconds": 155.2232771140002,
+  "implementation": {
+    "guard_ablation.py": "11bda3ef087e698873081558329987a6f9eb3a9c4f72af94b86859cfc3057fa4",
+    "sustained_climb.py": "957ca53d42b09c61d577fcbe1d68c1cfa94a71e3741df1bc4244b261aebc11a8",
+    "stage_graph.py": "f2a0bae0f032b68ec888a441f16f9887e20d1a7d6fcd56de4e64c0ae90e992b4",
+    "turn_staging.py": "3d1a4ef9a99a320e1bf5089b2b9826318e6b45d58c2e205ad9bfa8f736e6b917",
+    "swept_footprint.py": "28178da7d544f819968e9e62c3916b679bb22581460c9fdb5d2afc599aa94751",
+    "wheelbase_demand.py": "efba38717eb94fe8b686e733185ef7044f332c72c809a5b3a0a005c59cf4f1b2",
+    "climb_burden.py": "d20d99f1edf74d738d4d979b4b1833465fada9e62fcc45440edb333d9063fbff",
+    "observed_map.py": "3d42b205ff2bbd806dab98020d0b9c1ccde56f3b5f935ce6334f8819ed9a4b3d",
+    "remote_routes.py": "1bd9fead06327e5c8a1cdf2638c0c0ad712420d4c1496c74ce32aa324bb39c8d",
+    "staged_routes.py": "e0367a7c0709c967b5c8469b2aa17c7ce63a5986d2d6906b136d20733b6a7e74",
+    "remote_control.py": "cd4946f07ff6ad802f6c873cc1ca52539386e4ed4c8ae6d7717ff9cc787148fd",
+    "planning_snapshot.py": "127bb7c18eab7f6a4b1f4bec25842adbaeac2f1fbb902b62c54c84cac681cca0",
+    "ascent_map.py": "6bd9d754f33348fd868964261bf4ca4d4a51e284ef7a808a9f44e8c8083471c3"
+  },
+  "not_established": [
+    "Physical traction and mission completion",
+    "Calibrated success probability",
+    "Optimality outside the frozen candidate graph",
+    "Dynamic stopping/posture checks from a static map"
+  ],
+  "stages": [
+    {
+      "level": 0,
+      "name": "Finite terrain only",
+      "complete": true,
+      "best": {
+        "route": [
+          [
+            0.020204421132802963,
+            -0.08588346838951111
+          ],
+          [
+            -0.6999999999999993,
+            -1.5
+          ],
+          [
+            -0.09999999999999787,
+            -2.6999999999999993
+          ],
+          [
+            1.7000000000000028,
+            -3.099999999999998
+          ],
+          [
+            0.8999999999999986,
+            -2.5
+          ],
+          [
+            1.3000000000000043,
+            -0.6999999999999993
+          ],
+          [
+            1.7000000000000028,
+            -1.5
+          ],
+          [
+            2.5,
+            -0.09999999999999787
+          ],
+          [
+            3.3000000000000043,
+            -1.2999999999999972
+          ],
+          [
+            3.3000000000000043,
+            0.10000000000000142
+          ],
+          [
+            4.899999999999999,
+            -1.5
+          ],
+          [
+            4.700000000000003,
+            -0.5
+          ],
+          [
+            1.7000000000000028,
+            5.700000000000003
+          ],
+          [
+            3.3000000000000043,
+            4.899999999999999
+          ],
+          [
+            1.7000000000000028,
+            6.5
+          ],
+          [
+            -0.09999999999999787,
+            7.700000000000003
+          ],
+          [
+            1.8999999999999986,
+            7.5
+          ],
+          [
+            3.3000000000000043,
+            6.5
+          ],
+          [
+            2.8999999999999986,
+            7.300000000000004
+          ],
+          [
+            5.5,
+            5.300000000000004
+          ],
+          [
+            6.5,
+            3.3000000000000043
+          ],
+          [
+            6.5,
+            4.899999999999999
+          ],
+          [
+            6.5,
+            6.5
+          ],
+          [
+            4.899999999999999,
+            8.100000000000001
+          ],
+          [
+            4.899999999999999,
+            9.700000000000003
+          ],
+          [
+            3.3000000000000043,
+            11.300000000000004
+          ],
+          [
+            1.7000000000000028,
+            11.300000000000004
+          ],
+          [
+            0.10000000000000142,
+            12.900000000000006
+          ],
+          [
+            0.0,
+            13.0
+          ]
+        ],
+        "rank": [
+          12.968250528193064,
+          52.82147915501427
+        ],
+        "provenance": "minimum effort witness",
+        "violations": [
+          {
+            "group": 5,
+            "segment": 2,
+            "point": [
+              -0.09999999999999787,
+              -2.6999999999999993
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 7,
+            "point": [
+              2.5,
+              -0.09999999999999787
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 8,
+            "point": [
+              3.3000000000000043,
+              -1.2999999999999972
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 9,
+            "point": [
+              3.3000000000000043,
+              0.10000000000000142
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 10,
+            "point": [
+              4.899999999999999,
+              -1.5
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 2,
+            "segment": 11,
+            "start": [
+              4.700000000000003,
+              -0.5
+            ],
+            "end": [
+              1.7000000000000028,
+              5.700000000000003
+            ],
+            "reason": "oriented footprint exceeds 35 degrees"
+          },
+          {
+            "group": 3,
+            "segment": 11,
+            "start": [
+              4.700000000000003,
+              -0.5
+            ],
+            "end": [
+              1.7000000000000028,
+              5.700000000000003
+            ],
+            "reason": "side slope 32.1 exceeds autonomous limit 32 degrees"
+          },
+          {
+            "group": 4,
+            "segment": 11,
+            "start": [
+              4.700000000000003,
+              -0.5
+            ],
+            "end": [
+              1.7000000000000028,
+              5.700000000000003
+            ],
+            "reason": "route geometry or directional exclusion changed"
+          },
+          {
+            "group": 5,
+            "segment": 11,
+            "point": [
+              4.700000000000003,
+              -0.5
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 12,
+            "point": [
+              1.7000000000000028,
+              5.700000000000003
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 13,
+            "point": [
+              3.3000000000000043,
+              4.899999999999999
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 14,
+            "point": [
+              1.7000000000000028,
+              6.5
+            ],
+            "reason": "no supported route-relative slope minimum"
+          },
+          {
+            "group": 5,
+            "segment": 16,
+            "point": [
+              1.8999999999999986,
+              7.5
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 17,
+            "point": [
+              3.3000000000000043,
+              6.5
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 19,
+            "point": [
+              5.5,
+              5.300000000000004
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 20,
+            "point": [
+              6.5,
+              3.3000000000000043
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 22,
+            "point": [
+              6.5,
+              6.5
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 23,
+            "point": [
+              4.899999999999999,
+              8.100000000000001
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 25,
+            "point": [
+              3.3000000000000043,
+              11.300000000000004
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          }
+        ],
+        "passes_all_static_guards": false,
+        "optimal": false
+      }
+    },
+    {
+      "level": 1,
+      "name": "+ Swept obstacle clearance",
+      "complete": true,
+      "best": {
+        "route": [
+          [
+            0.020204421132802963,
+            -0.08588346838951111
+          ],
+          [
+            -0.6999999999999993,
+            -1.5
+          ],
+          [
+            -0.09999999999999787,
+            -2.6999999999999993
+          ],
+          [
+            1.7000000000000028,
+            -3.099999999999998
+          ],
+          [
+            0.8999999999999986,
+            -2.5
+          ],
+          [
+            1.3000000000000043,
+            -0.6999999999999993
+          ],
+          [
+            1.7000000000000028,
+            -1.5
+          ],
+          [
+            2.5,
+            -0.09999999999999787
+          ],
+          [
+            3.3000000000000043,
+            -1.2999999999999972
+          ],
+          [
+            3.3000000000000043,
+            0.10000000000000142
+          ],
+          [
+            4.899999999999999,
+            -1.5
+          ],
+          [
+            4.700000000000003,
+            -0.5
+          ],
+          [
+            1.7000000000000028,
+            5.700000000000003
+          ],
+          [
+            3.3000000000000043,
+            4.899999999999999
+          ],
+          [
+            1.7000000000000028,
+            6.5
+          ],
+          [
+            -0.09999999999999787,
+            7.700000000000003
+          ],
+          [
+            1.8999999999999986,
+            7.5
+          ],
+          [
+            3.3000000000000043,
+            6.5
+          ],
+          [
+            2.8999999999999986,
+            7.300000000000004
+          ],
+          [
+            5.5,
+            5.300000000000004
+          ],
+          [
+            6.5,
+            3.3000000000000043
+          ],
+          [
+            6.5,
+            4.899999999999999
+          ],
+          [
+            6.5,
+            6.5
+          ],
+          [
+            4.899999999999999,
+            8.100000000000001
+          ],
+          [
+            4.899999999999999,
+            9.700000000000003
+          ],
+          [
+            3.3000000000000043,
+            11.300000000000004
+          ],
+          [
+            1.7000000000000028,
+            11.300000000000004
+          ],
+          [
+            0.10000000000000142,
+            12.900000000000006
+          ],
+          [
+            0.0,
+            13.0
+          ]
+        ],
+        "rank": [
+          12.968250528193064,
+          52.82147915501427
+        ],
+        "provenance": "minimum effort witness",
+        "violations": [
+          {
+            "group": 5,
+            "segment": 2,
+            "point": [
+              -0.09999999999999787,
+              -2.6999999999999993
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 7,
+            "point": [
+              2.5,
+              -0.09999999999999787
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 8,
+            "point": [
+              3.3000000000000043,
+              -1.2999999999999972
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 9,
+            "point": [
+              3.3000000000000043,
+              0.10000000000000142
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 10,
+            "point": [
+              4.899999999999999,
+              -1.5
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 2,
+            "segment": 11,
+            "start": [
+              4.700000000000003,
+              -0.5
+            ],
+            "end": [
+              1.7000000000000028,
+              5.700000000000003
+            ],
+            "reason": "oriented footprint exceeds 35 degrees"
+          },
+          {
+            "group": 3,
+            "segment": 11,
+            "start": [
+              4.700000000000003,
+              -0.5
+            ],
+            "end": [
+              1.7000000000000028,
+              5.700000000000003
+            ],
+            "reason": "side slope 32.1 exceeds autonomous limit 32 degrees"
+          },
+          {
+            "group": 4,
+            "segment": 11,
+            "start": [
+              4.700000000000003,
+              -0.5
+            ],
+            "end": [
+              1.7000000000000028,
+              5.700000000000003
+            ],
+            "reason": "route geometry or directional exclusion changed"
+          },
+          {
+            "group": 5,
+            "segment": 11,
+            "point": [
+              4.700000000000003,
+              -0.5
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 12,
+            "point": [
+              1.7000000000000028,
+              5.700000000000003
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 13,
+            "point": [
+              3.3000000000000043,
+              4.899999999999999
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 14,
+            "point": [
+              1.7000000000000028,
+              6.5
+            ],
+            "reason": "no supported route-relative slope minimum"
+          },
+          {
+            "group": 5,
+            "segment": 16,
+            "point": [
+              1.8999999999999986,
+              7.5
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 17,
+            "point": [
+              3.3000000000000043,
+              6.5
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 19,
+            "point": [
+              5.5,
+              5.300000000000004
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 20,
+            "point": [
+              6.5,
+              3.3000000000000043
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 22,
+            "point": [
+              6.5,
+              6.5
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 23,
+            "point": [
+              4.899999999999999,
+              8.100000000000001
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 25,
+            "point": [
+              3.3000000000000043,
+              11.300000000000004
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          }
+        ],
+        "passes_all_static_guards": false,
+        "optimal": false
+      }
+    },
+    {
+      "level": 2,
+      "name": "+ 35 degree body slope",
+      "complete": true,
+      "best": {
+        "route": [
+          [
+            0.020204421132802963,
+            -0.08588346838951111
+          ],
+          [
+            -1.5,
+            -1.5
+          ],
+          [
+            -2.6999999999999993,
+            -0.09999999999999787
+          ],
+          [
+            -2.6999999999999993,
+            1.3000000000000043
+          ],
+          [
+            -1.5,
+            0.7000000000000028
+          ],
+          [
+            0.7000000000000028,
+            1.5
+          ],
+          [
+            0.10000000000000142,
+            2.700000000000003
+          ],
+          [
+            1.1000000000000014,
+            2.5
+          ],
+          [
+            0.10000000000000142,
+            3.8999999999999986
+          ],
+          [
+            -1.5,
+            4.899999999999999
+          ],
+          [
+            -3.099999999999998,
+            4.700000000000003
+          ],
+          [
+            -4.699999999999999,
+            3.3000000000000043
+          ],
+          [
+            -4.299999999999997,
+            3.700000000000003
+          ],
+          [
+            -2.8999999999999986,
+            6.300000000000004
+          ],
+          [
+            -5.299999999999997,
+            4.100000000000001
+          ],
+          [
+            -6.299999999999997,
+            3.3000000000000043
+          ],
+          [
+            -4.699999999999999,
+            4.899999999999999
+          ],
+          [
+            -3.099999999999998,
+            6.5
+          ],
+          [
+            -1.8999999999999986,
+            7.100000000000001
+          ],
+          [
+            -0.09999999999999787,
+            7.700000000000003
+          ],
+          [
+            1.8999999999999986,
+            7.5
+          ],
+          [
+            3.3000000000000043,
+            6.5
+          ],
+          [
+            2.8999999999999986,
+            7.300000000000004
+          ],
+          [
+            5.5,
+            5.300000000000004
+          ],
+          [
+            6.5,
+            3.3000000000000043
+          ],
+          [
+            6.5,
+            4.899999999999999
+          ],
+          [
+            6.5,
+            6.5
+          ],
+          [
+            4.899999999999999,
+            8.100000000000001
+          ],
+          [
+            4.899999999999999,
+            9.700000000000003
+          ],
+          [
+            3.3000000000000043,
+            11.300000000000004
+          ],
+          [
+            1.7000000000000028,
+            11.300000000000004
+          ],
+          [
+            0.10000000000000142,
+            12.900000000000006
+          ],
+          [
+            0.0,
+            13.0
+          ]
+        ],
+        "rank": [
+          13.141487081301932,
+          58.00026568372394
+        ],
+        "provenance": "minimum effort witness",
+        "violations": [
+          {
+            "group": 5,
+            "segment": 7,
+            "point": [
+              1.1000000000000014,
+              2.5
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 8,
+            "point": [
+              0.10000000000000142,
+              3.8999999999999986
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 9,
+            "point": [
+              -1.5,
+              4.899999999999999
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 10,
+            "point": [
+              -3.099999999999998,
+              4.700000000000003
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 11,
+            "point": [
+              -4.699999999999999,
+              3.3000000000000043
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 12,
+            "point": [
+              -4.299999999999997,
+              3.700000000000003
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 3,
+            "segment": 13,
+            "start": [
+              -2.8999999999999986,
+              6.300000000000004
+            ],
+            "end": [
+              -5.299999999999997,
+              4.100000000000001
+            ],
+            "reason": "side slope 32.1 exceeds autonomous limit 32 degrees"
+          },
+          {
+            "group": 4,
+            "segment": 13,
+            "start": [
+              -2.8999999999999986,
+              6.300000000000004
+            ],
+            "end": [
+              -5.299999999999997,
+              4.100000000000001
+            ],
+            "reason": "route geometry or directional exclusion changed"
+          },
+          {
+            "group": 5,
+            "segment": 13,
+            "point": [
+              -2.8999999999999986,
+              6.300000000000004
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 3,
+            "segment": 14,
+            "start": [
+              -5.299999999999997,
+              4.100000000000001
+            ],
+            "end": [
+              -6.299999999999997,
+              3.3000000000000043
+            ],
+            "reason": "side slope 32.2 exceeds autonomous limit 32 degrees"
+          },
+          {
+            "group": 4,
+            "segment": 14,
+            "start": [
+              -5.299999999999997,
+              4.100000000000001
+            ],
+            "end": [
+              -6.299999999999997,
+              3.3000000000000043
+            ],
+            "reason": "route geometry or directional exclusion changed"
+          },
+          {
+            "group": 5,
+            "segment": 14,
+            "point": [
+              -5.299999999999997,
+              4.100000000000001
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 3,
+            "segment": 15,
+            "start": [
+              -6.299999999999997,
+              3.3000000000000043
+            ],
+            "end": [
+              -4.699999999999999,
+              4.899999999999999
+            ],
+            "reason": "side slope 32.1 exceeds autonomous limit 32 degrees"
+          },
+          {
+            "group": 4,
+            "segment": 15,
+            "start": [
+              -6.299999999999997,
+              3.3000000000000043
+            ],
+            "end": [
+              -4.699999999999999,
+              4.899999999999999
+            ],
+            "reason": "route geometry or directional exclusion changed"
+          },
+          {
+            "group": 5,
+            "segment": 15,
+            "point": [
+              -6.299999999999997,
+              3.3000000000000043
+            ],
+            "reason": "slope >35 degrees in body/turn envelope"
+          },
+          {
+            "group": 3,
+            "segment": 16,
+            "start": [
+              -4.699999999999999,
+              4.899999999999999
+            ],
+            "end": [
+              -3.099999999999998,
+              6.5
+            ],
+            "reason": "side slope 32.5 exceeds autonomous limit 32 degrees"
+          },
+          {
+            "group": 4,
+            "segment": 16,
+            "start": [
+              -4.699999999999999,
+              4.899999999999999
+            ],
+            "end": [
+              -3.099999999999998,
+              6.5
+            ],
+            "reason": "route geometry or directional exclusion changed"
+          },
+          {
+            "group": 5,
+            "segment": 17,
+            "point": [
+              -3.099999999999998,
+              6.5
+            ],
+            "reason": "slope >35 degrees in body/turn envelope"
+          },
+          {
+            "group": 4,
+            "segment": 18,
+            "start": [
+              -1.8999999999999986,
+              7.100000000000001
+            ],
+            "end": [
+              -0.09999999999999787,
+              7.700000000000003
+            ],
+            "reason": "route geometry or directional exclusion changed"
+          },
+          {
+            "group": 5,
+            "segment": 18,
+            "point": [
+              -1.8999999999999986,
+              7.100000000000001
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 20,
+            "point": [
+              1.8999999999999986,
+              7.5
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 21,
+            "point": [
+              3.3000000000000043,
+              6.5
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 23,
+            "point": [
+              5.5,
+              5.300000000000004
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 24,
+            "point": [
+              6.5,
+              3.3000000000000043
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 26,
+            "point": [
+              6.5,
+              6.5
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 27,
+            "point": [
+              4.899999999999999,
+              8.100000000000001
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 29,
+            "point": [
+              3.3000000000000043,
+              11.300000000000004
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          }
+        ],
+        "passes_all_static_guards": false,
+        "optimal": false
+      }
+    },
+    {
+      "level": 3,
+      "name": "+ 33 uphill / 32 cross slope",
+      "complete": true,
+      "best": {
+        "route": [
+          [
+            0.020204421132802963,
+            -0.08588346838951111
+          ],
+          [
+            -1.5,
+            -1.5
+          ],
+          [
+            -2.6999999999999993,
+            -0.09999999999999787
+          ],
+          [
+            -2.6999999999999993,
+            1.3000000000000043
+          ],
+          [
+            -1.5,
+            0.7000000000000028
+          ],
+          [
+            0.7000000000000028,
+            1.5
+          ],
+          [
+            0.10000000000000142,
+            2.700000000000003
+          ],
+          [
+            1.1000000000000014,
+            2.5
+          ],
+          [
+            0.10000000000000142,
+            3.8999999999999986
+          ],
+          [
+            -1.5,
+            4.899999999999999
+          ],
+          [
+            -3.099999999999998,
+            4.700000000000003
+          ],
+          [
+            -4.699999999999999,
+            3.3000000000000043
+          ],
+          [
+            -4.299999999999997,
+            3.700000000000003
+          ],
+          [
+            -2.8999999999999986,
+            6.300000000000004
+          ],
+          [
+            -1.8999999999999986,
+            7.100000000000001
+          ],
+          [
+            -0.09999999999999787,
+            7.700000000000003
+          ],
+          [
+            1.8999999999999986,
+            7.5
+          ],
+          [
+            3.3000000000000043,
+            6.5
+          ],
+          [
+            2.8999999999999986,
+            7.300000000000004
+          ],
+          [
+            5.5,
+            5.300000000000004
+          ],
+          [
+            6.5,
+            3.3000000000000043
+          ],
+          [
+            6.5,
+            4.899999999999999
+          ],
+          [
+            6.5,
+            6.5
+          ],
+          [
+            4.899999999999999,
+            8.100000000000001
+          ],
+          [
+            4.899999999999999,
+            9.700000000000003
+          ],
+          [
+            3.3000000000000043,
+            11.300000000000004
+          ],
+          [
+            1.7000000000000028,
+            11.300000000000004
+          ],
+          [
+            0.10000000000000142,
+            12.900000000000006
+          ],
+          [
+            0.0,
+            13.0
+          ]
+        ],
+        "rank": [
+          13.281546859332337,
+          48.877377378410216
+        ],
+        "provenance": "minimum effort witness",
+        "violations": [
+          {
+            "group": 5,
+            "segment": 7,
+            "point": [
+              1.1000000000000014,
+              2.5
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 8,
+            "point": [
+              0.10000000000000142,
+              3.8999999999999986
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 9,
+            "point": [
+              -1.5,
+              4.899999999999999
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 10,
+            "point": [
+              -3.099999999999998,
+              4.700000000000003
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 11,
+            "point": [
+              -4.699999999999999,
+              3.3000000000000043
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 12,
+            "point": [
+              -4.299999999999997,
+              3.700000000000003
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 13,
+            "point": [
+              -2.8999999999999986,
+              6.300000000000004
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 4,
+            "segment": 14,
+            "start": [
+              -1.8999999999999986,
+              7.100000000000001
+            ],
+            "end": [
+              -0.09999999999999787,
+              7.700000000000003
+            ],
+            "reason": "route geometry or directional exclusion changed"
+          },
+          {
+            "group": 5,
+            "segment": 14,
+            "point": [
+              -1.8999999999999986,
+              7.100000000000001
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 16,
+            "point": [
+              1.8999999999999986,
+              7.5
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 17,
+            "point": [
+              3.3000000000000043,
+              6.5
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 19,
+            "point": [
+              5.5,
+              5.300000000000004
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 20,
+            "point": [
+              6.5,
+              3.3000000000000043
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 22,
+            "point": [
+              6.5,
+              6.5
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 23,
+            "point": [
+              4.899999999999999,
+              8.100000000000001
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 25,
+            "point": [
+              3.3000000000000043,
+              11.300000000000004
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          }
+        ],
+        "passes_all_static_guards": false,
+        "optimal": false
+      }
+    },
+    {
+      "level": 4,
+      "name": "+ Existing edge contracts",
+      "complete": true,
+      "best": {
+        "route": [
+          [
+            0.020204421132802963,
+            -0.08588346838951111
+          ],
+          [
+            -0.6999999999999993,
+            -1.5
+          ],
+          [
+            -0.09999999999999787,
+            -2.6999999999999993
+          ],
+          [
+            1.7000000000000028,
+            -3.099999999999998
+          ],
+          [
+            0.8999999999999986,
+            -2.5
+          ],
+          [
+            1.3000000000000043,
+            -0.6999999999999993
+          ],
+          [
+            1.7000000000000028,
+            -1.5
+          ],
+          [
+            2.5,
+            -0.09999999999999787
+          ],
+          [
+            3.3000000000000043,
+            -1.2999999999999972
+          ],
+          [
+            3.5,
+            0.10000000000000142
+          ],
+          [
+            1.7000000000000028,
+            5.700000000000003
+          ],
+          [
+            3.3000000000000043,
+            4.899999999999999
+          ],
+          [
+            1.7000000000000028,
+            6.5
+          ],
+          [
+            -0.09999999999999787,
+            7.700000000000003
+          ],
+          [
+            1.8999999999999986,
+            7.5
+          ],
+          [
+            3.3000000000000043,
+            6.5
+          ],
+          [
+            2.8999999999999986,
+            7.300000000000004
+          ],
+          [
+            5.5,
+            5.300000000000004
+          ],
+          [
+            6.5,
+            3.3000000000000043
+          ],
+          [
+            6.5,
+            4.899999999999999
+          ],
+          [
+            6.5,
+            6.5
+          ],
+          [
+            4.899999999999999,
+            8.100000000000001
+          ],
+          [
+            4.899999999999999,
+            9.700000000000003
+          ],
+          [
+            3.3000000000000043,
+            11.300000000000004
+          ],
+          [
+            1.7000000000000028,
+            11.300000000000004
+          ],
+          [
+            0.10000000000000142,
+            12.900000000000006
+          ],
+          [
+            0.0,
+            13.0
+          ]
+        ],
+        "rank": [
+          16.052638945237092,
+          48.54765343972393
+        ],
+        "provenance": "minimum effort witness",
+        "violations": [
+          {
+            "group": 5,
+            "segment": 2,
+            "point": [
+              -0.09999999999999787,
+              -2.6999999999999993
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 7,
+            "point": [
+              2.5,
+              -0.09999999999999787
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 8,
+            "point": [
+              3.3000000000000043,
+              -1.2999999999999972
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 9,
+            "point": [
+              3.5,
+              0.10000000000000142
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 10,
+            "point": [
+              1.7000000000000028,
+              5.700000000000003
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 11,
+            "point": [
+              3.3000000000000043,
+              4.899999999999999
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 12,
+            "point": [
+              1.7000000000000028,
+              6.5
+            ],
+            "reason": "no supported route-relative slope minimum"
+          },
+          {
+            "group": 5,
+            "segment": 14,
+            "point": [
+              1.8999999999999986,
+              7.5
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 15,
+            "point": [
+              3.3000000000000043,
+              6.5
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 17,
+            "point": [
+              5.5,
+              5.300000000000004
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 18,
+            "point": [
+              6.5,
+              3.3000000000000043
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 20,
+            "point": [
+              6.5,
+              6.5
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 21,
+            "point": [
+              4.899999999999999,
+              8.100000000000001
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          },
+          {
+            "group": 5,
+            "segment": 23,
+            "point": [
+              3.3000000000000043,
+              11.300000000000004
+            ],
+            "reason": "not a minimum along the requested approach and departure"
+          }
+        ],
+        "passes_all_static_guards": false,
+        "optimal": false
+      }
+    },
+    {
+      "level": 5,
+      "name": "+ Checked turns",
+      "complete": true,
+      "best": {
+        "route": [
+          [
+            0.020204421132802963,
+            -0.08588346838951111
+          ],
+          [
+            -0.6999999999999993,
+            -1.5
+          ],
+          [
+            0.8999999999999986,
+            -2.5
+          ],
+          [
+            1.7000000000000028,
+            -3.099999999999998
+          ],
+          [
+            2.5,
+            -3.099999999999998
+          ],
+          [
+            2.8999999999999986,
+            7.300000000000004
+          ],
+          [
+            11.900000000000006,
+            -2.5
+          ],
+          [
+            15.100000000000001,
+            -13.7
+          ],
+          [
+            5.300000000000004,
+            12.5
+          ],
+          [
+            4.899999999999999,
+            11.300000000000004
+          ],
+          [
+            3.3000000000000043,
+            11.300000000000004
+          ],
+          [
+            1.7000000000000028,
+            11.300000000000004
+          ],
+          [
+            0.10000000000000142,
+            12.900000000000006
+          ],
+          [
+            0.0,
+            13.0
+          ]
+        ],
+        "rank": [
+          91.90150718144261,
+          75.47717055820392
+        ],
+        "provenance": "minimum effort witness",
+        "violations": [],
+        "passes_all_static_guards": true,
+        "optimal": false
+      }
+    }
+  ],
+  "selected": {
+    "route": [
+      [
+        0.020204421132802963,
+        -0.08588346838951111
+      ],
+      [
+        -0.6999999999999993,
+        -1.5
+      ],
+      [
+        0.8999999999999986,
+        -2.5
+      ],
+      [
+        1.7000000000000028,
+        -3.099999999999998
+      ],
+      [
+        2.5,
+        -3.099999999999998
+      ],
+      [
+        2.8999999999999986,
+        7.300000000000004
+      ],
+      [
+        11.900000000000006,
+        -2.5
+      ],
+      [
+        15.100000000000001,
+        -13.7
+      ],
+      [
+        5.300000000000004,
+        12.5
+      ],
+      [
+        4.899999999999999,
+        11.300000000000004
+      ],
+      [
+        3.3000000000000043,
+        11.300000000000004
+      ],
+      [
+        1.7000000000000028,
+        11.300000000000004
+      ],
+      [
+        0.10000000000000142,
+        12.900000000000006
+      ],
+      [
+        0.0,
+        13.0
+      ]
+    ],
+    "rank": [
+      91.90150718144261,
+      75.47717055820392
+    ],
+    "provenance": "minimum effort witness",
+    "violations": [],
+    "passes_all_static_guards": true,
+    "optimal": false,
+    "optimization": {
+      "optimal": false,
+      "censored": true,
+      "relaxations": 200000,
+      "labels": 14161,
+      "expansions": 9931,
+      "improvements": 0,
+      "reason": "work budget; complete incumbent retained",
+      "rank": [
+        91.90150718144261,
+        75.47717055820392
+      ]
+    }
+  },
+  "shorter_same_guards": {
+    "route": [
+      [
+        0.020204421132802963,
+        -0.08588346838951111
+      ],
+      [
+        -0.6999999999999993,
+        -1.5
+      ],
+      [
+        -2.6999999999999993,
+        -0.09999999999999787
+      ],
+      [
+        -2.6999999999999993,
+        1.3000000000000043
+      ],
+      [
+        -1.5,
+        0.7000000000000028
+      ],
+      [
+        0.7000000000000028,
+        1.5
+      ],
+      [
+        -0.09999999999999787,
+        7.700000000000003
+      ],
+      [
+        4.899999999999999,
+        6.5
+      ],
+      [
+        0.0,
+        13.0
+      ]
+    ],
+    "rank": [
+      92.58177473442524,
+      28.64425340482649
+    ],
+    "provenance": "minimum effort witness",
+    "violations": [],
+    "passes_all_static_guards": true,
+    "optimal": false
+  }
+}

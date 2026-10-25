@@ -1,0 +1,307 @@
+{
+  "source_run": "outputs/ascent_behavior_tree/trial15",
+  "csv_sha256": "98c2cab67ae893c170e84ce224c2b8624914964dbfedcc0e40d813be4b9a69f8",
+  "samples": [
+    {
+      "time": 73.86,
+      "action_id": "trial15-run:move:6",
+      "direction": 1,
+      "position": [
+        -0.15545177459716797,
+        2.410331964492798
+      ],
+      "endpoint": [
+        0.2930222262474169,
+        1.8405818762964372
+      ],
+      "body_yaw": -1.0640476990367067,
+      "arrival_radius": 0.3
+    },
+    {
+      "time": 115.34,
+      "action_id": "trial15-run:move:8",
+      "direction": -1,
+      "position": [
+        0.2484903335571289,
+        2.2216567993164062
+      ],
+      "endpoint": [
+        0.1621625543516819,
+        1.4736870897547603
+      ],
+      "body_yaw": 1.295178338216331,
+      "arrival_radius": 0.2
+    },
+    {
+      "time": 117.74000000000001,
+      "action_id": "trial15-run:move:8",
+      "direction": -1,
+      "position": [
+        0.24157355725765228,
+        2.2103195190429688
+      ],
+      "endpoint": [
+        0.1621625543516819,
+        1.4736870897547603
+      ],
+      "body_yaw": 1.303096559574862,
+      "arrival_radius": 0.2
+    },
+    {
+      "time": 119.44,
+      "action_id": "trial15-run:move:8",
+      "direction": -1,
+      "position": [
+        0.24301272630691528,
+        2.2057206630706787
+      ],
+      "endpoint": [
+        0.1621625543516819,
+        1.4736870897547603
+      ],
+      "body_yaw": 1.2992839016656983,
+      "arrival_radius": 0.2
+    },
+    {
+      "time": 121.4,
+      "action_id": "trial15-run:move:8",
+      "direction": -1,
+      "position": [
+        0.2451878935098648,
+        2.2104597091674805
+      ],
+      "endpoint": [
+        0.1621625543516819,
+        1.4736870897547603
+      ],
+      "body_yaw": 1.2915055386706786,
+      "arrival_radius": 0.2
+    },
+    {
+      "time": 123.14,
+      "action_id": "trial15-run:move:8",
+      "direction": -1,
+      "position": [
+        0.24877043068408966,
+        2.214158535003662
+      ],
+      "endpoint": [
+        0.1621625543516819,
+        1.4736870897547603
+      ],
+      "body_yaw": 1.2908777638650595,
+      "arrival_radius": 0.2
+    },
+    {
+      "time": 125.16,
+      "action_id": "trial15-run:move:8",
+      "direction": -1,
+      "position": [
+        0.25687721371650696,
+        2.220625162124634
+      ],
+      "endpoint": [
+        0.1621625543516819,
+        1.4736870897547603
+      ],
+      "body_yaw": 1.282495428523963,
+      "arrival_radius": 0.2
+    },
+    {
+      "time": 134.58,
+      "action_id": "trial15-run:move:8",
+      "direction": -1,
+      "position": [
+        0.2931402325630188,
+        2.234480619430542
+      ],
+      "endpoint": [
+        0.1621625543516819,
+        1.4736870897547603
+      ],
+      "body_yaw": 1.234280457489735,
+      "arrival_radius": 0.2
+    },
+    {
+      "time": 137.44,
+      "action_id": "trial15-run:move:8",
+      "direction": -1,
+      "position": [
+        0.30160295963287354,
+        2.2390036582946777
+      ],
+      "endpoint": [
+        0.1621625543516819,
+        1.4736870897547603
+      ],
+      "body_yaw": 1.222704694939483,
+      "arrival_radius": 0.2
+    },
+    {
+      "time": 139.68,
+      "action_id": "trial15-run:move:8",
+      "direction": -1,
+      "position": [
+        0.2989483177661896,
+        2.2290005683898926
+      ],
+      "endpoint": [
+        0.1621625543516819,
+        1.4736870897547603
+      ],
+      "body_yaw": 1.2246985276106697,
+      "arrival_radius": 0.2
+    },
+    {
+      "time": 142.5,
+      "action_id": "trial15-run:move:8",
+      "direction": -1,
+      "position": [
+        0.2947470247745514,
+        2.2304024696350098
+      ],
+      "endpoint": [
+        0.1621625543516819,
+        1.4736870897547603
+      ],
+      "body_yaw": 1.2342662511942137,
+      "arrival_radius": 0.2
+    },
+    {
+      "time": 145.76,
+      "action_id": "trial15-run:move:8",
+      "direction": -1,
+      "position": [
+        0.30842816829681396,
+        2.243199110031128
+      ],
+      "endpoint": [
+        0.1621625543516819,
+        1.4736870897547603
+      ],
+      "body_yaw": 1.2220807098088984,
+      "arrival_radius": 0.2
+    },
+    {
+      "time": 148.16,
+      "action_id": "trial15-run:move:8",
+      "direction": -1,
+      "position": [
+        0.29900220036506653,
+        2.237417459487915
+      ],
+      "endpoint": [
+        0.1621625543516819,
+        1.4736870897547603
+      ],
+      "body_yaw": 1.2259694356252808,
+      "arrival_radius": 0.2
+    },
+    {
+      "time": 150.9,
+      "action_id": "trial15-run:move:8",
+      "direction": -1,
+      "position": [
+        0.29851964116096497,
+        2.2323834896087646
+      ],
+      "endpoint": [
+        0.1621625543516819,
+        1.4736870897547603
+      ],
+      "body_yaw": 1.230656058029638,
+      "arrival_radius": 0.2
+    },
+    {
+      "time": 154.14000000000001,
+      "action_id": "trial15-run:move:8",
+      "direction": -1,
+      "position": [
+        0.34064656496047974,
+        2.164456605911255
+      ],
+      "endpoint": [
+        0.1621625543516819,
+        1.4736870897547603
+      ],
+      "body_yaw": 1.1542736278605112,
+      "arrival_radius": 0.2
+    },
+    {
+      "time": 157.52,
+      "action_id": "trial15-run:move:8",
+      "direction": -1,
+      "position": [
+        0.2648873031139374,
+        1.967259168624878
+      ],
+      "endpoint": [
+        0.1621625543516819,
+        1.4736870897547603
+      ],
+      "body_yaw": 1.202361726164736,
+      "arrival_radius": 0.2
+    },
+    {
+      "time": 160.96,
+      "action_id": "trial15-run:move:8",
+      "direction": -1,
+      "position": [
+        0.3064972162246704,
+        1.9431790113449097
+      ],
+      "endpoint": [
+        0.1621625543516819,
+        1.4736870897547603
+      ],
+      "body_yaw": 1.1107997899226238,
+      "arrival_radius": 0.2
+    },
+    {
+      "time": 164.34,
+      "action_id": "trial15-run:move:8",
+      "direction": -1,
+      "position": [
+        0.28252410888671875,
+        1.8729537725448608
+      ],
+      "endpoint": [
+        0.1621625543516819,
+        1.4736870897547603
+      ],
+      "body_yaw": 1.11362527347263,
+      "arrival_radius": 0.2
+    },
+    {
+      "time": 166.20000000000002,
+      "action_id": "trial15-run:move:8",
+      "direction": -1,
+      "position": [
+        0.23716163635253906,
+        1.7982022762298584
+      ],
+      "endpoint": [
+        0.1621625543516819,
+        1.4736870897547603
+      ],
+      "body_yaw": 1.1834284536464732,
+      "arrival_radius": 0.2
+    },
+    {
+      "time": 167.70000000000002,
+      "action_id": "trial15-run:move:8",
+      "direction": -1,
+      "position": [
+        0.20249511301517487,
+        1.7412068843841553
+      ],
+      "endpoint": [
+        0.1621625543516819,
+        1.4736870897547603
+      ],
+      "body_yaw": 1.2599693447521523,
+      "arrival_radius": 0.2
+    }
+  ],
+  "limitation": "Observation replay of geometric compatibility only; no counterfactual physics outcome."
+}

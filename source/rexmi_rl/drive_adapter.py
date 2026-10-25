@@ -69,6 +69,8 @@ def load_policy(checkpoint_path: str, device: str) -> Callable:
         f"[teleop] Loaded {os.path.basename(checkpoint_path)} "
         f"obs={obs_dim} act={num_actions} hidden={hidden_dims}"
     )
+    policy.observation_size = obs_dim
+    policy.action_size = num_actions
     return policy
 
 

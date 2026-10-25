@@ -1,0 +1,63 @@
+{
+  "date": "2026-09-20",
+  "change": "Reverse-assisted turns only for measured steep-edge danger; ordinary flat and safe-slope turns use normal following.",
+  "unit_tests": {
+    "navigation": 115,
+    "flat_sidestep": 14,
+    "perception": 8,
+    "total": 137
+  },
+  "simulator": {
+    "seed": 42,
+    "duration_seconds": 25,
+    "goal_selection_seconds": 2,
+    "policy": "rocky_slope model_13994.pt",
+    "no_switches": true,
+    "automatic_resets": 0,
+    "fixture": "Existing flat_sidestep_study: flat left/right, textured flat, 10-degree slope boundary. Fixed study contact coefficients 0.8 static / 0.6 dynamic; demo physics unchanged.",
+    "log": "logs/nav/selective_turn/seed42.json",
+    "cases": [
+      {
+        "case": "flat_left",
+        "completed": true,
+        "seconds_after_goal_selection": 9.84,
+        "reverse_assisted_turn_frames": 0,
+        "tip": false,
+        "policy_switches": 0
+      },
+      {
+        "case": "flat_right",
+        "completed": true,
+        "seconds_after_goal_selection": 7.82,
+        "reverse_assisted_turn_frames": 0,
+        "tip": false,
+        "policy_switches": 0
+      },
+      {
+        "case": "textured",
+        "completed": true,
+        "seconds_after_goal_selection": 7.5,
+        "reverse_assisted_turn_frames": 0,
+        "tip": false,
+        "policy_switches": 0
+      },
+      {
+        "case": "slope_guard",
+        "completed": true,
+        "seconds_after_goal_selection": 8.04,
+        "reverse_assisted_turn_frames": 0,
+        "tip": false,
+        "policy_switches": 0
+      }
+    ]
+  },
+  "limits": [
+    "The simulator run tests ordinary turns, not full crater ascent or cliff recovery.",
+    "Final early reverse termination and cancellation when slope danger clears were checked with deterministic controller regressions after the simulator run.",
+    "No claim of improved policy yaw dynamics; this change removes unnecessary navigation recovery sequences."
+  ],
+  "current_source_sha256": {
+    "source/rexmi_rl/nav/checkpoint_control.py": "dd9b87a7f043759f943f542775ce94fc9889bdf9c404d6eecdb3e10c36b538d0",
+    "source/rexmi_rl/nav/observed_map.py": "f80ea26b55b19ad005e121c8e0626d77ed4ae83d548610d99cee77cf6be3736c"
+  }
+}

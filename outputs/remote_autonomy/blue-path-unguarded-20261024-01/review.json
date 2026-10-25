@@ -1,0 +1,37 @@
+{
+  "scope": "One user-authorized unguarded simulator trial of the identical blue route; observed feedback recovery",
+  "user_override": "Explicit removal of all simulation motion guardrails; retain STOP/manual, invalid-data handling and finite900s experiment budget",
+  "weekly_used_percent": 70,
+  "weekly_ceiling_status": "Prior user waiver for now recorded in crater-navigation handoff; no reset credits used",
+  "usage_checked_utc": "2026-10-25T00:24:37.697318+00:00",
+  "controls_pending": false,
+  "practicality": 8.2,
+  "diagnosis_pending": false,
+  "focused_tests_passed": 169,
+  "deadline_sim_s": 900,
+  "seed": 42,
+  "spawn_yaw": 1.5707963267948966,
+  "reset_credits_used": false,
+  "no_automatic_retry": true,
+  "source_sha256": {
+    "source/rexmi_rl/nav/experimental_path_control.py": "39b753b7897b12e3afbe319169a69b36713a18b1a8d137be34cb4c52286dce73",
+    "source/rexmi_rl/nav/saved_path_control.py": "2b7205016be8e23d0cca3d9ae39abb86d64048050320610bc47c252001912077",
+    "source/rexmi_rl/nav/checkpoint_runner.py": "c765a7db211a85f399ecf6060e38a6373936147876f30bb30ec73a161e923143",
+    "scripts/navigate.py": "453985a4217917bd5cb1c4e4e2e0cc5468e303ac437039f59036f763b6f21228",
+    "source/rexmi_rl/nav/slope_cost.py": "d46b1e78b46f68c5c14b7ba9df07f2c6a4fffffeb3034704bdcdf9cbd1961161"
+  },
+  "path_result_sha256": "3a56ca3ed18bff83bbe24d6457816fefa37e7e3e1baa52d293dc7802e76281b3",
+  "launch_sha256": "0cf000d2df3594929fe71efc14fdca99d6b86eca677e0d31549b44cff42a662e",
+  "controls": 8.2,
+  "diagnosis": 8.2,
+  "launch_utc": "2026-10-25T00:25:04.862874+00:00",
+  "reviews_sha256": {
+    "diagnosis_review.md": "55b65689d134495970e0902b4517ddf6bc098ffff5c7e3aa05b210a94853e67b",
+    "practicality_review.md": "ba6fbc3b184f9eafa95fe78d43064b082596ac138726a3e9b3d138220dcd102d",
+    "controls_review.md": "43c1e9efe4d4e0c58f33140650137bbee4963925297ea1eb02bbefc2f0b37a75"
+  },
+  "source_hashes_verified_unchanged_at_finish": true,
+  "final_result": "complete",
+  "sim_seconds": 102.3,
+  "execution_completed_utc": "2026-10-25T00:28:20.354955+00:00"
+}

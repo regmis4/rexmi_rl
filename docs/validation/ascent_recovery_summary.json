@@ -1,0 +1,559 @@
+{
+  "scope": "Ascent development only; descent and performance stages remain gated.",
+  "ascent_qualified": false,
+  "descent_started": false,
+  "optimization_started": false,
+  "completed_ascent_trials": 6,
+  "completed_ascent_missions": 0,
+  "diagnostic_model_evaluation": null,
+  "qualification_manifests": [],
+  "trials": [
+    {
+      "result": "hold",
+      "sim_seconds": 52.08,
+      "controller": "ascent",
+      "ascent_mode": "characterize",
+      "model_id": null,
+      "source_id": "a592f76c8eb842f45554f9cf30a88565c4b8fbe7b90ce293f36a2e35c764846d",
+      "seed": 42,
+      "min_up_z": 0.6196497082710266,
+      "min_active_up_z": 0.8788870275020599,
+      "peak_command_mps": 0.4,
+      "peak_actual_speed_mps": 1.8960379309379114,
+      "peak_active_speed_mps": 0.47031981326293504,
+      "peak_slope_speed_mps": 0.4610023929938762,
+      "slope_overspeed_seconds": 0.08,
+      "manual_intervention": false,
+      "policy_switches": 0,
+      "climb_failures": 0,
+      "backslide_m": 0.30260873432403623,
+      "map_update_ms_mean": 48.73797479311151,
+      "controller_ms_mean": 0.9997593669866096,
+      "controller_ms_p95": 2.584900400006518,
+      "final_state": "HOLD",
+      "final_reason": "distinct recovery approaches exhausted after observed replan; assistance required",
+      "spawn": [
+        0.0,
+        0.0,
+        1.15,
+        0.0
+      ],
+      "goal": [
+        13.0,
+        0.0
+      ],
+      "max_uphill_deg": 25.0,
+      "max_side_slope_deg": 25.0,
+      "terrain_prior": {
+        "coordinate_frame": "world",
+        "coverage": 1.0,
+        "description": "Top-down simulator terrain mesh survey; development ground truth, not onboard LiDAR",
+        "geometry_id": "87552488ff3913451653dc60010d0bdbe3f7f063c53fcd6860289d83bfb25671",
+        "hit_count": 409600,
+        "kind": "simulator_development",
+        "radius_m": 16.0,
+        "ray_count": 409600,
+        "sample_spacing_m": 0.05,
+        "seed": 42,
+        "task": "RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0",
+        "version": 1,
+        "mission_radius_m": 16.0,
+        "mission_coverage": 1.0,
+        "loaded_from": "/home/susan/rexmi_rl/outputs/ascent_full_survey/trial01/run.prior.npz",
+        "file_sha256": "30a170c590a8c61eae4fb6193905971ac6459ddf0af05d009cce3ce8b188edd4"
+      },
+      "perception_overlay_requested": false,
+      "perception_overlay_enabled": false,
+      "perception_overlay_tiles": 0,
+      "name": "trial01",
+      "summary": "outputs/ascent_recovery_review/trial01/run.summary.json",
+      "purpose": "mission_trial",
+      "checkpoint_attempt_successes": 2,
+      "checkpoint_attempt_failures": 1,
+      "censored_attempts": 5,
+      "physical_failures": 0,
+      "recovery_maneuvers": 6,
+      "peak_active_tilt_deg": 28.49160370453798,
+      "final_xy": [
+        1.4187636375427246,
+        4.063143730163574
+      ],
+      "speed_by_terrain": {
+        "flat": {
+          "samples": 631,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.47031981326293504,
+          "actual_p95_mps": 0.3941342650331612
+        },
+        "slope_5_to_25": {
+          "samples": 616,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.4610023929938762,
+          "actual_p95_mps": 0.3980339536766859
+        },
+        "slope_above_25": {
+          "samples": 1208,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.45644513911951967,
+          "actual_p95_mps": 0.2565427363838554
+        }
+      }
+    },
+    {
+      "result": "hold",
+      "sim_seconds": 122.06,
+      "controller": "ascent",
+      "ascent_mode": "characterize",
+      "model_id": null,
+      "source_id": "d82b592cd0a6ef2bb42844d85bc411858655d721bace6cda3a7716e743baa2e2",
+      "seed": 42,
+      "min_up_z": 0.6196497082710266,
+      "min_active_up_z": 0.8210172802209854,
+      "peak_command_mps": 0.4,
+      "peak_actual_speed_mps": 1.8960379309379114,
+      "peak_active_speed_mps": 0.47031981326293504,
+      "peak_slope_speed_mps": 0.4610023929938762,
+      "slope_overspeed_seconds": 0.08,
+      "manual_intervention": false,
+      "policy_switches": 0,
+      "climb_failures": 0,
+      "backslide_m": 0.35017745035204284,
+      "map_update_ms_mean": 63.10864801309126,
+      "controller_ms_mean": 0.556311079457411,
+      "controller_ms_p95": 2.5638783499971396,
+      "final_state": "HOLD",
+      "final_reason": "recovery time budget exhausted after committed maneuvers; assistance required",
+      "spawn": [
+        0.0,
+        0.0,
+        1.15,
+        0.0
+      ],
+      "goal": [
+        13.0,
+        0.0
+      ],
+      "max_uphill_deg": 25.0,
+      "max_side_slope_deg": 25.0,
+      "terrain_prior": {
+        "coordinate_frame": "world",
+        "coverage": 1.0,
+        "description": "Top-down simulator terrain mesh survey; development ground truth, not onboard LiDAR",
+        "geometry_id": "87552488ff3913451653dc60010d0bdbe3f7f063c53fcd6860289d83bfb25671",
+        "hit_count": 409600,
+        "kind": "simulator_development",
+        "radius_m": 16.0,
+        "ray_count": 409600,
+        "sample_spacing_m": 0.05,
+        "seed": 42,
+        "task": "RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0",
+        "version": 1,
+        "mission_radius_m": 16.0,
+        "mission_coverage": 1.0,
+        "loaded_from": "/home/susan/rexmi_rl/outputs/ascent_full_survey/trial01/run.prior.npz",
+        "file_sha256": "30a170c590a8c61eae4fb6193905971ac6459ddf0af05d009cce3ce8b188edd4"
+      },
+      "perception_overlay_requested": false,
+      "perception_overlay_enabled": false,
+      "perception_overlay_tiles": 0,
+      "name": "trial02",
+      "summary": "outputs/ascent_recovery_review/trial02/run.summary.json",
+      "purpose": "mission_trial",
+      "checkpoint_attempt_successes": 1,
+      "checkpoint_attempt_failures": 1,
+      "censored_attempts": 9,
+      "physical_failures": 0,
+      "recovery_maneuvers": 9,
+      "peak_active_tilt_deg": 34.813242568148134,
+      "final_xy": [
+        1.6054285764694214,
+        3.2181918621063232
+      ],
+      "speed_by_terrain": {
+        "flat": {
+          "samples": 631,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.47031981326293504,
+          "actual_p95_mps": 0.3941342650331612
+        },
+        "slope_5_to_25": {
+          "samples": 616,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.4610023929938762,
+          "actual_p95_mps": 0.3980339536766859
+        },
+        "slope_above_25": {
+          "samples": 4707,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.45644513911951967,
+          "actual_p95_mps": 0.18796985990839138
+        }
+      }
+    },
+    {
+      "result": "hold",
+      "sim_seconds": 32.06,
+      "controller": "ascent",
+      "ascent_mode": "characterize",
+      "model_id": null,
+      "source_id": "f2fac0e59106b27dcfa067f76e2d74585b57fbfa2f5e92cce191935382a91016",
+      "seed": 42,
+      "min_up_z": 0.4847566485404968,
+      "min_active_up_z": 0.4847566485404968,
+      "peak_command_mps": 0.4,
+      "peak_actual_speed_mps": 1.8960379309379114,
+      "peak_active_speed_mps": 0.6530706398754913,
+      "peak_slope_speed_mps": 0.6530706398754913,
+      "slope_overspeed_seconds": 0.4200000000000001,
+      "manual_intervention": false,
+      "policy_switches": 0,
+      "climb_failures": 1,
+      "backslide_m": 0.3410644409252766,
+      "map_update_ms_mean": 51.32071852174828,
+      "controller_ms_mean": 1.265614555483185,
+      "controller_ms_p95": 2.6763553501155,
+      "final_state": "HOLD",
+      "final_reason": "excessive body tilt; assistance required",
+      "spawn": [
+        0.0,
+        0.0,
+        1.15,
+        0.0
+      ],
+      "goal": [
+        13.0,
+        0.0
+      ],
+      "max_uphill_deg": 25.0,
+      "max_side_slope_deg": 25.0,
+      "terrain_prior": {
+        "coordinate_frame": "world",
+        "coverage": 1.0,
+        "description": "Top-down simulator terrain mesh survey; development ground truth, not onboard LiDAR",
+        "geometry_id": "87552488ff3913451653dc60010d0bdbe3f7f063c53fcd6860289d83bfb25671",
+        "hit_count": 409600,
+        "kind": "simulator_development",
+        "radius_m": 16.0,
+        "ray_count": 409600,
+        "sample_spacing_m": 0.05,
+        "seed": 42,
+        "task": "RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0",
+        "version": 1,
+        "mission_radius_m": 16.0,
+        "mission_coverage": 1.0,
+        "loaded_from": "/home/susan/rexmi_rl/outputs/ascent_full_survey/trial01/run.prior.npz",
+        "file_sha256": "30a170c590a8c61eae4fb6193905971ac6459ddf0af05d009cce3ce8b188edd4"
+      },
+      "perception_overlay_requested": false,
+      "perception_overlay_enabled": false,
+      "perception_overlay_tiles": 0,
+      "name": "trial03",
+      "summary": "outputs/ascent_recovery_review/trial03/run.summary.json",
+      "purpose": "mission_trial",
+      "checkpoint_attempt_successes": 1,
+      "checkpoint_attempt_failures": 2,
+      "censored_attempts": 0,
+      "physical_failures": 1,
+      "recovery_maneuvers": 1,
+      "peak_active_tilt_deg": 61.00347008443862,
+      "final_xy": [
+        0.4864615797996521,
+        3.9455506801605225
+      ],
+      "speed_by_terrain": {
+        "flat": {
+          "samples": 630,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.45405074014506186,
+          "actual_p95_mps": 0.4166700225085977
+        },
+        "slope_5_to_25": {
+          "samples": 797,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.6530706398754913,
+          "actual_p95_mps": 0.42312570867455335
+        },
+        "slope_above_25": {
+          "samples": 27,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.08489114420477835,
+          "actual_p95_mps": 0.07553970004093184
+        }
+      }
+    },
+    {
+      "result": "hold",
+      "sim_seconds": 119.8,
+      "controller": "ascent",
+      "ascent_mode": "characterize",
+      "model_id": null,
+      "source_id": "6194fbc458d71975c85cf5d194f46c35d80141110ba783fbe16c740f0dc4a401",
+      "seed": 42,
+      "min_up_z": 0.6196497082710266,
+      "min_active_up_z": 0.8565659373998642,
+      "peak_command_mps": 0.4,
+      "peak_actual_speed_mps": 1.8960379309379114,
+      "peak_active_speed_mps": 0.473301635021888,
+      "peak_slope_speed_mps": 0.473301635021888,
+      "slope_overspeed_seconds": 0.12000000000000001,
+      "manual_intervention": false,
+      "policy_switches": 0,
+      "climb_failures": 1,
+      "backslide_m": 0.2703542709471752,
+      "map_update_ms_mean": 46.68233254500251,
+      "controller_ms_mean": 0.4963213864110694,
+      "controller_ms_p95": 2.524166499938474,
+      "final_state": "HOLD",
+      "final_reason": "recovery time budget exhausted after committed maneuvers; assistance required",
+      "spawn": [
+        0.0,
+        0.0,
+        1.15,
+        0.0
+      ],
+      "goal": [
+        13.0,
+        0.0
+      ],
+      "max_uphill_deg": 25.0,
+      "max_side_slope_deg": 25.0,
+      "terrain_prior": {
+        "coordinate_frame": "world",
+        "coverage": 1.0,
+        "description": "Top-down simulator terrain mesh survey; development ground truth, not onboard LiDAR",
+        "geometry_id": "87552488ff3913451653dc60010d0bdbe3f7f063c53fcd6860289d83bfb25671",
+        "hit_count": 409600,
+        "kind": "simulator_development",
+        "radius_m": 16.0,
+        "ray_count": 409600,
+        "sample_spacing_m": 0.05,
+        "seed": 42,
+        "task": "RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0",
+        "version": 1,
+        "mission_radius_m": 16.0,
+        "mission_coverage": 1.0,
+        "loaded_from": "/home/susan/rexmi_rl/outputs/ascent_full_survey/trial01/run.prior.npz",
+        "file_sha256": "30a170c590a8c61eae4fb6193905971ac6459ddf0af05d009cce3ce8b188edd4"
+      },
+      "perception_overlay_requested": false,
+      "perception_overlay_enabled": false,
+      "perception_overlay_tiles": 0,
+      "name": "trial04",
+      "summary": "outputs/ascent_recovery_review/trial04/run.summary.json",
+      "purpose": "mission_trial",
+      "checkpoint_attempt_successes": 1,
+      "checkpoint_attempt_failures": 2,
+      "censored_attempts": 3,
+      "physical_failures": 1,
+      "recovery_maneuvers": 4,
+      "peak_active_tilt_deg": 31.06683423228648,
+      "final_xy": [
+        1.5102835893630981,
+        4.071212291717529
+      ],
+      "speed_by_terrain": {
+        "flat": {
+          "samples": 638,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.4535319737382387,
+          "actual_p95_mps": 0.40613058120697604
+        },
+        "slope_5_to_25": {
+          "samples": 624,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.473301635021888,
+          "actual_p95_mps": 0.4187860094424489
+        },
+        "slope_above_25": {
+          "samples": 4579,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.4716737334271516,
+          "actual_p95_mps": 0.10672746096876416
+        }
+      }
+    },
+    {
+      "result": "hold",
+      "sim_seconds": 122.02,
+      "controller": "ascent",
+      "ascent_mode": "characterize",
+      "model_id": null,
+      "source_id": "205f0446ef0ea09f475668bb9b2bbe40b6e02f03bd0b49f57f0744cc8ced97da",
+      "seed": 42,
+      "min_up_z": 0.6196497082710266,
+      "min_active_up_z": 0.8829268366098404,
+      "peak_command_mps": 0.4,
+      "peak_actual_speed_mps": 1.8960379309379114,
+      "peak_active_speed_mps": 0.45483540642811277,
+      "peak_slope_speed_mps": 0.45018064152578585,
+      "slope_overspeed_seconds": 0.02,
+      "manual_intervention": false,
+      "policy_switches": 0,
+      "climb_failures": 1,
+      "backslide_m": 0.2731330367384801,
+      "map_update_ms_mean": 46.25986321767449,
+      "controller_ms_mean": 0.6914815021293945,
+      "controller_ms_p95": 4.411711549937536,
+      "final_state": "HOLD",
+      "final_reason": "recovery time budget exhausted after committed maneuvers; assistance required",
+      "spawn": [
+        0.0,
+        0.0,
+        1.15,
+        0.0
+      ],
+      "goal": [
+        13.0,
+        0.0
+      ],
+      "max_uphill_deg": 25.0,
+      "max_side_slope_deg": 25.0,
+      "terrain_prior": {
+        "coordinate_frame": "world",
+        "coverage": 1.0,
+        "description": "Top-down simulator terrain mesh survey; development ground truth, not onboard LiDAR",
+        "geometry_id": "87552488ff3913451653dc60010d0bdbe3f7f063c53fcd6860289d83bfb25671",
+        "hit_count": 409600,
+        "kind": "simulator_development",
+        "radius_m": 16.0,
+        "ray_count": 409600,
+        "sample_spacing_m": 0.05,
+        "seed": 42,
+        "task": "RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0",
+        "version": 1,
+        "mission_radius_m": 16.0,
+        "mission_coverage": 1.0,
+        "loaded_from": "/home/susan/rexmi_rl/outputs/ascent_full_survey/trial01/run.prior.npz",
+        "file_sha256": "30a170c590a8c61eae4fb6193905971ac6459ddf0af05d009cce3ce8b188edd4"
+      },
+      "perception_overlay_requested": false,
+      "perception_overlay_enabled": false,
+      "perception_overlay_tiles": 0,
+      "name": "trial05",
+      "summary": "outputs/ascent_recovery_review/trial05/run.summary.json",
+      "purpose": "mission_trial",
+      "checkpoint_attempt_successes": 1,
+      "checkpoint_attempt_failures": 2,
+      "censored_attempts": 0,
+      "physical_failures": 1,
+      "recovery_maneuvers": 1,
+      "peak_active_tilt_deg": 28.002533052322498,
+      "final_xy": [
+        0.8511295914649963,
+        3.7352662086486816
+      ],
+      "speed_by_terrain": {
+        "flat": {
+          "samples": 619,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.45483540642811277,
+          "actual_p95_mps": 0.39566060379512813
+        },
+        "slope_5_to_25": {
+          "samples": 4771,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.45018064152578585,
+          "actual_p95_mps": 0.3088841546226392
+        },
+        "slope_above_25": {
+          "samples": 562,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.3031785356982395,
+          "actual_p95_mps": 0.24047197104648527
+        }
+      }
+    },
+    {
+      "result": "hold",
+      "sim_seconds": 359.84000000000003,
+      "controller": "ascent",
+      "ascent_mode": "characterize",
+      "model_id": null,
+      "source_id": "205f0446ef0ea09f475668bb9b2bbe40b6e02f03bd0b49f57f0744cc8ced97da",
+      "seed": 42,
+      "min_up_z": 0.6196497082710266,
+      "min_active_up_z": 0.7066572308540344,
+      "peak_command_mps": 0.4,
+      "peak_actual_speed_mps": 1.8960379309379114,
+      "peak_active_speed_mps": 0.7877393849313158,
+      "peak_slope_speed_mps": 0.7877393849313158,
+      "slope_overspeed_seconds": 1.680000000000001,
+      "manual_intervention": false,
+      "policy_switches": 0,
+      "climb_failures": 10,
+      "backslide_m": 2.5911316079233777,
+      "map_update_ms_mean": 47.837901953334445,
+      "controller_ms_mean": 1.5120519089085631,
+      "controller_ms_p95": 4.430157399838207,
+      "final_state": "HOLD",
+      "final_reason": "committed regroup timed out; assistance required",
+      "spawn": [
+        0.0,
+        0.0,
+        1.15,
+        0.0
+      ],
+      "goal": [
+        13.0,
+        0.0
+      ],
+      "max_uphill_deg": 35.0,
+      "max_side_slope_deg": 35.0,
+      "terrain_prior": {
+        "coordinate_frame": "world",
+        "coverage": 1.0,
+        "description": "Top-down simulator terrain mesh survey; development ground truth, not onboard LiDAR",
+        "geometry_id": "87552488ff3913451653dc60010d0bdbe3f7f063c53fcd6860289d83bfb25671",
+        "hit_count": 409600,
+        "kind": "simulator_development",
+        "radius_m": 16.0,
+        "ray_count": 409600,
+        "sample_spacing_m": 0.05,
+        "seed": 42,
+        "task": "RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0",
+        "version": 1,
+        "mission_radius_m": 16.0,
+        "mission_coverage": 1.0,
+        "loaded_from": "/home/susan/rexmi_rl/outputs/ascent_full_survey/trial01/run.prior.npz",
+        "file_sha256": "30a170c590a8c61eae4fb6193905971ac6459ddf0af05d009cce3ce8b188edd4"
+      },
+      "perception_overlay_requested": false,
+      "perception_overlay_enabled": false,
+      "perception_overlay_tiles": 0,
+      "name": "trial06_grade_characterization",
+      "summary": "outputs/ascent_recovery_review/trial06_grade_characterization/run.summary.json",
+      "purpose": "mission_trial",
+      "checkpoint_attempt_successes": 8,
+      "checkpoint_attempt_failures": 14,
+      "censored_attempts": 18,
+      "physical_failures": 10,
+      "recovery_maneuvers": 16,
+      "peak_active_tilt_deg": 45.03641480552342,
+      "final_xy": [
+        2.957731008529663,
+        4.818293571472168
+      ],
+      "speed_by_terrain": {
+        "flat": {
+          "samples": 3407,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.46465700730247267,
+          "actual_p95_mps": 0.41437743535163013
+        },
+        "slope_5_to_25": {
+          "samples": 5534,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.48041376218507653,
+          "actual_p95_mps": 0.3823663898683754
+        },
+        "slope_above_25": {
+          "samples": 8902,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.7877393849313158,
+          "actual_p95_mps": 0.3416359141180997
+        }
+      }
+    }
+  ],
+  "limitation": "Characterization outcomes are not calibrated probabilities or qualification successes. Source versions differ; preserved failures are not overwritten."
+}

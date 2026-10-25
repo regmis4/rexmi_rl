@@ -1,0 +1,63 @@
+{
+  "date": "2026-09-20",
+  "tests": {
+    "navigation": 115,
+    "checkpoint_selection": 8,
+    "flat_sidestep": 14,
+    "perception": 8,
+    "total": 145
+  },
+  "log_finding": "Accepted selection at 32.8 s followed by a rejected selection at 33.0 s; controller kept reporting HOLD through 52.58 s.",
+  "saved_map_replay": {
+    "source": "logs/nav/manual_return_route.map.npz",
+    "survey_time_s": 30.0,
+    "robot_position": [
+      12.771592140197754,
+      0.1401377171278
+    ],
+    "first_click": {
+      "event": "checkpoint_selection",
+      "time": 30.0,
+      "position": [
+        12.771592140197754,
+        0.1401377171278
+      ],
+      "requested": [
+        11.0,
+        0.0
+      ],
+      "accepted": true,
+      "duplicate": false,
+      "prior_goal_kept": false,
+      "reason": "accepted; refresh scans before following"
+    },
+    "second_click": {
+      "event": "checkpoint_selection",
+      "time": 30.2,
+      "position": [
+        12.771592140197754,
+        0.1401377171278
+      ],
+      "requested": [
+        10.0,
+        0.0
+      ],
+      "accepted": false,
+      "duplicate": false,
+      "prior_goal_kept": true,
+      "reason": "destination footprint: unobserved ground under body/turn envelope"
+    },
+    "retained_goal": [
+      11.0,
+      0.0
+    ],
+    "replan_succeeded": true,
+    "state": "FOLLOW",
+    "robot_position_time_s": 52.58
+  },
+  "limits": [
+    "Replay uses representative nearby rim points (11,0) and (10,0). Original clicked coordinates were not logged, so they cannot be recovered.",
+    "Replay uses the last exported survey at 30 s and last logged pose at 52.58 s; it is not an exact reconstruction of the 33-second selection.",
+    "No new simulator traversal was needed for this input-handling change. GUI-thread warning remains separate from the recorded route rejection."
+  ]
+}

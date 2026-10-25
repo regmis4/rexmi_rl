@@ -1,0 +1,1151 @@
+{
+  "date": "2026-09-20",
+  "validated": false,
+  "scope": "Slip/stall evidence, bounded recovery, directional exclusions and repeated-failure no-go zones, uphill route comparison.",
+  "test_results": {
+    "navigation": {
+      "count": 139,
+      "passed": true
+    },
+    "checkpoint_selection": {
+      "count": 8,
+      "passed": true
+    },
+    "flat_sidestep": {
+      "count": 14,
+      "passed": true
+    },
+    "perception": {
+      "count": 8,
+      "passed": true
+    },
+    "total": 169
+  },
+  "trials": [
+    {
+      "name": "floor_recovery",
+      "result": "complete",
+      "seed": 42,
+      "sim_seconds": 28.8,
+      "waypoints_reached": 1,
+      "total_waypoints": 1,
+      "manual_intervention": false,
+      "max_cross_track_m": 0.22795500652879389,
+      "policy": "rocky_slope",
+      "policy_switches": 0,
+      "flat_sidesteps": false,
+      "switch_events": [],
+      "footprint_radius_m": 0.5028255939483642,
+      "cruise_ceiling": 0.4,
+      "hold_failures": 0,
+      "rolling_checkpoints": 0,
+      "final_state": "COMPLETE",
+      "final_reason": "all mission destinations confirmed",
+      "local_recovery_attempts": 0,
+      "last_hold_failure": "",
+      "climb_failures": 0,
+      "backslide_m": 0.0,
+      "turn_repositions": 0,
+      "route_profile": {
+        "length_m": 0.8409976201313795,
+        "ascent_m": 0.043860416081868095,
+        "uphill_over_25deg_m": 0.0,
+        "max_uphill_deg": 4.20783573625921,
+        "max_side_slope_deg": 3.8672062066914292,
+        "max_ground_slope_deg": 4.321298038834353
+      },
+      "motion_events": [],
+      "learned_no_go_cells": 0,
+      "route_options": [
+        {
+          "profile": "balanced",
+          "complete": true,
+          "score": 9.820517591967423,
+          "length_m": 0.8409976201313795,
+          "ascent_m": 0.043860416081868095,
+          "uphill_over_25deg_m": 0.0,
+          "max_uphill_deg": 4.20783573625921,
+          "max_side_slope_deg": 3.8672062066914292,
+          "max_ground_slope_deg": 4.321298038834353,
+          "selected": true
+        }
+      ],
+      "mission_route_complete": true,
+      "map_update_ms_mean": 25.48431484829366,
+      "validated": false,
+      "minimum_up_z": 0.8732358664274216,
+      "final_position_m": [
+        -1.2285481691360474,
+        -0.2541347146034241,
+        0.9502612948417664
+      ],
+      "maximum_route_candidate_count": 1,
+      "contact_materials": {
+        "robot_static_friction_range": [
+          0.800000011920929,
+          0.800000011920929
+        ],
+        "robot_dynamic_friction_range": [
+          0.6000000238418579,
+          0.6000000238418579
+        ],
+        "terrain_static_friction": 1.0,
+        "terrain_dynamic_friction": 1.0,
+        "terrain_combine_mode": "multiply"
+      },
+      "log": "logs/nav/slip_tracker_review/floor_recovery.csv",
+      "revision_notes": "Before frontier route comparison and gait-aware braking; did not exercise slip recovery."
+    },
+    {
+      "name": "uphill_recovery",
+      "result": "hold",
+      "seed": 42,
+      "sim_seconds": 49.4,
+      "waypoints_reached": 0,
+      "total_waypoints": 1,
+      "manual_intervention": false,
+      "max_cross_track_m": 0.37249302864074707,
+      "policy": "rocky_slope",
+      "policy_switches": 0,
+      "flat_sidesteps": false,
+      "switch_events": [],
+      "footprint_radius_m": 0.5028254449367523,
+      "cruise_ceiling": 0.4,
+      "hold_failures": 3,
+      "rolling_checkpoints": 1,
+      "final_state": "HOLD",
+      "final_reason": "cannot brake for slip recovery; manual assistance required",
+      "local_recovery_attempts": 0,
+      "last_hold_failure": "hold unavailable: speed=0.03m/s, drift=0.02m",
+      "climb_failures": 1,
+      "backslide_m": 0.3012861408570611,
+      "turn_repositions": 2,
+      "route_profile": {
+        "length_m": 1.674142949209005,
+        "ascent_m": 0.9168191216048737,
+        "uphill_over_25deg_m": 1.2741429492090064,
+        "max_uphill_deg": 32.83804064046927,
+        "max_side_slope_deg": 28.86543826149263,
+        "max_ground_slope_deg": 33.8049721484926,
+        "max_footprint_slope_deg": 34.5797105378631
+      },
+      "motion_events": [
+        {
+          "event": "motion_difficulty",
+          "time": 35.96,
+          "position": [
+            2.763712167739868,
+            3.569190502166748
+          ],
+          "yaw": 0.8794680307333592,
+          "marked": false,
+          "kind": "repeated command rejection",
+          "rejections": 3
+        },
+        {
+          "event": "motion_difficulty",
+          "time": 46.38,
+          "position": [
+            2.968601703643799,
+            2.8696608543395996
+          ],
+          "yaw": 0.24920957469671448,
+          "marked": true,
+          "kind": "backsliding",
+          "status": "backsliding",
+          "forward_mps": -0.10056202558752739,
+          "progress_mps": -0.09929741910070068,
+          "lateral_mps": -0.06491346142805257,
+          "window_s": 1.2000000000000028,
+          "command_mps": 0.3831824611701463
+        }
+      ],
+      "learned_no_go_cells": 0,
+      "route_options": [
+        {
+          "profile": "balanced",
+          "complete": false,
+          "score": 649.2316144028819,
+          "length_m": 1.6865321706334933,
+          "ascent_m": 0.9107209711515875,
+          "uphill_over_25deg_m": 1.0485281374238569,
+          "max_uphill_deg": 32.99282727666161,
+          "max_side_slope_deg": 28.86543826149263,
+          "max_ground_slope_deg": 33.8049721484926,
+          "max_footprint_slope_deg": 34.854923579382685,
+          "selected": true
+        }
+      ],
+      "mission_route_complete": false,
+      "map_update_ms_mean": 25.415071237887332,
+      "validated": false,
+      "minimum_up_z": 0.6064053773880005,
+      "final_position_m": [
+        3.173224449157715,
+        2.706216335296631,
+        1.852624773979187
+      ],
+      "maximum_route_candidate_count": 1,
+      "contact_materials": {
+        "robot_static_friction_range": [
+          0.800000011920929,
+          0.800000011920929
+        ],
+        "robot_dynamic_friction_range": [
+          0.6000000238418579,
+          0.6000000238418579
+        ],
+        "terrain_static_friction": 1.0,
+        "terrain_dynamic_friction": 1.0,
+        "terrain_combine_mode": "multiply"
+      },
+      "log": "logs/nav/slip_tracker_review/uphill_recovery.csv",
+      "revision_notes": "Before frontier route comparison and gait-aware braking. A real backsliding event was detected and recorded."
+    },
+    {
+      "name": "uphill_recovery_v2",
+      "result": "hold",
+      "seed": 42,
+      "sim_seconds": 39.94,
+      "waypoints_reached": 0,
+      "total_waypoints": 1,
+      "manual_intervention": false,
+      "max_cross_track_m": 0.2848664102646071,
+      "policy": "rocky_slope",
+      "policy_switches": 0,
+      "flat_sidesteps": false,
+      "switch_events": [],
+      "footprint_radius_m": 0.5028254449367523,
+      "cruise_ceiling": 0.4,
+      "hold_failures": 3,
+      "rolling_checkpoints": 1,
+      "final_state": "HOLD",
+      "final_reason": "no observed escape corridor from failed patch; manual assistance required",
+      "local_recovery_attempts": 0,
+      "last_hold_failure": "hold unavailable: speed=0.18m/s, drift=0.17m",
+      "climb_failures": 0,
+      "backslide_m": 0.0001471518089756731,
+      "turn_repositions": 0,
+      "route_profile": {
+        "length_m": 1.7729345225728366,
+        "ascent_m": 0.7331310205779319,
+        "uphill_over_25deg_m": 1.0900918100982249,
+        "max_uphill_deg": 27.037236959158914,
+        "max_side_slope_deg": 30.82131328805949,
+        "max_ground_slope_deg": 31.67809597964726,
+        "max_footprint_slope_deg": 33.81273393090874
+      },
+      "motion_events": [
+        {
+          "event": "motion_difficulty",
+          "time": 39.34,
+          "position": [
+            3.2343313694000244,
+            4.615480899810791
+          ],
+          "yaw": 0.25940516010898307,
+          "marked": false,
+          "kind": "repeated command rejection",
+          "rejections": 3
+        }
+      ],
+      "learned_no_go_cells": 0,
+      "route_options": [
+        {
+          "profile": "balanced",
+          "complete": false,
+          "score": 446.77313325294836,
+          "length_m": 1.7729345225728366,
+          "ascent_m": 0.7331310205779319,
+          "uphill_over_25deg_m": 1.0900918100982249,
+          "max_uphill_deg": 27.037236959158914,
+          "max_side_slope_deg": 30.82131328805949,
+          "max_ground_slope_deg": 31.67809597964726,
+          "max_footprint_slope_deg": 33.81273393090874,
+          "selected": true
+        },
+        {
+          "profile": "direct",
+          "complete": false,
+          "score": 446.77313325294836,
+          "length_m": 1.7729345225728366,
+          "ascent_m": 0.7331310205779319,
+          "uphill_over_25deg_m": 1.0900918100982249,
+          "max_uphill_deg": 27.037236959158914,
+          "max_side_slope_deg": 30.82131328805949,
+          "max_ground_slope_deg": 31.67809597964726,
+          "max_footprint_slope_deg": 33.81273393090874,
+          "selected": false
+        }
+      ],
+      "mission_route_complete": false,
+      "map_update_ms_mean": 25.84729990998312,
+      "validated": false,
+      "minimum_up_z": 0.8068816810846329,
+      "final_position_m": [
+        3.2781307697296143,
+        4.628948211669922,
+        2.71055006980896
+      ],
+      "maximum_route_candidate_count": 3,
+      "contact_materials": {
+        "robot_static_friction_range": [
+          0.800000011920929,
+          0.800000011920929
+        ],
+        "robot_dynamic_friction_range": [
+          0.6000000238418579,
+          0.6000000238418579
+        ],
+        "terrain_static_friction": 1.0,
+        "terrain_dynamic_friction": 1.0,
+        "terrain_combine_mode": "multiply"
+      },
+      "log": "logs/nav/slip_tracker_review/uphill_recovery_v2.csv",
+      "revision_notes": "Includes frontier route comparisons and gait-aware braking. Before final escape-decision logging and duplicate endpoint cleanup."
+    },
+    {
+      "name": "uphill_recovery_final",
+      "result": "hold",
+      "seed": 42,
+      "sim_seconds": 39.94,
+      "waypoints_reached": 0,
+      "total_waypoints": 1,
+      "manual_intervention": false,
+      "max_cross_track_m": 0.2848664102646071,
+      "policy": "rocky_slope",
+      "policy_switches": 0,
+      "flat_sidesteps": false,
+      "switch_events": [],
+      "footprint_radius_m": 0.5028254449367523,
+      "cruise_ceiling": 0.4,
+      "hold_failures": 3,
+      "rolling_checkpoints": 1,
+      "final_state": "HOLD",
+      "final_reason": "escape rejected: drift stopping corridor: obstacle inside robot footprint clearance; manual assistance required",
+      "local_recovery_attempts": 0,
+      "last_hold_failure": "hold unavailable: speed=0.18m/s, drift=0.17m",
+      "climb_failures": 0,
+      "backslide_m": 0.0001471518089756731,
+      "turn_repositions": 0,
+      "route_profile": {
+        "length_m": 1.7729345225728366,
+        "ascent_m": 0.7331310205779319,
+        "uphill_over_25deg_m": 1.0900918100982249,
+        "max_uphill_deg": 27.037236959158914,
+        "max_side_slope_deg": 30.82131328805949,
+        "max_ground_slope_deg": 31.67809597964726,
+        "max_footprint_slope_deg": 33.81273393090874
+      },
+      "motion_events": [
+        {
+          "event": "motion_difficulty",
+          "time": 39.34,
+          "position": [
+            3.2343313694000244,
+            4.615480899810791
+          ],
+          "yaw": 0.25940516010898307,
+          "marked": false,
+          "kind": "repeated command rejection",
+          "rejections": 3
+        }
+      ],
+      "escape_events": [
+        {
+          "event": "escape_decision",
+          "time": 39.94,
+          "position": [
+            3.2781307697296143,
+            4.628948211669922
+          ],
+          "net_drift_mps": 0.06527530868521637,
+          "instantaneous_speed_mps": 0.1400902749455668,
+          "chosen": null,
+          "candidates": [
+            {
+              "vx": 0.2,
+              "omega": 0.0,
+              "accepted": false,
+              "reason": "drift stopping corridor: obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": 0.2,
+              "omega": 0.35,
+              "accepted": false,
+              "reason": "drift stopping corridor: obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": 0.2,
+              "omega": -0.35,
+              "accepted": false,
+              "reason": "drift stopping corridor: obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": -0.4,
+              "omega": 0.0,
+              "accepted": false,
+              "reason": "drift stopping corridor: obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": -0.4,
+              "omega": 0.35,
+              "accepted": false,
+              "reason": "drift stopping corridor: obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": -0.4,
+              "omega": -0.35,
+              "accepted": false,
+              "reason": "drift stopping corridor: obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": -0.2,
+              "omega": 0.0,
+              "accepted": false,
+              "reason": "drift stopping corridor: obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": -0.2,
+              "omega": 0.35,
+              "accepted": false,
+              "reason": "drift stopping corridor: obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": -0.2,
+              "omega": -0.35,
+              "accepted": false,
+              "reason": "drift stopping corridor: obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": 0.0,
+              "omega": 0.35,
+              "accepted": false,
+              "reason": "drift stopping corridor: obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": 0.0,
+              "omega": -0.35,
+              "accepted": false,
+              "reason": "drift stopping corridor: obstacle inside robot footprint clearance"
+            }
+          ]
+        }
+      ],
+      "learned_no_go_cells": 0,
+      "route_options": [
+        {
+          "profile": "balanced",
+          "complete": false,
+          "score": 446.77313325294836,
+          "length_m": 1.7729345225728366,
+          "ascent_m": 0.7331310205779319,
+          "uphill_over_25deg_m": 1.0900918100982249,
+          "max_uphill_deg": 27.037236959158914,
+          "max_side_slope_deg": 30.82131328805949,
+          "max_ground_slope_deg": 31.67809597964726,
+          "max_footprint_slope_deg": 33.81273393090874,
+          "selected": true
+        }
+      ],
+      "mission_route_complete": false,
+      "map_update_ms_mean": 25.79979528500644,
+      "validated": false,
+      "minimum_up_z": 0.8068816810846329,
+      "final_position_m": [
+        3.2781307697296143,
+        4.628948211669922,
+        2.71055006980896
+      ],
+      "maximum_route_candidate_count": 3,
+      "contact_materials": {
+        "robot_static_friction_range": [
+          0.800000011920929,
+          0.800000011920929
+        ],
+        "robot_dynamic_friction_range": [
+          0.6000000238418579,
+          0.6000000238418579
+        ],
+        "terrain_static_friction": 1.0,
+        "terrain_dynamic_friction": 1.0,
+        "terrain_combine_mode": "multiply"
+      },
+      "log": "logs/nav/slip_tracker_review/uphill_recovery_final.csv",
+      "revision_notes": "With escape decision traces. Identified premature termination on a single drift-corridor rejection."
+    },
+    {
+      "name": "uphill_recheck",
+      "result": "hold",
+      "seed": 42,
+      "sim_seconds": 79.62,
+      "waypoints_reached": 0,
+      "total_waypoints": 1,
+      "manual_intervention": false,
+      "max_cross_track_m": 0.2848664102646071,
+      "policy": "rocky_slope",
+      "policy_switches": 0,
+      "flat_sidesteps": false,
+      "switch_events": [],
+      "footprint_radius_m": 0.5028254449367523,
+      "cruise_ceiling": 0.4,
+      "hold_failures": 9,
+      "rolling_checkpoints": 1,
+      "final_state": "HOLD",
+      "final_reason": "local recovery exhausted; manual assistance required",
+      "local_recovery_attempts": 0,
+      "last_hold_failure": "hold unavailable: speed=0.03m/s, drift=0.10m",
+      "climb_failures": 0,
+      "backslide_m": 0.00726597948349133,
+      "turn_repositions": 0,
+      "route_profile": {
+        "length_m": 3.632764426674817,
+        "ascent_m": 1.5037052518661278,
+        "uphill_over_25deg_m": 1.9656854249492417,
+        "max_uphill_deg": 32.68629587067062,
+        "max_side_slope_deg": 33.30031699911123,
+        "max_ground_slope_deg": 34.12803787114933,
+        "max_footprint_slope_deg": 34.846267636605546
+      },
+      "motion_events": [
+        {
+          "event": "motion_difficulty",
+          "time": 39.34,
+          "position": [
+            3.2343313694000244,
+            4.615480899810791
+          ],
+          "yaw": 0.25940516010898307,
+          "marked": false,
+          "kind": "repeated command rejection",
+          "rejections": 3
+        },
+        {
+          "event": "motion_difficulty",
+          "time": 65.06,
+          "position": [
+            2.992382049560547,
+            3.5278382301330566
+          ],
+          "yaw": 1.0009693992459443,
+          "marked": false,
+          "kind": "repeated command rejection",
+          "rejections": 3
+        },
+        {
+          "event": "motion_difficulty",
+          "time": 74.18,
+          "position": [
+            2.600625991821289,
+            3.6998496055603027
+          ],
+          "yaw": 1.0419429047100996,
+          "marked": false,
+          "kind": "repeated command rejection",
+          "rejections": 3
+        }
+      ],
+      "escape_events": [
+        {
+          "event": "escape_decision",
+          "time": 39.94,
+          "position": [
+            3.2781307697296143,
+            4.628948211669922
+          ],
+          "net_drift_mps": 0.06527530868521637,
+          "instantaneous_speed_mps": 0.1400902749455668,
+          "chosen": null,
+          "candidates": [
+            {
+              "vx": 0.2,
+              "omega": 0.0,
+              "accepted": false,
+              "reason": "drift stopping corridor: obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": 0.2,
+              "omega": 0.35,
+              "accepted": false,
+              "reason": "drift stopping corridor: obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": 0.2,
+              "omega": -0.35,
+              "accepted": false,
+              "reason": "drift stopping corridor: obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": -0.4,
+              "omega": 0.0,
+              "accepted": false,
+              "reason": "drift stopping corridor: obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": -0.4,
+              "omega": 0.35,
+              "accepted": false,
+              "reason": "drift stopping corridor: obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": -0.4,
+              "omega": -0.35,
+              "accepted": false,
+              "reason": "drift stopping corridor: obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": -0.2,
+              "omega": 0.0,
+              "accepted": false,
+              "reason": "drift stopping corridor: obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": -0.2,
+              "omega": 0.35,
+              "accepted": false,
+              "reason": "drift stopping corridor: obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": -0.2,
+              "omega": -0.35,
+              "accepted": false,
+              "reason": "drift stopping corridor: obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": 0.0,
+              "omega": 0.35,
+              "accepted": false,
+              "reason": "drift stopping corridor: obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": 0.0,
+              "omega": -0.35,
+              "accepted": false,
+              "reason": "drift stopping corridor: obstacle inside robot footprint clearance"
+            }
+          ]
+        },
+        {
+          "event": "escape_decision",
+          "time": 40.44,
+          "position": [
+            3.315053939819336,
+            4.6086297035217285
+          ],
+          "net_drift_mps": 0.07926500827102297,
+          "instantaneous_speed_mps": 0.14489851623129366,
+          "chosen": null,
+          "candidates": [
+            {
+              "vx": 0.2,
+              "omega": 0.0,
+              "accepted": false,
+              "reason": "drift stopping corridor: obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": 0.2,
+              "omega": 0.35,
+              "accepted": false,
+              "reason": "drift stopping corridor: obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": 0.2,
+              "omega": -0.35,
+              "accepted": false,
+              "reason": "drift stopping corridor: obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": -0.4,
+              "omega": 0.0,
+              "accepted": false,
+              "reason": "drift stopping corridor: obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": -0.4,
+              "omega": 0.35,
+              "accepted": false,
+              "reason": "drift stopping corridor: obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": -0.4,
+              "omega": -0.35,
+              "accepted": false,
+              "reason": "drift stopping corridor: obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": -0.2,
+              "omega": 0.0,
+              "accepted": false,
+              "reason": "drift stopping corridor: obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": -0.2,
+              "omega": 0.35,
+              "accepted": false,
+              "reason": "drift stopping corridor: obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": -0.2,
+              "omega": -0.35,
+              "accepted": false,
+              "reason": "drift stopping corridor: obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": 0.0,
+              "omega": 0.35,
+              "accepted": false,
+              "reason": "drift stopping corridor: obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": 0.0,
+              "omega": -0.35,
+              "accepted": false,
+              "reason": "drift stopping corridor: obstacle inside robot footprint clearance"
+            }
+          ]
+        },
+        {
+          "event": "escape_decision",
+          "time": 40.660000000000004,
+          "position": [
+            3.3319151401519775,
+            4.6172661781311035
+          ],
+          "net_drift_mps": 0.06832508841357463,
+          "instantaneous_speed_mps": 0.06800140772018722,
+          "chosen": {
+            "vx": 0.2,
+            "omega": 0.0
+          },
+          "candidates": [
+            {
+              "vx": 0.2,
+              "omega": 0.0,
+              "accepted": true,
+              "score": 1.1359377446998213,
+              "endpoint": [
+                3.71547604930061,
+                4.730760799030398
+              ]
+            },
+            {
+              "vx": 0.2,
+              "omega": 0.35,
+              "accepted": true,
+              "score": 0.9843591184749739,
+              "endpoint": [
+                3.6467831044389256,
+                4.850569873314286
+              ]
+            },
+            {
+              "vx": 0.2,
+              "omega": -0.35,
+              "accepted": false,
+              "reason": "obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": -0.4,
+              "omega": 0.0,
+              "accepted": false,
+              "reason": "obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": -0.4,
+              "omega": 0.35,
+              "accepted": false,
+              "reason": "obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": -0.4,
+              "omega": -0.35,
+              "accepted": false,
+              "reason": "obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": -0.2,
+              "omega": 0.0,
+              "accepted": false,
+              "reason": "obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": -0.2,
+              "omega": 0.35,
+              "accepted": false,
+              "reason": "obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": -0.2,
+              "omega": -0.35,
+              "accepted": false,
+              "reason": "obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": 0.0,
+              "omega": 0.35,
+              "accepted": true,
+              "score": -0.4994476776577419,
+              "endpoint": [
+                3.3319151401519775,
+                4.6172661781311035
+              ]
+            },
+            {
+              "vx": 0.0,
+              "omega": -0.35,
+              "accepted": true,
+              "score": -0.6536795701773624,
+              "endpoint": [
+                3.3319151401519775,
+                4.6172661781311035
+              ]
+            }
+          ]
+        },
+        {
+          "event": "escape_decision",
+          "time": 65.6,
+          "position": [
+            2.9920101165771484,
+            3.5871894359588623
+          ],
+          "net_drift_mps": 0.07854910596086333,
+          "instantaneous_speed_mps": 0.014802641005650862,
+          "chosen": {
+            "vx": 0.0,
+            "omega": -0.35
+          },
+          "candidates": [
+            {
+              "vx": 0.2,
+              "omega": 0.0,
+              "accepted": false,
+              "reason": "obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": 0.2,
+              "omega": 0.35,
+              "accepted": false,
+              "reason": "obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": 0.2,
+              "omega": -0.35,
+              "accepted": false,
+              "reason": "obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": -0.4,
+              "omega": 0.0,
+              "accepted": true,
+              "score": -0.47169713722447404,
+              "endpoint": [
+                2.5683955267198377,
+                2.9085505929355477
+              ]
+            },
+            {
+              "vx": -0.4,
+              "omega": 0.35,
+              "accepted": true,
+              "score": -0.3764874988995728,
+              "endpoint": [
+                2.830134708850189,
+                2.820321684091197
+              ]
+            },
+            {
+              "vx": -0.4,
+              "omega": -0.35,
+              "accepted": true,
+              "score": -0.6184610932173578,
+              "endpoint": [
+                2.3741712061383375,
+                3.104939628048979
+              ]
+            },
+            {
+              "vx": -0.2,
+              "omega": 0.0,
+              "accepted": true,
+              "score": -0.9225527399081158,
+              "endpoint": [
+                2.7802028216484933,
+                3.247870014447205
+              ]
+            },
+            {
+              "vx": -0.2,
+              "omega": 0.35,
+              "accepted": true,
+              "score": -1.096930944650344,
+              "endpoint": [
+                2.9110724127136685,
+                3.2037555600250296
+              ]
+            },
+            {
+              "vx": -0.2,
+              "omega": -0.35,
+              "accepted": true,
+              "score": -0.9188078144271622,
+              "endpoint": [
+                2.6830906613577428,
+                3.3460645320039206
+              ]
+            },
+            {
+              "vx": 0.0,
+              "omega": 0.35,
+              "accepted": true,
+              "score": -0.5459387825355658,
+              "endpoint": [
+                2.9920101165771484,
+                3.5871894359588623
+              ]
+            },
+            {
+              "vx": 0.0,
+              "omega": -0.35,
+              "accepted": true,
+              "score": -0.1192033055001169,
+              "endpoint": [
+                2.9920101165771484,
+                3.5871894359588623
+              ]
+            }
+          ]
+        },
+        {
+          "event": "escape_decision",
+          "time": 74.72,
+          "position": [
+            2.65043044090271,
+            3.733421564102173
+          ],
+          "net_drift_mps": 0.07445038055907534,
+          "instantaneous_speed_mps": 0.041934064554417755,
+          "chosen": {
+            "vx": 0.0,
+            "omega": -0.35
+          },
+          "candidates": [
+            {
+              "vx": 0.2,
+              "omega": 0.0,
+              "accepted": false,
+              "reason": "obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": 0.2,
+              "omega": 0.35,
+              "accepted": false,
+              "reason": "obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": 0.2,
+              "omega": -0.35,
+              "accepted": false,
+              "reason": "obstacle inside robot footprint clearance"
+            },
+            {
+              "vx": -0.4,
+              "omega": 0.0,
+              "accepted": true,
+              "score": -0.503385595780057,
+              "endpoint": [
+                2.2313462468761998,
+                3.0519757200931643
+              ]
+            },
+            {
+              "vx": -0.4,
+              "omega": 0.35,
+              "accepted": true,
+              "score": -0.2658982795772551,
+              "endpoint": [
+                2.4936673893707155,
+                2.965492438364834
+              ]
+            },
+            {
+              "vx": -0.4,
+              "omega": -0.35,
+              "accepted": true,
+              "score": -0.6447799433961805,
+              "endpoint": [
+                2.0358179203386175,
+                3.247066502396026
+              ]
+            },
+            {
+              "vx": -0.2,
+              "omega": 0.0,
+              "accepted": true,
+              "score": -0.9004854054305012,
+              "endpoint": [
+                2.440888343889455,
+                3.3926986420976686
+              ]
+            },
+            {
+              "vx": -0.2,
+              "omega": 0.35,
+              "accepted": true,
+              "score": -0.9896360371073645,
+              "endpoint": [
+                2.5720489151367127,
+                3.3494570012335037
+              ]
+            },
+            {
+              "vx": -0.2,
+              "omega": -0.35,
+              "accepted": true,
+              "score": -0.9477214105185592,
+              "endpoint": [
+                2.3431241806206637,
+                3.4902440332490996
+              ]
+            },
+            {
+              "vx": 0.0,
+              "omega": 0.35,
+              "accepted": true,
+              "score": -0.5825310911456443,
+              "endpoint": [
+                2.65043044090271,
+                3.733421564102173
+              ]
+            },
+            {
+              "vx": 0.0,
+              "omega": -0.35,
+              "accepted": true,
+              "score": -0.09443283921101511,
+              "endpoint": [
+                2.65043044090271,
+                3.733421564102173
+              ]
+            }
+          ]
+        }
+      ],
+      "learned_no_go_cells": 0,
+      "route_options": [
+        {
+          "profile": "balanced",
+          "complete": false,
+          "score": 983.7230631289717,
+          "length_m": 3.5156071391494357,
+          "ascent_m": 1.5006124168969175,
+          "uphill_over_25deg_m": 2.048528137423857,
+          "max_uphill_deg": 32.90623454301622,
+          "max_side_slope_deg": 33.30031699911123,
+          "max_ground_slope_deg": 34.12803787114933,
+          "max_footprint_slope_deg": 34.846267636605546,
+          "selected": false
+        },
+        {
+          "profile": "gentle",
+          "complete": false,
+          "score": 975.7249712831679,
+          "length_m": 3.632764426674817,
+          "ascent_m": 1.5037052518661278,
+          "uphill_over_25deg_m": 1.9656854249492417,
+          "max_uphill_deg": 32.68629587067062,
+          "max_side_slope_deg": 33.30031699911123,
+          "max_ground_slope_deg": 34.12803787114933,
+          "max_footprint_slope_deg": 34.846267636605546,
+          "selected": true
+        }
+      ],
+      "mission_route_complete": false,
+      "map_update_ms_mean": 26.39422789471475,
+      "validated": false,
+      "minimum_up_z": 0.5820109248161316,
+      "final_position_m": [
+        2.87066650390625,
+        3.850165605545044,
+        2.1383492946624756
+      ],
+      "maximum_route_candidate_count": 3,
+      "contact_materials": {
+        "robot_static_friction_range": [
+          0.800000011920929,
+          0.800000011920929
+        ],
+        "robot_dynamic_friction_range": [
+          0.6000000238418579,
+          0.6000000238418579
+        ],
+        "terrain_static_friction": 1.0,
+        "terrain_dynamic_friction": 1.0,
+        "terrain_combine_mode": "multiply"
+      },
+      "log": "logs/nav/slip_tracker_review/uphill_recheck.csv",
+      "revision_notes": "Rechecks rejected recovery motions within the existing three-second braking window. Before the final unit-tested change preserving attempts and time budget across repeat episodes in the same area."
+    }
+  ],
+  "stored_survey_comparison": {
+    "snapshot_sim_seconds": 210.0,
+    "scope": "Offline geometry-only route comparison. Retained known geometry treated as fresh for this analysis, never for runtime authorization.",
+    "start": [
+      -1.07,
+      -0.206
+    ],
+    "goal": [
+      7.5505,
+      6.6132
+    ],
+    "complete": true,
+    "wall_seconds": 0.6476493230002234,
+    "candidates": [
+      {
+        "profile": "balanced",
+        "complete": true,
+        "score": 590.3428330514399,
+        "length_m": 13.033124750702793,
+        "ascent_m": 3.978195052173383,
+        "uphill_over_25deg_m": 3.2526911934581175,
+        "max_uphill_deg": 31.43636441739465,
+        "max_side_slope_deg": 15.465282526517361,
+        "max_ground_slope_deg": 31.493889175020158,
+        "max_footprint_slope_deg": 32.451107979810466,
+        "selected": true
+      },
+      {
+        "profile": "gentle",
+        "complete": true,
+        "score": 630.0535853785083,
+        "length_m": 13.85322576338046,
+        "ascent_m": 3.9827293434576285,
+        "uphill_over_25deg_m": 1.414213562373095,
+        "max_uphill_deg": 31.19111790809537,
+        "max_side_slope_deg": 22.813726312033545,
+        "max_ground_slope_deg": 31.486070971048644,
+        "max_footprint_slope_deg": 32.36505211122395,
+        "selected": false
+      }
+    ],
+    "selected_profile": {
+      "length_m": 13.033124750702793,
+      "ascent_m": 3.978195052173383,
+      "uphill_over_25deg_m": 3.2526911934581175,
+      "max_uphill_deg": 31.43636441739465,
+      "max_side_slope_deg": 15.465282526517361,
+      "max_ground_slope_deg": 31.493889175020158,
+      "max_footprint_slope_deg": 32.451107979810466
+    },
+    "interpretation": "Compared routes still contain steep terrain. Lower peak uphill does not necessarily compensate for increased side slope. This is not a physical climb result."
+  },
+  "limitations": [
+    "No complete crater traversal was achieved in these trials; the three-traversal acceptance gate is unmet.",
+    "The last uphill trial resumed after transient rejection, attempted heading changes, then exhausted local recovery beside mapped footprint conflicts. It did not complete the ascent.",
+    "Two overlapping physical episodes produce learned no-go cells in deterministic tests; simulator trials did not reach a second episode on the same patch.",
+    "The known full survey was evaluated offline only. Live uphill trials started with new sensor-fed maps; no cross-run map loading.",
+    "Physics, contact materials, trained policy and 0.40 m/s normal speed were unchanged. No interventions, policy switches or automatic reset-based recoveries.",
+    "The final persistence of recovery attempts/time budget across episodes has controller-test coverage only.",
+    "Headless trials do not measure viewport rendering performance. Dashboard layout was inspected separately using an offline render."
+  ]
+}

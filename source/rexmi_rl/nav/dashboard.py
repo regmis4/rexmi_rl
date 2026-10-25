@@ -2,14 +2,14 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 """
-Live navigation dashboard — 2D costmap overview + 2D local zoom + status bar.
+Live navigation dashboard — survey and legend left, local zoom and logs right.
 
 Runs in a daemon thread at ~2 Hz so it never blocks the sim loop.
 
-Layout (Phase N-2 perf rewrite)
+Layout
 ---------------------------------
   Left panel  : 2D cost map overview  (full 64 m × 64 m world)
-                • green=clear, red=blocked, yellow=steep slope
+                • terrain, slope, roughness or traversal colours
                 • A* path overlay + robot + waypoints
 
   Right panel : 2D cost map LOCAL zoom (16 m × 16 m centred on robot)
@@ -18,7 +18,8 @@ Layout (Phase N-2 perf rewrite)
                 • Forward scanner hit strip (orange dots)
                 • A* sub-path to next waypoint
 
-  Bottom bar  : Mission | WP | Speed | Slope | SLAM status | Policy | State
+  Lower left : Colour/symbol legend and survey-layer selector
+  Lower right: Navigation, policy and telemetry below the local zoom
 
 Performance note
 ----------------
@@ -32,7 +33,7 @@ Performance note
     • The 2D local zoom gives the same "am I about to hit a wall?" clarity
       that the 3D cloud was meant to convey
 
-  SLAM status is still shown in the status bar (voxel count, ICP RMS).
+  SLAM status is still shown below the local map (voxel count, ICP RMS).
 """
 
 from __future__ import annotations
@@ -40,6 +41,7 @@ from __future__ import annotations
 import math
 import threading
 import time
+import textwrap
 from typing import Optional
 
 import numpy as np
@@ -67,7 +69,8 @@ class Dashboard:
 
     def __init__(self, shared, lock, omap, waypoints,
                  update_interval_s: float = 0.5,
-                 local_zoom_m: float = 10.0, request_queue=None):
+                 local_zoom_m: float = 10.0, request_queue=None,
+                 selected_path_only: bool = False):
         self._requests = request_queue
         self._shared    = shared
         self._lock      = lock
@@ -76,18 +79,22 @@ class Dashboard:
         self._interval  = update_interval_s
         self._zoom_m    = local_zoom_m
         self._layer = "terrain"
+        self._selected_path_only = selected_path_only
 
         # Matplotlib handles — set up lazily in run()
         self._fig        = None
         self._ax_global  = None   # left: full world cost map
         self._ax_local   = None   # right: local 20 m zoom
-        self._ax_status  = None   # bottom: text status bar
+        self._ax_legend  = None   # below survey: all colours and map symbols
+        self._ax_status  = None   # below local zoom: navigation and telemetry
+        self._ax_layers  = None
 
     # ------------------------------------------------------------------
     # Main loop (runs in daemon thread)
     # ------------------------------------------------------------------
 
     def _on_map_click(self, event):
+        if getattr(event,'dblclick',False): return
         if self._requests is None or event.button != 1 or event.inaxes not in (self._ax_global,self._ax_local):
             return
         if event.xdata is None or event.ydata is None:
@@ -106,25 +113,7 @@ class Dashboard:
         import matplotlib.pyplot as plt
 
         plt.ion()
-        self._fig = plt.figure(figsize=(16, 7), facecolor="#0a0a1a")
-        self._fig.canvas.manager.set_window_title("REXMI Nav Dashboard")
-
-        gs = self._fig.add_gridspec(
-            2, 2,
-            height_ratios=[11, 1],
-            hspace=0.05, wspace=0.18,
-        )
-        self._ax_global = self._fig.add_subplot(gs[0, 0])
-        self._ax_local  = self._fig.add_subplot(gs[0, 1])
-        self._ax_status = self._fig.add_subplot(gs[1, :])
-
-        self._fig.canvas.mpl_connect("button_press_event", self._on_map_click)
-        self._style_axes()
-        if hasattr(self._omap,'roughness'):
-            from matplotlib.widgets import RadioButtons
-            selector=self._fig.add_axes([.38,.925,.25,.07],facecolor='#dddddd')
-            self._layer_buttons=RadioButtons(selector,('terrain','slope','roughness','traversal'))
-            self._layer_buttons.on_clicked(lambda value:setattr(self,'_layer',value))
+        self._create_figure(plt)
 
         _flush_interval = 0.05
         _next_redraw    = time.monotonic()
@@ -147,6 +136,37 @@ class Dashboard:
 
         plt.close(self._fig)
 
+    def _create_figure(self, plt) -> None:
+        """Keep maps clickable and reserve separate left/right information panels."""
+        self._fig = plt.figure(figsize=(16, 9.5), facecolor="#0a0a1a")
+        self._fig.canvas.manager.set_window_title("REXMI Nav Dashboard")
+
+        gs = self._fig.add_gridspec(
+            2, 2,
+            height_ratios=[2.25, 1],
+            left=.055, right=.97, bottom=.045, top=.95,
+            hspace=.16, wspace=.16,
+        )
+        self._ax_global = self._fig.add_subplot(gs[0, 0])
+        self._ax_local  = self._fig.add_subplot(gs[0, 1])
+        legend_grid = gs[1, 0].subgridspec(1, 2, width_ratios=[4, 1], wspace=.06)
+        self._ax_legend = self._fig.add_subplot(legend_grid[0, 0])
+        self._ax_layers = self._fig.add_subplot(legend_grid[0, 1])
+        self._ax_status = self._fig.add_subplot(gs[1, 1])
+
+        self._fig.canvas.mpl_connect("button_press_event", self._on_map_click)
+        self._style_axes()
+        if hasattr(self._omap,'roughness'):
+            from matplotlib.widgets import RadioButtons
+            self._ax_layers.set_title('VIEW', color='#aab4cc', fontsize=8, loc='left')
+            from .perception_view import LAYER_NAMES
+            self._layer_buttons=RadioButtons(self._ax_layers,LAYER_NAMES,activecolor='#00dddd')
+            for label in self._layer_buttons.labels:
+                label.set_color('white');label.set_fontsize(8)
+            self._layer_buttons.on_clicked(lambda value:setattr(self,'_layer',value))
+        else:
+            self._ax_layers.axis('off')
+
     # ------------------------------------------------------------------
     # Rendering
     # ------------------------------------------------------------------
@@ -157,9 +177,13 @@ class Dashboard:
             pose       = self._shared["pose"]
             wp_idx     = self._shared["wp_idx"]
             path       = list(self._shared["planned_path"])
+            mission_path = list(self._shared.get('mission_path', []))
+            route_profile = self._shared.get('route_profile', {})
+            route_complete = self._shared.get('mission_route_complete', True)
             local_out  = self._shared["local_out"]
             rec_status = self._shared["recovery_status"]
             mission    = self._shared["mission"]
+            mission_stage = self._shared.get('mission_stage')
             cmd        = self._shared["cmd"]
             cost_grid  = self._shared["cost_grid"]
             observed_mask = self._shared.get("observed_mask")
@@ -175,11 +199,23 @@ class Dashboard:
             checkpoint = self._shared.get("checkpoint")
             steering = self._shared.get("steering_target")
             nav_reason = self._shared.get("nav_reason", "")
+            selection_status = self._shared.get('selection_status','')
+            slip_metrics = self._shared.get('slip_metrics',{})
+            route_decision = self._shared.get('route_decision','')
+            route_purpose = self._shared.get('route_purpose','mission')
+            retreat_goal = self._shared.get('retreat_goal')
+            grade_limits = self._shared.get('grade_limits')
+            switch_reason = self._shared.get("switch_reason", "")
             coverage = self._shared.get("coverage", 0.)
             age = self._shared.get("observation_age", 0.)
             mapped = self._shared.get("mapped_coverage")
             mapped_area = self._shared.get("mapped_area", 0.)
             layers=self._shared.get('survey_layers')
+            navigation_status=self._shared.get('navigation_status')
+            approach_options=list(self._shared.get('route_options', []))
+        if self._selected_path_only:
+            mission_path=[]
+            approach_options=[]
 
         ws   = self._omap.world_size
         orig = self._omap.origin
@@ -188,7 +224,6 @@ class Dashboard:
 
         # Same discrete planner-cost bands as the Isaac Sim overlay.
         import matplotlib.colors as mcolors
-        from matplotlib.lines import Line2D
         _cmap = mcolors.ListedColormap(["#14A6A6", "#F2A31F", "#FF00FF"]
                                      + (["#8C7542"] if clearance_mask is not None else []) + ["#FF0000"])
         _cmap.set_bad("#555577")
@@ -202,15 +237,15 @@ class Dashboard:
         cmap_kwargs = dict(cmap=_cmap,norm=_norm,alpha=.88,interpolation="nearest")
 
         image_grid=cost_grid.T if cost_grid is not None else None
-        layer_legend=None
         if layers is not None and cost_grid is not None:
             from .perception_view import survey_colors
             # The buffer category above is display-only; restore its hazard cost
             # for the common palette, which receives a separate clearance mask.
             values=np.asarray(cost_grid.filled(5.)).copy()
             if clearance_mask is not None: values[clearance_mask]=20.
-            rgb,layer_legend=survey_colors(values,observed_mask,clearance_mask,self._layer,
-                layers['slope'],layers['roughness'],layers['failures'],layers['successes'])
+            rgb,_=survey_colors(values,observed_mask,clearance_mask,self._layer,
+                layers['slope'],layers['roughness'],layers['failures'],layers['successes'],
+                layers.get('no_go'),layers.get('approach_blocked'),layers.get('shelf_mask'),layers)
             image_grid=rgb.transpose(1,0,2)
             cmap_kwargs=dict(interpolation='nearest')
 
@@ -241,7 +276,11 @@ class Dashboard:
             ag.scatter([txs[0]], [tys[0]], color="#FF44AA", s=20,
                        alpha=0.5, zorder=7)
 
-        # A* planned path (bright white, thick — clearly distinct from trajectory)
+        # Show the larger route from which local checkpoints are selected.
+        if len(mission_path)>=2:
+            ag.plot([p[0] for p in mission_path],[p[1] for p in mission_path],
+                    color='#FF1828',linewidth=1.3,alpha=.5,ls=':',zorder=7)
+        # Active checkpoint route remains a stronger red dashed line.
         if len(path) >= 2:
             ag.plot([p[0] for p in path], [p[1] for p in path],
                     color="#FF1828", linewidth=2.5, alpha=0.95,
@@ -249,11 +288,11 @@ class Dashboard:
 
         # Waypoints
         for i, wp in enumerate(self._waypoints):
-            col  = "#FFD700" if i == wp_idx else "#555555"
+            col  = "#39E75F" if i == wp_idx else "#555555"
             size = 120 if i == wp_idx else 50
             ag.scatter([wp.x], [wp.y], color=col, marker="*", s=size, zorder=10)
             if i == wp_idx:
-                ag.annotate(wp.label, (wp.x, wp.y), color="#FFD700",
+                ag.annotate(wp.label, (wp.x, wp.y), color="#39E75F",
                              fontsize=6, xytext=(3, 3),
                              textcoords="offset points")
 
@@ -280,27 +319,9 @@ class Dashboard:
             color="white", fontsize=9, pad=4,
         )
 
-        # ── Costmap legend (colour patches) ──────────────────────────────
-        import matplotlib.patches as mpatches
-        import matplotlib.cm as cm
-        import matplotlib.colors as mcolors
-        _legend_items = [
-            mpatches.Patch(color=_cmap(_norm(1.0)),  label="Low planner cost"),
-            mpatches.Patch(color=_cmap(_norm(2.0)),  label="Elevated cost"),
-            mpatches.Patch(color=_cmap(_norm(6.0)),  label="High cost"),
-            mpatches.Patch(color=_cmap(_norm(20.0)),  label="Obstacle / very steep terrain"),
-            *([mpatches.Patch(color=_cmap(_norm(12.0)), label="Clearance buffer (planner avoids)")]
-              if clearance_mask is not None else []),
-            mpatches.Patch(color="#555577", label="Unknown"),
-            Line2D([0],[0],color="#FF1828",ls="--",label="Active route"),
-            Line2D([0],[0],color="#FFD700",marker="D",ls="",label="Local checkpoint"),
-        ]
-        if layer_legend is not None:
-            _legend_items=[Line2D([],[],color='none',label=item.strip()) for item in layer_legend.split('|')] + _legend_items[-2:]
-        ag.legend(handles=_legend_items, loc="lower left",
-                  fontsize=6, framealpha=0.6,
-                  facecolor="#111133", edgecolor="#334466",
-                  labelcolor="white")
+        # All legends live below the survey, never over either clickable map.
+        self._draw_legend(layers is not None, clearance_mask is not None,
+                          continuous=layers is not None and 'shelf_mask' in layers)
 
         # ── Right panel: local zoom (robot-centred) ───────────────────────
         al = self._ax_local
@@ -332,7 +353,7 @@ class Dashboard:
         # Waypoints in local view
         for i, wp in enumerate(self._waypoints):
             if lx0 <= wp.x <= lx1 and ly0 <= wp.y <= ly1:
-                col = "#FFD700" if i == wp_idx else "#888888"
+                col = "#39E75F" if i == wp_idx else "#888888"
                 al.scatter([wp.x], [wp.y], color=col,
                             marker="*", s=100, zorder=10)
                 al.annotate(wp.label, (wp.x, wp.y), color=col,
@@ -368,25 +389,39 @@ class Dashboard:
             color="white", fontsize=9, pad=4,
         )
 
-        # ── Status bar ────────────────────────────────────────────────────
+        # ── Logs beneath the right-hand zoom ─────────────────────────────
         ax_s = self._ax_status
         ax_s.cla()
         for ax in (ag,al):
+            if navigation_status:
+                for number,option in enumerate(approach_options,1):
+                    endpoint=option.get('endpoint')
+                    if endpoint is None:continue
+                    probability=option.get('reachability',{}).get('probability')
+                    label=f'A{number}' if probability is None else f'A{number}: {probability:.0%}'
+                    color='#79FFD4' if option.get('selected') else '#a9a9bd'
+                    approach=option.get('path',[])
+                    if len(approach)>1:
+                        line=np.asarray(approach)
+                        ax.plot(line[:,0],line[:,1],color=color,lw=1.,ls='--',alpha=.7,zorder=12)
+                    ax.scatter(*endpoint,marker='o',s=45,facecolors='none',edgecolors=color,zorder=14)
+                    ax.annotate(label,endpoint,xytext=(7,5+12*(number-1)),textcoords='offset points',color=color,fontsize=7,zorder=15)
             if checkpoint is not None:
-                ax.scatter(*checkpoint,color="#FFD700",marker="D",s=55,zorder=15,label="Local checkpoint")
+                ax.scatter(*checkpoint,color="#39E75F",marker="D",s=55,zorder=15,label="Local checkpoint")
             if steering is not None:
                 ax.scatter(*steering,color="white",marker="+",s=60,zorder=15,label="Steering target")
         ax_s.set_facecolor("#111122")
         ax_s.axis("off")
 
         wp_label  = (self._waypoints[wp_idx].label
-                     if wp_idx < len(self._waypoints) else "DONE")
+                     if wp_idx < len(self._waypoints) else "Selecting safe exit"
+                     if mission_stage and mission_stage.get('goal_mode')=='any_exit' and not self._waypoints else "DONE")
         slope_deg = (math.degrees(math.atan(local_out.slope_ahead))
                      if local_out and not math.isnan(local_out.slope_ahead) else 0.0)
         if layers is not None:
             cell=self._omap.world_to_cell(pose.x,pose.y)
             if cell is not None: slope_deg=float(np.degrees(np.arctan(layers['slope'][cell])))
-        cmd_str   = f"cmd=({cmd[0]:+.2f}, {cmd[1]:+.2f}, {cmd[2]:+.2f})"
+        cmd_str   = f"Command: x {cmd[0]:+.2f}, y {cmd[1]:+.2f} m/s | yaw {cmd[2]:+.2f} rad/s"
 
         if slam_conv:
             slam_str = f"SLAM:ON(rms={slam_rms:.3f}m,{slam_size}vox)"
@@ -401,32 +436,130 @@ class Dashboard:
             if d < 5.0:
                 fwd_str = f"  |  fwd_obs={d:.1f}m"
 
-        status = (
-            f"Mission: {mission.upper()}  |  "
-            f"WP: {wp_idx}/{len(self._waypoints)} [{wp_label}]  |  "
-            f"Speed: {speed:.2f} m/s  |  "
-            f"Slope: {slope_deg:.1f}°  |  "
-            f"{slam_str}  |  "
-            f"{cmd_str}  |  "
-            f"Policy: {pol_str}  |  "
-            f"State: {rec_status}"
-            f"{fwd_str}"
-        )
+        lines = [
+            f"Mission: {mission.upper()} | WP: {wp_idx}/{len(self._waypoints)} [{wp_label}]",
+            f"State: {rec_status} | Policy: {pol_str}",
+            f"Speed: {speed:.2f} m/s | Ground slope: {slope_deg:.1f}°{fwd_str}",
+            cmd_str,
+        ]
         if nav_reason:
-            status += f"\n{nav_reason} | fresh={coverage:.0%} | oldest={age:.1f}s"
+            lines.append('Navigation: '+nav_reason)
+        if mission_stage:
+            lines.append(f'Goal: {mission_stage["stage"]} {mission_stage["goal"] or mission_stage.get("goal_description", "")}')
+        if navigation_status:
+            prior=getattr(self._omap,'terrain_prior',None)
+            if prior:
+                lines.append('Terrain prior: '+prior['kind']+f' | initial coverage {prior.get("coverage",0.):.0%}')
+            estimate=navigation_status.get('reachability') or {}
+            p=estimate.get('probability')
+            text='Unvalidated' if p is None else f'{p:.0%}'
+            lines.append(f'Reach and settle: {text} | {navigation_status["mode"]} | limit {navigation_status["command_limit"]:.2f} m/s')
+            if navigation_status.get('architecture') == 'behavior_tree':
+                lines.append(f'Behavior: {navigation_status["branch"]} | movement: {navigation_status["movement_state"]}')
+                lines.append(f'Turn staging: {"ready" if navigation_status["turn_enabled"] else "unavailable"} | uphill limit {navigation_status["uphill_limit_deg"]:.0f}°')
+            interval=estimate.get('interval')
+            if interval:
+                lines.append(f'Conditional 90% interval: {interval[0]:.0%}–{interval[1]:.0%}; local outcomes {estimate.get("successes",0)} success / {estimate.get("failures",0)} failure')
+            else:
+                lines.append(f'Local evidence: {estimate.get("successes",0)} successes, {estimate.get("failures",0)} failures; probability unvalidated')
+            if estimate.get('reason'):lines.append('Evidence: '+estimate['reason'])
+            for number,option in enumerate(approach_options,1):
+                value=option.get('reachability',{}).get('probability')
+                detail=option.get('rejection') or ('unvalidated' if value is None else f'{value:.0%}')
+                lines.append(f'A{number} {option["profile"]}{" (selected)" if option.get("selected") else ""}: '+detail)
+            from .perception_view import route_cost_text
+            explanation=route_cost_text(approach_options)
+            if explanation:lines.extend(explanation.splitlines())
+            if layers is not None and 'shelf_mask' in layers:
+                lines.append('Terrain cost: teal 1 → gold 6.5 → rose 12+; mint shelf outline')
+        if selection_status:
+            lines.append('Checkpoint click: '+selection_status)
+        if slip_metrics:
+            lines.append(f"Motion: {slip_metrics['status']} | progress {slip_metrics['progress_mps']:+.2f} m/s | side {slip_metrics['lateral_mps']:+.2f} m/s")
+        if route_decision:lines.append('Route choice: '+route_decision)
+        if retreat_goal is not None:lines.append(f'Regroup point: ({retreat_goal[0]:.1f}, {retreat_goal[1]:.1f}) | mission target kept')
+        if rec_status.startswith('EDGE_'):
+            lines.append('Edge escape: restore footprint support | centre/travel limit 35°')
+        elif grade_limits:lines.append(f'Ascent: prefer {grade_limits[0]:.0f}° | max {grade_limits[1]:.0f}° | side max {grade_limits[2]:.0f}°')
+        if switch_reason:
+            lines.append('Switch: '+switch_reason)
+        if nav_reason:
+            lines.append(f"Fresh: {coverage:.0%} | Oldest observation: {age:.1f}s")
             if mapped is not None:
-                status += f" | mapped={mapped:.0%} | surveyed={mapped_area:.1f} m²"
-        ax_s.text(0.01, 0.5, status,
+                lines.append(f"Mapped: {mapped:.0%} | Surveyed: {mapped_area:.1f} m²")
+        lines.append(slam_str)
+        if route_profile:
+            route_label='Edge backout' if rec_status.startswith('EDGE_') else 'Downhill retreat' if route_purpose=='retreat' else 'Mission route' if route_complete else 'Observed frontier route'
+            lines.append(f"{route_label}: {route_profile['length_m']:.1f} m | max uphill {route_profile['max_uphill_deg']:.1f}°")
+            lines.append(f"Side slope max: {route_profile['max_side_slope_deg']:.1f}° | uphill >25°: {route_profile['uphill_over_25deg_m']:.1f} m")
+        ax_s.set_title('NAVIGATION & TELEMETRY', color='#aab4cc', fontsize=8, loc='left')
+        # Wrap to this panel rather than letting long rejection reasons cross
+        # the window. Recompute on redraw so window resizing remains usable.
+        bounds=ax_s.get_window_extent()
+        for fontsize in (9.,8.5,8.,7.5):
+            width=max(24,int(bounds.width*.97/(fontsize*self._fig.dpi/72*.61)))
+            status='\n'.join(textwrap.fill(line,width=width,subsequent_indent='  ')
+                             for line in lines)
+            if len(status.splitlines())*fontsize*self._fig.dpi/72*1.35<bounds.height*.92:
+                break
+        ax_s.text(0.0, 0.98, status,
                   transform=ax_s.transAxes,
-                  color="#00FFFF", fontsize=8.0,
-                  verticalalignment="center",
-                  fontfamily="monospace")
+                  color="#bde8eb", fontsize=fontsize,
+                  verticalalignment="top", linespacing=1.35,
+                  fontfamily="monospace", clip_on=True)
 
         self._fig.canvas.draw_idle()
 
+    def _draw_legend(self, survey_layers, has_clearance, continuous=False) -> None:
+        from matplotlib.lines import Line2D
+        from matplotlib.patches import Patch
+        palette = {
+            'terrain': [((.08,.65,.65),'Low cost'), ((.95,.64,.12),'Elevated cost'),
+                        ((1.,0.,1.),'High cost (traversable)')],
+            'slope': [((.08,.65,.65),'Slope 0°'), ((.54,.65,.365),'Slope 17.5°'),
+                      ((1.,.65,.08),'Slope 35°')],
+            'roughness': [((.08,.65,.65),'Roughness 0 cm RMS'), ((.54,.65,.365),'Roughness 5 cm RMS'),
+                          ((1.,.65,.08),'Roughness ≥10 cm RMS'), ((.32,.32,.32),'Insufficient samples')],
+            'footprint': [((.08,.65,.65),'Support-neighborhood RMS 0 cm'),((1.,.65,.08),'RMS ≥10 cm: +4 cost'),
+                          ((.32,.32,.32),'Unavailable: +8 unknown cost')],
+            'steps': [((.08,.65,.65),'Detrended cell jump 0 cm'),((1.,.65,.08),'Jump ≥10 cm: +4 cost'),
+                      ((.32,.32,.32),'Unavailable: +8 unknown cost')],
+            'support': [((.08,.65,.65),'Minimum bin/pair coverage 0%'),((1.,.65,.08),'Coverage 100%'),
+                        ((.32,.32,.32),'Either coverage <80% or invalid fit: +8 cost')],
+            'traversal': [((.32,.32,.32),'Untested'), ((.12,.75,.3),'Successful progress'),
+                          ((1.,.55,.12),'Failed approach'), ((.65,.25,.85),'Direction excluded')],
+        }
+        entries=list(palette[self._layer if survey_layers else 'terrain'])
+        if continuous and self._layer=='terrain':
+            entries=[((.08,.65,.65),'Cost 1'),((.95,.72,.18),'Cost 6.5'),
+                     ((.85,.15,.45),'Cost 12+'),((.65,1.,.85),'Shelf boundary')]
+        entries.append(((1.,0.,0.),'Obstacle' if survey_layers else 'Obstacle / steep terrain'))
+        if survey_layers:entries.append(((.60,.05,.08),'Learned no-go zone'))
+        if survey_layers: entries.append(((1.,.29,.12),'Slope >35° (blocked)'))
+        if has_clearance: entries.append(((.55,.46,.26),'Cream: clearance buffer'))
+        entries.append(((.33,.33,.47),'Unknown terrain'))
+        handles=[Patch(color=color,label=label) for color,label in entries]
+        handles += [
+            Line2D([],[],color='#FF1828',ls='--',lw=2,label='Active route'),
+            Line2D([],[],color='#FF1828',ls=':',alpha=.5,label='Larger planned route'),
+            Line2D([],[],color='#FF44AA',label='Robot trail'),
+            Line2D([],[],color='#00FFFF',marker='o',ls='',label='Robot / heading'),
+            Line2D([],[],color='#39E75F',marker='*',ls='',label='Mission waypoint'),
+            Line2D([],[],color='#39E75F',marker='D',ls='',label='Local checkpoint'),
+            Line2D([],[],color='white',marker='+',ls='',label='Steering target'),
+            Line2D([],[],color='#FF8800',marker='.',ls='',label='Forward scanner hits'),
+            Line2D([],[],color='#888888',ls='--',label='Crater outline (approx.)'),
+        ]
+        ax=self._ax_legend
+        ax.cla();ax.axis('off')
+        ax.set_title('MAP COLORS & SYMBOLS',color='#aab4cc',fontsize=8,loc='left')
+        ax.legend(handles=handles,loc='upper left',ncol=2,fontsize=8,
+                  frameon=False,labelcolor='white',borderaxespad=0.,
+                  handlelength=1.8,columnspacing=1.4,labelspacing=.7)
+
     def _style_axes(self) -> None:
         """Apply dark theme styling to all axes."""
-        for ax in [self._ax_global, self._ax_local, self._ax_status]:
+        for ax in [self._ax_global, self._ax_local, self._ax_legend, self._ax_status, self._ax_layers]:
             ax.set_facecolor("#0a0a1a")
             for spine in ax.spines.values():
                 spine.set_edgecolor("#333355")

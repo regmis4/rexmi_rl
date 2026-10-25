@@ -1,0 +1,484 @@
+{
+  "scope": "Lower-grade ascent and committed retreat. Development evidence, not navigation qualification.",
+  "validated": false,
+  "reported_failure": {
+    "source": "logs/nav/ascent_retreat_review/reported_run.csv",
+    "snapshot_time_s": 180.0,
+    "position": [
+      2.645273208618164,
+      5.115581512451172
+    ],
+    "ground_slope_deg": 31.03282578298909,
+    "body_heading_uphill_deg": 27.233720857106622,
+    "diagnosis": "One physical stall followed by repeated rejected approaches in the supplied later-goal segment. A heading-only exclusion did not force a different hillside."
+  },
+  "defaults": {
+    "preferred_uphill_deg": 20,
+    "maximum_uphill_deg": 25,
+    "maximum_side_slope_deg": 25,
+    "maximum_ground_slope_deg": 35,
+    "cruise_mps": 0.4,
+    "retreat_budget_s": 90
+  },
+  "saved_map_replay": {
+    "retreat_connected": true,
+    "retreat_goal": [
+      1.1000000000000014,
+      2.700000000000003
+    ],
+    "retreat_profile": {
+      "length_m": 2.9003224135680616,
+      "ascent_m": 0.0,
+      "uphill_over_25deg_m": 0.0,
+      "max_uphill_deg": 0.0,
+      "max_side_slope_deg": 10.773369813345075,
+      "max_ground_slope_deg": 30.69271003744939,
+      "max_footprint_slope_deg": 31.824285789356413
+    },
+    "retreat_path": [
+      [
+        2.645273208618164,
+        5.115581512451172
+      ],
+      [
+        2.5,
+        4.899999999999999
+      ],
+      [
+        2.3000000000000043,
+        4.700000000000003
+      ],
+      [
+        1.8999999999999986,
+        4.100000000000001
+      ],
+      [
+        1.7000000000000028,
+        3.5
+      ],
+      [
+        1.3000000000000043,
+        2.8999999999999986
+      ],
+      [
+        1.1000000000000014,
+        2.700000000000003
+      ],
+      [
+        1.1000000000000014,
+        2.700000000000003
+      ]
+    ],
+    "retreat_freshness": "Reconstructed from nearest measured height timestamp, 8-second local freshness.",
+    "failed_patch_cells": 125,
+    "ascent_connected": true,
+    "ascent_path": [
+      [
+        1.1000000000000014,
+        2.700000000000003
+      ],
+      [
+        0.5,
+        2.5
+      ],
+      [
+        0.30000000000000426,
+        2.5
+      ],
+      [
+        -0.29999999999999716,
+        2.700000000000003
+      ],
+      [
+        -0.6999999999999993,
+        2.8999999999999986
+      ],
+      [
+        -0.8999999999999986,
+        3.1000000000000014
+      ],
+      [
+        -1.0999999999999979,
+        3.3000000000000043
+      ],
+      [
+        -1.0999999999999979,
+        3.5
+      ],
+      [
+        -1.0999999999999979,
+        3.700000000000003
+      ],
+      [
+        -1.0999999999999979,
+        3.8999999999999986
+      ],
+      [
+        -1.0999999999999979,
+        4.100000000000001
+      ],
+      [
+        -1.0999999999999979,
+        4.300000000000004
+      ],
+      [
+        -1.2999999999999972,
+        4.700000000000003
+      ],
+      [
+        -1.5,
+        5.100000000000001
+      ],
+      [
+        -1.6999999999999993,
+        5.300000000000004
+      ],
+      [
+        -2.099999999999998,
+        5.5
+      ],
+      [
+        -1.8999999999999986,
+        5.899999999999999
+      ],
+      [
+        -2.299999999999997,
+        6.100000000000001
+      ],
+      [
+        -2.099999999999998,
+        6.5
+      ],
+      [
+        -1.8999999999999986,
+        6.900000000000006
+      ],
+      [
+        -1.5,
+        7.5
+      ],
+      [
+        -0.8999999999999986,
+        7.900000000000006
+      ],
+      [
+        -0.6999999999999993,
+        7.700000000000003
+      ],
+      [
+        -0.5,
+        7.5
+      ],
+      [
+        -0.09999999999999787,
+        7.700000000000003
+      ],
+      [
+        0.5,
+        7.900000000000006
+      ],
+      [
+        0.7000000000000028,
+        7.700000000000003
+      ],
+      [
+        0.8999999999999986,
+        7.5
+      ],
+      [
+        1.5,
+        7.700000000000003
+      ],
+      [
+        2.1000000000000014,
+        7.900000000000006
+      ],
+      [
+        2.700000000000003,
+        8.100000000000001
+      ],
+      [
+        3.3000000000000043,
+        8.300000000000004
+      ],
+      [
+        3.3,
+        8.37
+      ]
+    ],
+    "ascent_profile": {
+      "length_m": 13.144230581243303,
+      "ascent_m": 3.3356531311431348,
+      "uphill_over_25deg_m": 0.0,
+      "max_uphill_deg": 24.748597280347624,
+      "max_side_slope_deg": 24.95110059999118,
+      "max_ground_slope_deg": 31.98370871048006,
+      "max_footprint_slope_deg": 33.75872206566477
+    },
+    "ascent_searches": [
+      {
+        "profile": "balanced",
+        "uphill_limit": 25.0,
+        "connected": true,
+        "has_route": true
+      },
+      {
+        "profile": "low-grade",
+        "connected": false,
+        "has_route": false,
+        "uphill_limit": 20.0
+      },
+      {
+        "profile": "gentle",
+        "connected": true,
+        "has_route": true,
+        "uphill_limit": 25.0
+      }
+    ],
+    "ascent_options": [
+      {
+        "profile": "balanced",
+        "complete": true,
+        "score": 640.6009238055377,
+        "length_m": 13.144230581243303,
+        "ascent_m": 3.3356531311431348,
+        "uphill_over_25deg_m": 0.0,
+        "max_uphill_deg": 24.748597280347624,
+        "max_side_slope_deg": 24.95110059999118,
+        "max_ground_slope_deg": 31.98370871048006,
+        "max_footprint_slope_deg": 33.75872206566477,
+        "selected": true
+      },
+      {
+        "profile": "gentle",
+        "complete": true,
+        "score": 708.8912749743049,
+        "length_m": 14.157470123793807,
+        "ascent_m": 3.537427407280172,
+        "uphill_over_25deg_m": 0.0,
+        "max_uphill_deg": 24.301644675669362,
+        "max_side_slope_deg": 24.95589177761242,
+        "max_ground_slope_deg": 31.385019695794234,
+        "max_footprint_slope_deg": 34.120794868458034,
+        "selected": false
+      }
+    ],
+    "limitation": "Ascent comparison uses stored geometry with freshness disabled for offline analysis. Runtime still requires fresh observations near the robot."
+  },
+  "regressions": {
+    "passed": 187,
+    "navigation": 157,
+    "checkpoint_selection": 8,
+    "flat_sidestep": 14,
+    "perception": 8,
+    "note": "Pure map/controller/interface tests. Not physical crater traversals."
+  },
+  "simulator_trials": [
+    {
+      "result": "hold",
+      "sim_seconds": 44.68,
+      "waypoints_reached": 0,
+      "total_waypoints": 1,
+      "manual_intervention": false,
+      "max_cross_track_m": 0.33214062750339224,
+      "policy": "rocky_slope",
+      "policy_switches": 0,
+      "cruise_ceiling": 0.4,
+      "final_state": "HOLD",
+      "final_reason": "robot tipped; manual assistance required",
+      "climb_failures": 0,
+      "backslide_m": 0.0,
+      "map_update_ms_mean": 25.4494237097934,
+      "name": "low_grade_ascent",
+      "revision_note": "Initial committed retreat; before downhill speed damping and forward orientation transition.",
+      "csv": "logs/nav/ascent_retreat_review/low_grade_ascent.csv",
+      "min_up_z": 0.2813689112663269,
+      "final_xy": [
+        -0.3647540807723999,
+        3.5134689807891846
+      ],
+      "completed_retreats": [],
+      "failed_climbs": [
+        {
+          "position": [
+            0.5656378269195557,
+            5.040767192840576
+          ],
+          "radius_m": 1.2570634633302689,
+          "reason": "repeated command rejection",
+          "time": 25.0
+        }
+      ],
+      "physics": "Same task and contact materials; no friction changes, intervention, policy switch or mid-run reset.",
+      "contact_materials": "logs/nav/ascent_retreat_review/low_grade_ascent.materials.json"
+    },
+    {
+      "result": "hold",
+      "sim_seconds": 45.9,
+      "waypoints_reached": 0,
+      "total_waypoints": 1,
+      "manual_intervention": false,
+      "max_cross_track_m": 0.18753196150064255,
+      "policy": "rocky_slope",
+      "policy_switches": 0,
+      "cruise_ceiling": 0.4,
+      "final_state": "HOLD",
+      "final_reason": "slip recovery exhausted; no safe productive maneuver",
+      "climb_failures": 0,
+      "backslide_m": 0.0010176880997621752,
+      "map_update_ms_mean": 25.439368926076302,
+      "name": "low_grade_ascent_v2",
+      "revision_note": "Speed damping and orientation transition; before learned-zone drift handling and committed recovery budget fix.",
+      "csv": "logs/nav/ascent_retreat_review/low_grade_ascent_v2.csv",
+      "min_up_z": 0.8075376749038696,
+      "final_xy": [
+        0.18858341872692108,
+        4.62101411819458
+      ],
+      "completed_retreats": [],
+      "failed_climbs": [
+        {
+          "position": [
+            0.31393668055534363,
+            5.025587558746338
+          ],
+          "radius_m": 1.2570634633302689,
+          "reason": "repeated command rejection",
+          "time": 25.68
+        }
+      ],
+      "physics": "Same task and contact materials; no friction changes, intervention, policy switch or mid-run reset.",
+      "contact_materials": "logs/nav/ascent_retreat_review/low_grade_ascent_v2.materials.json"
+    },
+    {
+      "result": "step_limit",
+      "sim_seconds": 129.98,
+      "waypoints_reached": 0,
+      "total_waypoints": 1,
+      "manual_intervention": false,
+      "max_cross_track_m": 0.6293327155342958,
+      "policy": "rocky_slope",
+      "policy_switches": 0,
+      "cruise_ceiling": 0.4,
+      "final_state": "SETTLE",
+      "final_reason": "command rejected: turn clearance: slope >35 degrees in body/turn envelope",
+      "climb_failures": 0,
+      "backslide_m": 0.3133932533272066,
+      "map_update_ms_mean": 25.183641529248025,
+      "name": "low_grade_ascent_final",
+      "revision_note": "Drift and budget fixes; before stale braking-heading fix.",
+      "csv": "logs/nav/ascent_retreat_review/low_grade_ascent_final.csv",
+      "min_up_z": 0.7265016436576843,
+      "final_xy": [
+        3.1823513507843018,
+        1.8321136236190796
+      ],
+      "completed_retreats": [
+        {
+          "event": "retreat_complete",
+          "time": 41.800000000000004,
+          "position": [
+            -1.3670012950897217,
+            3.4245102405548096
+          ]
+        }
+      ],
+      "failed_climbs": [
+        {
+          "position": [
+            0.31393668055534363,
+            5.025587558746338
+          ],
+          "radius_m": 1.2570634633302689,
+          "reason": "repeated command rejection",
+          "time": 25.68
+        },
+        {
+          "position": [
+            0.9888590574264526,
+            3.193397283554077
+          ],
+          "radius_m": 1.2570634633302689,
+          "reason": "repeated command rejection",
+          "time": 60.0
+        }
+      ],
+      "physics": "Same task and contact materials; no friction changes, intervention, policy switch or mid-run reset.",
+      "contact_materials": "logs/nav/ascent_retreat_review/low_grade_ascent_final.materials.json"
+    },
+    {
+      "result": "hold",
+      "sim_seconds": 157.42000000000002,
+      "waypoints_reached": 0,
+      "total_waypoints": 1,
+      "manual_intervention": false,
+      "max_cross_track_m": 0.5301910846477411,
+      "policy": "rocky_slope",
+      "policy_switches": 0,
+      "cruise_ceiling": 0.4,
+      "final_state": "HOLD",
+      "final_reason": "cannot brake for slip recovery; manual assistance required",
+      "climb_failures": 0,
+      "backslide_m": 0.3650682369636554,
+      "map_update_ms_mean": 25.458208546954985,
+      "name": "low_grade_ascent_heading_fix",
+      "revision_note": "Includes stale braking-heading fix and clearance exits aimed at the committed retreat target.",
+      "csv": "logs/nav/ascent_retreat_review/low_grade_ascent_heading_fix.csv",
+      "min_up_z": 0.8075376749038696,
+      "final_xy": [
+        1.0621675252914429,
+        3.621896505355835
+      ],
+      "completed_retreats": [
+        {
+          "event": "retreat_complete",
+          "time": 38.2,
+          "position": [
+            -1.3250643014907837,
+            3.4440770149230957
+          ]
+        },
+        {
+          "event": "retreat_complete",
+          "time": 133.76,
+          "position": [
+            0.20738963782787323,
+            0.551001787185669
+          ]
+        }
+      ],
+      "failed_climbs": [
+        {
+          "position": [
+            0.31393668055534363,
+            5.025587558746338
+          ],
+          "radius_m": 1.2570634633302689,
+          "reason": "repeated command rejection",
+          "time": 25.68
+        },
+        {
+          "position": [
+            2.3093018531799316,
+            2.4454538822174072
+          ],
+          "radius_m": 1.2570634633302689,
+          "reason": "repeated command rejection",
+          "time": 71.62
+        },
+        {
+          "position": [
+            1.032791256904602,
+            3.374378204345703
+          ],
+          "radius_m": 1.2570634633302689,
+          "reason": "repeated command rejection",
+          "time": 154.4
+        }
+      ],
+      "physics": "Same task and contact materials; no friction changes, intervention, policy switch or mid-run reset.",
+      "contact_materials": "logs/nav/ascent_retreat_review/low_grade_ascent_heading_fix.materials.json"
+    }
+  ],
+  "remaining_acceptance": "Three complete crater traversals without intervention, policy switching or automatic resets are not achieved."
+}

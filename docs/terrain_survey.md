@@ -1,7 +1,15 @@
 # Terrain survey and climb-aware routing
 
+For autonomous return ascent with a preexisting whole-crater map, see the
+[full-crater ascent guide](ascent_navigation.md). It adds an explicitly labeled
+simulator development survey, reusable geometry priors, fresh mission evidence,
+and the same Isaac Sim costmap/LiDAR overlays. The checkpoint-controller behavior
+described below remains available for comparison and manual checkpoint use.
+
 Checkpoint navigation keeps the rocky-slope policy, teleop adapter, mission
 order and 0.40 m/s default. The demo's contact materials are unchanged.
+The [ascent and retreat guide](ascent_retreat.md) describes the current 20°/25°
+route preferences and the immediate exclusion of failed uphill approaches.
 
 ## Clearance and terrain
 
@@ -22,34 +30,43 @@ roughness never grants permission to cross a hazard.
 
 Routing includes along-travel slope, cross-slope travel, turning, clearance and
 directional traversal history. Successfully driven directions avoid a small
-untested-travel penalty. One failed uphill episode adds cost; a second excludes
-that heading bin in the affected area for the mission. There are eight heading
-bins; the other travel directions remain separately assessed. Evidence is
-recorded once per cell per episode, with a 0.4 m neighbourhood at 0.2 m grid
-resolution for failures.
+untested-travel penalty. On flatter ground, a confirmed slip/stall episode excludes its approach
+heading and adjacent 45° bins. A second overlapping episode marks a learned
+no-go zone, displayed in dark red. Other headings remain available after the
+first episode. The patch radius is the robot footprint plus 0.10 m, with a
+0.35 m minimum; each episode counts once per cell.
 
-Uphill failure detection requires aligned forward commands above 0.25 m/s and
-an along-heading grade above 0.15. A two-second window with mean measured forward
-speed below 0.05 m/s records poor progress; a mean below -0.10 m/s records
-backsliding. Stops, manual control, alignment turns and reverse commands are
-excluded. These are diagnostic defaults, not a measured friction coefficient.
-The existing 0.75 m cross-track limit also records a failed slope approach when
-forward drive is active on terrain steeper than grade 0.25. This catches sideways
-sliding even when measured forward speed stays positive. It is labelled a tracking
-failure, not an inferred friction value. A failure triggers settling and replanning,
-not another blind acceleration.
+A failed uphill approach now excludes a larger patch immediately and commits
+to a lower regroup point before retrying the mission. The radius is at least
+1.2 m or 2.5 robot footprint radii. Repeated command rejection during ascent
+can also exclude an approach; it is logged separately from physical slip.
+See [ascent and downhill retreat](ascent_retreat.md).
+
+The [slip tracker and recovery guide](slip_and_route_recovery.md) gives exact
+thresholds for poor progress, backward sliding and lateral drift. Slow forward
+turns are included; intentional stops, manual control, pure alignment and
+reversing are excluded. These are measured motion indicators, not a friction
+estimate. Failed approaches trigger a bounded, checked backoff or heading change
+and invalidate the cached route. Planner rejection loops are tracked separately
+and do not label terrain slippery.
 
 At checkpoints the planner compares the whole observed route with alternatives.
 A valid cached route stays unless a comparable alternative is at least 15%
-cheaper; invalid routes are replaced immediately. When no goal-directed approach
+cheaper, or a practical route meets the preferred 20° ascent limit and the old
+route does not. Invalid routes are replaced immediately. When no goal-directed approach
 exists, it can target a reachable, observed survey boundary with unknown terrain
 nearby. It never targets an unknown cell or skips a mission destination.
+The nonlinear slope and cliff-proximity preferences, reverse-turn sequence and
+full-survey return-test command are detailed in
+[tight turns and return routes](navigation_turns_and_routes.md).
 
 ## Display and exports
 
 The default retains a rolling **20 m radius** at 20 cm resolution, including
-5 cm elevation evidence bins. Evidence and traversal outcomes outside that radius
-are discarded; exported maps contain only retained terrain. Use
+5 cm elevation evidence bins. Raw terrain evidence and success/failure counts
+outside that radius are discarded, but learned direction exclusions, episode
+counts and no-go zones persist for the entire mission. Exported geometry contains
+only retained terrain. Use
 `--map_retention full` to keep the full current-run survey instead. In either
 mode, freshness gates immediate motion separately from retained evidence.
 
@@ -63,16 +80,20 @@ change the planner's blocked cells.
 Add `--survey_layer slope` (or `terrain`, `roughness`, `traversal`) to choose the
 initial Isaac Sim layer. Buttons in the perception window and radio buttons in
 the dashboard switch layers during a run. The red line is the active route;
-gold marks the checkpoint. Purple in Traversal means a direction has failed twice,
-not that every possible direction through that cell is forbidden.
+green marks the checkpoint. Purple in Traversal means an approach direction is
+excluded. Dark red means an unsuccessful approach patch is excluded from normal routes.
 
 A snapshot of the retained map, `.map.npz`, is atomically replaced every 30 simulation seconds and on
 shutdown. It includes heights, slope, roughness/support, hazards, clearance,
-observation times, evidence counts, directional successes/failures, world origin
+observation times, evidence counts, directional successes/failures, approach
+exclusions, learned no-go zones, episode counts, world origin
 and cell size. The `.csv` adds slope, roughness, cumulative climb failures,
 backslide distance, route-selection reason and overlay update time. Climb events
 also appear in `.events.jsonl`; `.materials.json` records actual robot contact
 properties and configured terrain properties. No cross-run map loading is added.
+Exports also contain the selected mission and checkpoint routes. CSV rows report
+whole-route length, maximum uphill/side slope, uphill distance above 25°, reverse-turn
+attempt count and whether the route reaches the mission goal or an observed frontier.
 
 ## Commands
 

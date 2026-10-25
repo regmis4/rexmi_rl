@@ -1,0 +1,7 @@
+{
+  "easy_angle_deg": 15.0,
+  "exponential_scale_deg": 4.0,
+  "uphill_weight": 1.0,
+  "roughness_interaction": 1.5,
+  "cross_weight": 1.0
+}

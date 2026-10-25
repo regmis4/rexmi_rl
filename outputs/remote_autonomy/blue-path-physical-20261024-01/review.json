@@ -1,0 +1,43 @@
+{
+  "scope": "One seed42 saved blue any-exit path execution; no live changes, retries, or replanning",
+  "controls": 8.3,
+  "practicality": 8.3,
+  "diagnosis_pending": false,
+  "weekly_used_percent": 65,
+  "usage_checked_utc": "2026-10-25T00:09:52.726485+00:00",
+  "reset_credits_used": false,
+  "deadline_sim_s": 900,
+  "spawn_yaw": 1.5707963267948966,
+  "focused_tests_passed": 160,
+  "source_sha256": {
+    "source/rexmi_rl/nav/saved_path_control.py": "2b7205016be8e23d0cca3d9ae39abb86d64048050320610bc47c252001912077",
+    "source/rexmi_rl/nav/remote_control.py": "3a483261f28bf3587001fec6dd1ffd2ae48f1664917d0a842746145a7b46d0c5",
+    "source/rexmi_rl/nav/checked_turn.py": "161f6e90dc38e5e74f6635d48cfda093689d5c941f4e4a5ba8f809065e9212ba",
+    "source/rexmi_rl/nav/checkpoint_runner.py": "2b462ccfc72bc6c85b27708b1e93f272c074daacb4677ed448e66a42a67a9ebb",
+    "scripts/navigate.py": "5fd17c1699f6ccdcd89701702bd8f660a7894b0a63b7cd18ccbfdb0222bb282f",
+    "tests/test_saved_path_control.py": "d2fc5955ff992ba0ca7dcacb2dc07817c0282bb68ef29f256f9fbeda2896c4a9"
+  },
+  "path_result_sha256": "3a56ca3ed18bff83bbe24d6457816fefa37e7e3e1baa52d293dc7802e76281b3",
+  "stop_conditions": [
+    "selected supported gentle exterior endpoint settled",
+    "first terminal physical refusal",
+    "35 s without 0.1 m new route progress",
+    "turn failure",
+    "cross track >1 m",
+    "900 s deadline",
+    "operator takeover"
+  ],
+  "known_limitations": "Frozen-map straight segments pass; some exact stationary corner rotations fail physical checks. Follower/traction unproven; same-crater fitted path, not independent validation.",
+  "diagnosis": 8.3,
+  "launch_utc": "2026-10-25T00:10:15.005119+00:00",
+  "reviews_sha256": {
+    "diagnosis_review.md": "9f42a3eaef93f835e02c4aa06838488965f9361ede1be20c7eee98e75874a55e",
+    "practicality_review.md": "5ac5bb7f4fd0e13108109522183b05694df9fe478f135fa788a87e10990ab12c",
+    "controls_review.md": "605edbce223339bb42b0ac46b81dba56bac71dd2dba1106a891364d9edf4a66d"
+  },
+  "launch_sha256": "63d05bf24d307fc5a9ecd4585831f454feb0ed5cce654cc3868c69dba1df3103",
+  "source_hashes_verified_unchanged_at_finish": true,
+  "final_result": "hold",
+  "sim_seconds": 42.18,
+  "execution_completed_utc": "2026-10-25T00:11:55.751081+00:00"
+}

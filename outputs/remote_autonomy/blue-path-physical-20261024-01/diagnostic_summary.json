@@ -1,0 +1,230 @@
+{
+  "result": "hold",
+  "counts_as_mission_success": false,
+  "counts_as_qualification": false,
+  "stop_reason": "saved-path execution stopped: unavailable command: oriented footprint exceeds 35 degree terrain boundary",
+  "sim_seconds": 42.18,
+  "complete_csv_rows": 2110,
+  "excluded_partial_rows": 0,
+  "continuous_control_samples": true,
+  "final_position": [
+    6.18724250793457,
+    -3.3772337436676025,
+    2.059234619140625
+  ],
+  "max_radius_m": 7.092105199638533,
+  "peak_body_z_m": 2.150432586669922,
+  "peak_body_gain_from_3s_m": 1.284521460533142,
+  "completed_waypoints": 0,
+  "final_state": "HOLD",
+  "final_reason": "saved-path execution stopped: unavailable command: oriented footprint exceeds 35 degree terrain boundary",
+  "policies": [
+    "rocky_slope"
+  ],
+  "peak_command_mps": 0.4,
+  "physical_climb_failures": 0,
+  "feedback_recoveries": [],
+  "furthest_saved_route_progress_m": null,
+  "final_saved_route_progress_m": null,
+  "first_turn_refusal": null,
+  "turn_refusals": [],
+  "checked_corrections": [],
+  "saved_path_stops": [
+    {
+      "event": "saved_path_stop",
+      "time": 42.18,
+      "reason": "saved-path execution stopped: unavailable command: oriented footprint exceeds 35 degree terrain boundary",
+      "position": [
+        6.18724250793457,
+        -3.3772337436676025
+      ],
+      "progress_m": 7.220435622968426,
+      "target": [
+        6.487387288358511,
+        -3.1708709038804948
+      ],
+      "snapshot": {
+        "status": "saved",
+        "path": "/home/susan/rexmi_rl/outputs/remote_autonomy/blue-path-physical-20261024-01/run.planning/request-aqt2nj_g.npz",
+        "time": 42.18,
+        "position": [
+          6.18724250793457,
+          -3.3772337436676025
+        ],
+        "yaw": 0.16071376983649122
+      },
+      "physical_failure": false
+    }
+  ],
+  "saved_path_input": {
+    "result_path": "/home/susan/rexmi_rl/outputs/remote_autonomy/slope-fit-20261024-04/result.json",
+    "result_sha256": "3a56ca3ed18bff83bbe24d6457816fefa37e7e3e1baa52d293dc7802e76281b3",
+    "route_name": "any_exit",
+    "map_path": "/home/susan/rexmi_rl/logs/telemetry/manual-ascent-fr4H8xPa/display_map.npz",
+    "map_sha256": "fa573c4e1a08e6652a58e6a2e9e69e3bea7981dd907c8b40ade788e706461859",
+    "parameters": {
+      "easy_angle_deg": 15.0,
+      "exponential_scale_deg": 6.0,
+      "uphill_weight": 1.0,
+      "roughness_interaction": 0.5,
+      "cross_weight": 1.0,
+      "terrain_weight": 1.0
+    },
+    "predicted_metrics": {
+      "length_m": 17.247348980724645,
+      "displayed_cost_m": 112.58892065363204,
+      "peak_uphill_deg": 31.09866391617579,
+      "metres_above_25deg": 2.4046458338960663,
+      "peak_cross_slope_deg": 29.6395209386937,
+      "metres_in_display_exclusions": 0.0,
+      "start": [
+        0.0260005015879869,
+        -0.0714771524071693
+      ],
+      "end": [
+        11.100000000000001,
+        4.100000000000001
+      ],
+      "cost_components": {
+        "base": 112.58892065363209,
+        "uphill": 27.480143269219035,
+        "terrain": 45.28556078664319,
+        "rough_slope": 80.20268575335182,
+        "cross": 7.830442700659318
+      },
+      "fitted_score": 273.38775316350547,
+      "distance_to_manual_m": 5.993976680202243,
+      "local_peak_uphill_deg": 34.5268845914387,
+      "local_metres_above_25deg": 2.1218031214214492,
+      "local_metres_above_35deg": 0.0,
+      "local_peak_cross_deg": 23.610081821255978
+    }
+  },
+  "route_rejoins": [],
+  "archived_plan_results": [
+    {
+      "time": 3.0,
+      "success": true,
+      "failure": "no observed clear route; inspect or reposition manually",
+      "expansions": null
+    }
+  ],
+  "initial_runtime_route": [
+    [
+      0.0260005015879869,
+      -0.0714771524071693
+    ],
+    [
+      0.7000000000000028,
+      -0.5
+    ],
+    [
+      1.8999999999999986,
+      -0.8999999999999986
+    ],
+    [
+      2.1000000000000014,
+      -0.8999999999999986
+    ],
+    [
+      2.700000000000003,
+      -1.0999999999999979
+    ],
+    [
+      3.1000000000000014,
+      -1.2999999999999972
+    ],
+    [
+      4.5,
+      -2.6999999999999993
+    ],
+    [
+      4.700000000000003,
+      -2.6999999999999993
+    ],
+    [
+      5.300000000000004,
+      -2.8999999999999986
+    ],
+    [
+      5.5,
+      -2.8999999999999986
+    ],
+    [
+      5.899999999999999,
+      -3.099999999999998
+    ],
+    [
+      6.100000000000001,
+      -3.299999999999997
+    ],
+    [
+      6.700000000000003,
+      -3.099999999999998
+    ],
+    [
+      6.900000000000006,
+      -2.5
+    ],
+    [
+      7.300000000000004,
+      -2.099999999999998
+    ],
+    [
+      7.300000000000004,
+      -1.8999999999999986
+    ],
+    [
+      7.5,
+      -1.2999999999999972
+    ],
+    [
+      7.700000000000003,
+      -1.0999999999999979
+    ],
+    [
+      7.700000000000003,
+      -0.5
+    ],
+    [
+      7.900000000000006,
+      -0.29999999999999716
+    ],
+    [
+      7.700000000000003,
+      0.30000000000000426
+    ],
+    [
+      7.700000000000003,
+      1.8999999999999986
+    ],
+    [
+      8.300000000000004,
+      2.1000000000000014
+    ],
+    [
+      8.5,
+      2.3000000000000043
+    ],
+    [
+      9.300000000000004,
+      2.700000000000003
+    ],
+    [
+      9.900000000000006,
+      3.3000000000000043
+    ],
+    [
+      11.100000000000001,
+      4.100000000000001
+    ]
+  ],
+  "initial_runtime_yaw": 1.6296781802822586,
+  "limitation": "One characterization run does not establish reliable ascent or hard-climb infeasibility.",
+  "files_sha256": {
+    "run.csv": "1ec2abb3ac477c2f2b24445be0dd24498945766ca21182e5cbd01ade2beafdbe",
+    "run.events.jsonl": "97277bc72e5098c1133de29921284207cccadf2422c8cbc420a09d64afd537fd",
+    "run.provenance.json": "694dfc426091290bce19ea15232a55b2913a07fa0ab99f72e251fe08adc28535",
+    "review.json": "3c8f8aad2bfb22d140a29bc18db63b65b7f92ce9881bffcc87fed5ef218d94a8"
+  }
+}

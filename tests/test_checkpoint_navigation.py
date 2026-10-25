@@ -189,7 +189,9 @@ class RouteTests(unittest.TestCase):
         control.tick((0,0),0,0,2.)
         control.tick((.5,0),0,0,4.)
         control.tick((.5,0),0,0,13.)
-        control.tick((.5,0),0,0,40.)
+        # Poor forward progress is now learned before the old 30 s timer;
+        # the travelled corridor must remain available for a later retreat.
+        control.retreat((.5,0),0,40.)
         self.assertEqual(control.state,'REVERSE')
         control.tick((0,0),0,0,42.)
         control.tick((0,0),0,0,42.1)
@@ -198,20 +200,21 @@ class RouteTests(unittest.TestCase):
         control.tick((0,0),0,0,43.8)
         self.assertEqual(control.state,'FOLLOW')
         self.assertEqual(control.retry_count,1)
-    def test_clear_turn_is_not_cancelled_by_long_straight_probe(self):
+    def test_flat_obstacle_uses_normal_alignment_instead_of_reverse_sequence(self):
         grid=m.ObservedTerrainMap(world_size=32.)
         grid.known[:]=True;grid.fresh[:]=True;grid.cost[:]=1.;grid.revision=5
         cell=grid.world_to_cell(11.5,.26)
         grid.blocked[cell]=True;grid.cost[cell]=20.
         control=c.CheckpointController(grid,[SimpleNamespace(x=11.,y=0.)])
         motion=control.tick((11.907487869,.260900706),-3.135724231,.01,2.)
+        # Under-turning would hit the obstacle. Keep the normal yaw-only
+        # alignment available without launching steep-edge recovery on flat.
         self.assertEqual(control.state,'FOLLOW')
-        self.assertAlmostEqual(motion.vx,.2)
-        self.assertAlmostEqual(motion.omega,.35)
-        self.assertTrue(control.motion_clear((11.907487869,.260900706),-3.135724231,.01,motion))
-        # The same turn is not allowed when measured speed would carry the
-        # robot into the blocked straight corridor before it could stop.
-        self.assertFalse(control.motion_clear((11.907487869,.260900706),-3.135724231,.5,motion))
+        self.assertEqual(control.turn_repositions,0)
+        self.assertEqual(motion.vx,0.)
+        self.assertGreater(motion.omega,0.)
+        self.assertFalse(control.motion_clear((11.907487869,.260900706),-3.135724231,.01,c.Motion(.2,.35)))
+        self.assertFalse(control.motion_clear((11.907487869,.260900706),-3.135724231,.5,c.Motion(.2,.35)))
 
     def test_polyline_progress_and_lookahead(self):
         i,foot,target,remaining,cross=c.path_progress([(0,0),(4,0),(4,2)],(2,.1))
@@ -355,14 +358,14 @@ class RouteTests(unittest.TestCase):
         self.assertIn('without progress',control.planning_failure)
 
     def test_uphill_approach_keeps_normal_teleop_command(self):
-        grid=surface(slope=.6)
+        grid=surface(slope=.4)
         grid.revision=5
         control=c.CheckpointController(grid,[SimpleNamespace(x=.8,y=0.)])
         motion=control.tick((0,0),0,0,2.)
         self.assertGreater(motion.vx,.35)
 
     def test_short_fresh_corridor_allows_low_speed_approach(self):
-        grid=surface(slope=.6)
+        grid=surface(slope=.4)
         control=c.CheckpointController(grid,[SimpleNamespace(x=3.,y=0.)])
         control.path=[(i*.2,0.) for i in range(16)]
         control.checkpoint=(3.,0.)

@@ -1,0 +1,1024 @@
+{
+  "requirement": "User requires independent senior control systems and AI engineering review, agreement, and an honest rating of at least 8/10 before each new approach and simulator experiment.",
+  "reviewer": "/root/control_review (AI reviewer role, not human certification)",
+  "gates": [
+    {
+      "id": "departure-observer-proposal",
+      "date": "2026-09-24",
+      "rating": 9,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": false,
+      "scope": "Opt-in observational capture before the first original lateral rejection, then stop; 65 simulated-second ceiling. Offline geometry/response analysis only.",
+      "reason": "The body ray misses the current endpoint by about 4.32 m and actual response direction is changing. Capture exact pre-rejection terrain, freshness, exclusions and movement state before choosing a live continuation algorithm.",
+      "acceptance": [
+        "Preserve original decision, command and pose prefix against trial17.",
+        "Capture owned copies of exact observed map arrays before any new exclusion.",
+        "Diagnostic errors cannot change the original control decision.",
+        "No mission or qualification credit."
+      ]
+    },
+    {
+      "id": "immediate-adaptive-handoff-proposal",
+      "date": "2026-09-24",
+      "rating": 6,
+      "agree": false,
+      "implementation_allowed": false,
+      "simulator_run_allowed": false,
+      "scope": "Immediate changed-destination continuation after useful uphill displacement.",
+      "reason": "Positive height gain and zero input do not establish a reachable continuation. Need exact geometry and response evidence first."
+    },
+    {
+      "id": "departure-observer-implementation",
+      "date": "2026-09-24",
+      "rating": 9,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": true,
+      "scope": "One capture01 diagnostic with trial17 seed42/policy/full-survey settings; first original lateral rejection or65s ceiling; no continuation change.",
+      "independent_focused_tests": 197,
+      "full_suite_tests": 492,
+      "files_sha256": {
+        "source/rexmi_rl/nav/departure_diagnostics.py": "46e4be474ee85598a5ea661d185f0ff0857c8270ff93598509d1004c8ba7c49b",
+        "source/rexmi_rl/nav/movement.py": "e5df25dd9e59c6f4cc006932a71527b05b4b559db7fcd0c81ea07dc80f479e2b",
+        "source/rexmi_rl/nav/checkpoint_runner.py": "67fa80ffda98e4932b3fc5cc125b11df811bcffd4a4009e2ab2ad7ecf77b8731",
+        "scripts/navigate.py": "75dc2b8e882b2321afcb5eb86ca9c2f747d927253c1db0067852dd5d9d5ee607"
+      },
+      "acceptance": [
+        "Exact unchanged trial17 command/pose prefix",
+        "Complete pre-outcome observed snapshot",
+        "No mission/qualification credit"
+      ]
+    },
+    {
+      "id": "exact-terminal-connector-proposal",
+      "date": "2026-09-24",
+      "rating": 9,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": false,
+      "scope": "Generic exact-goal straight connector from verified gentle staging, preserving geometry, directional limits, exclusions and original observer-relative freshness. Independent code/run review required."
+    },
+    {
+      "id": "departure-forward-response-proposal",
+      "date": "2026-09-24",
+      "rating": 8.5,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": false,
+      "scope": "Opt-in forward0.40/zero yaw probe at most2s or0.25m displacement, with complete fresh swept stopping/drift envelopes, inherited budgets and all protections. Characterization only. Code/run review required. Not yet implemented."
+    },
+    {
+      "id": "larger-departure-probe-proposal",
+      "date": "2026-09-24",
+      "rating": 7,
+      "agree": false,
+      "implementation_allowed": false,
+      "simulator_run_allowed": false,
+      "scope": "Rejected0.8m/5s forward probe: fresh terrain must contain travel plus stopping room."
+    },
+    {
+      "id": "terminal-connector-implementation",
+      "date": "2026-09-24",
+      "rating": 9,
+      "agree": true,
+      "independent_focused_tests": 203,
+      "full_suite_tests": 498,
+      "implementation_allowed": true,
+      "simulator_run_allowed": false,
+      "files_sha256": {
+        "source/rexmi_rl/nav/staged_routes.py": "4036aa785aae1ffbe0d6103b92bd8d46addcb09d664bb7c8a1bcb9d6997b05c6",
+        "source/rexmi_rl/nav/ascent_behavior.py": "535166d4b0e4a2a9a7e3546c4538eaaa7c116388e4b7c74dbaf85ff10e2c9a33",
+        "source/rexmi_rl/nav/movement.py": "e5df25dd9e59c6f4cc006932a71527b05b4b559db7fcd0c81ea07dc80f479e2b"
+      }
+    },
+    {
+      "id": "trial18-run",
+      "date": "2026-09-24",
+      "rating": 8.5,
+      "agree": true,
+      "simulator_run_allowed": true,
+      "scope": "One seed42/full-survey/fresh-evidence900s ascent characterization, v16 planner A alone, unchanged executor, normal HOLD termination. No response probe or adaptive handoff."
+    },
+    {
+      "id": "posture-brake-ownership-proposal",
+      "date": "2026-09-24",
+      "rating": 9,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": false,
+      "scope": "Retire resolved posture observation after existing0.2s recovery dwell completed before1.5s deadline; transfer ownership to existing BRAKE without directmotion. Preserve original8s brakeepisode acrosspostureentries, request/axis/deadline/shared12s uphillclock and all thresholds. Independent code/run review required.",
+      "evidence": "Trial18 posture recovery66.58, dwell complete66.78; longest simultaneous strictspeed/yawsettle only0.08s. Oldposturetimeout67.88 misclassified unresolvedbraking."
+    },
+    {
+      "id": "posture-brake-ownership-implementation",
+      "date": "2026-09-24",
+      "rating": 9,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": false,
+      "independent_focused_tests": 209,
+      "full_suite_tests": 504,
+      "files_sha256": {
+        "source/rexmi_rl/nav/movement.py": "92a118d32db1aa9b13e542a87012c4b857672f911c091e8eab6af3a10efcece6",
+        "source/rexmi_rl/nav/ascent_behavior.py": "7a1093ff65e4506f8f27b82f8928329dc1231f6ab841b8435bfbd46eb1565198",
+        "source/rexmi_rl/nav/staged_routes.py": "4036aa785aae1ffbe0d6103b92bd8d46addcb09d664bb7c8a1bcb9d6997b05c6",
+        "source/rexmi_rl/nav/departure_diagnostics.py": "13fe4b623f9f9c40d1d194ae5d216174e3572b0bbb9b27f90200b2b332a941fb"
+      }
+    },
+    {
+      "id": "trial19-run",
+      "date": "2026-09-24",
+      "rating": 8.5,
+      "agree": true,
+      "simulator_run_allowed": true,
+      "scope": "One v17-posture-brake-ownership ascent characterization:seed42,samefullsurvey/policy/physics,freshmissionevidence,<=900s,normalHOLDtermination.Noresponseprobe/adaptivehandoff."
+    },
+    {
+      "id": "moving-release-admission-proposal",
+      "date": "2026-09-24",
+      "rating": 8.5,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": false,
+      "scope": "Same-request suspended RELEASE only: shared bounded0.30s motionwindow and completecontinuous2s displacement uphill bothalong committedaxis andfreshterraingradient >=0.02m/s; allremaining/stopping/releasegeometry; exactzero restoration; unchangedrequest,axis,destination,deadlines andhigherpriorityprotections. Independentcode/runreviewrequired."
+    },
+    {
+      "id": "moving-release-implementation",
+      "date": "2026-09-24",
+      "rating": 8.5,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": false,
+      "independent_focused_tests": 217,
+      "full_suite_tests": 512,
+      "files_sha256": {
+        "source/rexmi_rl/nav/movement.py": "99753e7065343e44a5edce518665756a4e47199c2c75996bdefbe23ca07bcad1",
+        "source/rexmi_rl/nav/ascent_behavior.py": "966dba32c11e4891876d653045df2f8e1e9a2edbb232bfee6e177f701926f687"
+      }
+    },
+    {
+      "id": "trial20-run",
+      "date": "2026-09-24",
+      "rating": 8.5,
+      "agree": true,
+      "simulator_run_allowed": true,
+      "scope": "One v18 moving-release ascent characterization: seed 42, same full survey, policy and physics; fresh mission evidence; at most 900 simulated seconds; normal HOLD termination. No response probe or adaptive handoff. Record actual admission and subsequent measured uphill response."
+    },
+    {
+      "id": "committed-drive-continuation-proposal",
+      "date": "2026-09-24",
+      "rating": 8.5,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": false,
+      "scope": "Bounded motion admission for an observed DRIVE in the same request, matching direction and committed axis. BRAKE damping, RELEASE-only history and previous requests cannot establish eligibility. Initial/gentle alignment, suspended RELEASE ownership, live geometry and inherited deadlines/protections remain binding. Code/run review required."
+    },
+    {
+      "id": "committed-drive-continuation-implementation",
+      "date": "2026-09-24",
+      "rating": 8.5,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": false,
+      "independent_focused_tests": 225,
+      "full_suite_tests": 520,
+      "files_sha256": {
+        "source/rexmi_rl/nav/movement.py": "08bf70ec20b4fe0c00a6026b306ce44a1469cf2990fa6782d8fc7069f9252f77",
+        "source/rexmi_rl/nav/ascent_behavior.py": "4e95fae8e454c9b4598e50d60acf709035b645e0dc7248438fb218b64712dff9",
+        "source/rexmi_rl/nav/departure_diagnostics.py": "612e1e81ec55b5910e9d199d573e3b32bc6ec8e223255e12f4cacc54f170cf67"
+      }
+    },
+    {
+      "id": "trial21-run",
+      "date": "2026-09-24",
+      "rating": 8.5,
+      "agree": true,
+      "simulator_run_allowed": true,
+      "scope": "One v19 committed-continuation ascent characterization: seed 42, full survey, same policy and physics, fresh mission evidence, at most 900 simulated seconds and normal HOLD termination. No response probe or adaptive handoff. Compare actual continuation output, physical progress and remaining budget to trial 20. Report actual overspeed/posture and preserve failed reverse results; approval is not braking capability or overall reliability."
+    },
+    {
+      "id": "uphill-exposure-budget-proposal",
+      "date": "2026-09-24",
+      "rating": 8,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": false,
+      "scope": "Isolated 12 s deliberate DRIVE/RELEASE exposure or 24 s absolute wall-time cap, whichever first; unchanged posture, speed, geometry, backslide and mission deadlines. Passive orientation and fitted terrain-normal telemetry. Code/run review required.",
+      "acceptance": [
+        "Count held emitted intervals once, excluding BRAKE damping and POSTURE output.",
+        "Only 0.10 m net advance from fixed anchor renews both budgets.",
+        "Censor budget expiry without deliberate exposure.",
+        "Test interrupted cycles, admissions, both expiry paths, renewal and protection precedence."
+      ]
+    },
+    {
+      "id": "uphill-exposure-budget-implementation-and-trial22",
+      "date": "2026-09-24",
+      "rating": 8,
+      "run_rating": 8,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": true,
+      "scope": "One trial22 seed42/full-survey ascent characterization <=900 simulated seconds, unchanged policy/physics, fresh evidence, normal HOLD. No probe, adaptive handoff, posture/speed threshold change.",
+      "independent_focused_tests": 236,
+      "final_provenance_focused_tests": 11,
+      "full_suite_tests": 531,
+      "files_sha256": {
+        "source/rexmi_rl/nav/movement.py": "9466f4def14b2981afb0fd6030185beb975ae5fc3678f7300b6d3c12af961531",
+        "source/rexmi_rl/nav/checkpoint_runner.py": "b895d304b5fcd69d758248b248a209684fdaa3d9c131549ec37eed4c4fdfcc52",
+        "source/rexmi_rl/nav/ascent_behavior.py": "2811b9dea6497b42d08424de7b955d1c0e967f4193af084aab3d2d571e9d60a1",
+        "source/rexmi_rl/nav/departure_diagnostics.py": "e03934c153a44abe583aad49787d9cb2c875118304f3c5574f9f86e9357dfc27"
+      },
+      "acceptance": [
+        "Compare trial21 command/pose prefix through original expiry.",
+        "Report actual deliberate exposure, fixed wall interval, progress, renewals, speed and tilt.",
+        "Retain every failed outcome and unvalidated reachability status."
+      ]
+    },
+    {
+      "id": "terrain-relative-posture-proposal",
+      "date": "2026-09-24",
+      "rating": 8,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": false,
+      "scope": "Provisional rapid-posture entry exemption for already executed forward uphill mission DRIVE/RELEASE only, relative angle<=20 degrees and absolute<50, fresh same-tick valid attitude and fit. Independent50-degree pause and existing60-degree hard fault. No active-pause cancellation or recovery changes. Code/run review required.",
+      "risk": "Observed outward tilt rates76\u2013107deg/s can develop into genuine tip onset; no validated stability guarantee. First RELEASE pause already emits zero, so no causal claim that suppressing its state label prevents backslide.",
+      "acceptance": [
+        "Use vector-frame angle, invalid/inconsistent data retain original trigger.",
+        "Preserve raw rapid-change signal for active-pause timeout classification.",
+        "Exclude reverse, recovery, braking, alignment, fresh entry and previous request evidence.",
+        "Test boundaries, attitude validity, active pause, fast outward changes and all protections; observation replays do not establish counterfactual success."
+      ]
+    },
+    {
+      "id": "terrain-relative-posture-implementation-and-trial23",
+      "date": "2026-09-24",
+      "rating": 8,
+      "run_rating": 8,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": true,
+      "scope": "One trial23 seed42/full-survey ascent characterization <=900 simulated seconds, unchanged policy/physics, fresh evidence, normal HOLD. No speed, route, probe or adaptive handoff changes.",
+      "independent_focused_tests": 246,
+      "full_suite_tests": 541,
+      "files_sha256": {
+        "source/rexmi_rl/nav/movement.py": "9bbaedc6cbe46cb8e0b5552ffe8a07132ea06694834ee1c919c7970042016cfb",
+        "source/rexmi_rl/nav/checkpoint_runner.py": "e2e8417902aac23c3a367b092856365999fe4e7b3fecf0166e3e30d877043f8d",
+        "source/rexmi_rl/nav/ascent_behavior.py": "4b9afd87cf1b19162078ed0be3e7dc4788b024b5ac51b866e80c017af186995e",
+        "source/rexmi_rl/nav/departure_diagnostics.py": "1454286cfe6414e8d2b0dea7d3e3a2219f4bc40186a1926ee42aed90553e9876"
+      },
+      "corrections": [
+        "Preserved adverse-replay early-intervention expectations; stopped fixture from forcing RELEASE after a valid pre-roll pause.",
+        "Fail closed on overflowed fitted normal or nonfinite computed dot product in both posture decision and passive telemetry."
+      ],
+      "acceptance": [
+        "Compare actual first output divergence with trial22.",
+        "Report forward exposure and net progress, absolute/relative tilt and angular rates.",
+        "Record both exemptions and independent interventions; no claimed validated tip-prevention envelope."
+      ]
+    },
+    {
+      "id": "release-patience-proposal",
+      "date": "2026-09-24",
+      "rating": 8,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": false,
+      "scope": "After complete2s measurement/response, useful slow RELEASE requires both axis and terrain-gradient rates>=.01m/s;5s continuous deficiency in either requests checked forward correction. Preserve loss-of-eligibility/net-.08/backslide/geometry/posture/overspeed/12s exposure and24s wall bounds. Code/run review required.",
+      "reason": "At prior correction recent axis.00758m/s and uphill.01102m/s, while release net+.07529/.08118m remained; old1s trigger is not physical failure evidence. Manual plateau durations do not establish calibration."
+    },
+    {
+      "id": "release-patience-implementation-and-trial24",
+      "date": "2026-09-24",
+      "rating": 8,
+      "run_rating": 8,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": true,
+      "scope": "One trial24 seed42/full-prior/fresh-evidence characterization <=900 simulated seconds with normal HOLD; unchanged policy/physics. No braking, speed, route, probe or adaptive handoff changes.",
+      "independent_focused_tests": 253,
+      "full_suite_tests": 548,
+      "files_sha256": {
+        "source/rexmi_rl/nav/movement.py": "8c23dfdf5666938b81d1f604ea9de03666277c06d4fd2a7198dd46a237e26a09",
+        "source/rexmi_rl/nav/checkpoint_runner.py": "7eef2424fc9f7f4e15ea4f124aadac70c810d1468b4aebd494ba6c2bff75696e",
+        "source/rexmi_rl/nav/ascent_behavior.py": "cebe2d61a355840e7b9dcd791dd333579fa3568ae87c082dfe55c613f1110c5e"
+      },
+      "acceptance": [
+        "Compare first actual command divergence with trial23.",
+        "Report axis/gradient progress, productive zero duration, plateau/correction reason, retained outer budgets and all physical failures."
+      ]
+    },
+    {
+      "id": "functional-recovery-proposal",
+      "date": "2026-09-24",
+      "rating": 9,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": false,
+      "scope": "Recovery-only functional staging after measured actual drive and >=0.4m displacement, fresh gentle full rotation/stopping footprint; fixed6s observation and anchor, contiguous0.6s settle, censored REPOSITIONED and replan. Preserve request/axis/bounds/evidence/mission goal/exclusions and120s episode. RELEASE/braking/policy/physics unchanged.",
+      "reason": "Trial24 reached gentle ground near161.86s, then continued nominal endpoint corrections until203.18s. Settling hypothesis is not proven by baseline trace."
+    },
+    {
+      "id": "functional-recovery-implementation-and-trial25",
+      "date": "2026-09-24",
+      "rating": 8.5,
+      "run_rating": 8.5,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": true,
+      "scope": "One trial25 seed42/full-survey/fresh-evidence ascent characterization<=900 simulatedseconds; unchanged rocky policy/physics/RELEASE/posture/route/lateral bounds. Normal HOLD/hardfault termination.",
+      "independent_focused_tests": 267,
+      "full_suite_tests": 562,
+      "files_sha256": {
+        "source/rexmi_rl/nav/movement.py": "e1e4b232e532d04ea5d8c51945d1bf4a319e90c01cd668832b4141c2e6500e7f",
+        "source/rexmi_rl/nav/ascent_behavior.py": "0bfaf4ca0b55782ea6c48ce2241c008d7a1c390a8228a44beab40e6759c64724",
+        "source/rexmi_rl/nav/checkpoint_runner.py": "fdc4df8f4273962f6e3bb21613db04ef08ec5b6628a05017d16fbb1a2eb7030b"
+      },
+      "corrections": [
+        "Posture response owns output before ordinary stage eligibility loss.",
+        "Existing measured DRIVE backslide/stall before new stage admission.",
+        "Reject nonfinite observations; preserve valid positive-infinity no-obstacle sentinel.",
+        "Recheck complete staging footprint on next-tick BT result consumption."
+      ],
+      "acceptance": [
+        "Compare first actual command divergence with trial24; expected recovery only.",
+        "Report stageentry/settle/timeout/handoff rejection, episode clock and preserved exclusions.",
+        "Determine whether replanning chooses and attempts a new approach; handoff is censored and not success."
+      ]
+    },
+    {
+      "id": "measured-release-proposal",
+      "date": "2026-09-24",
+      "rating": 8,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": false,
+      "scope": "Minimum5s actual forward exposure AND complete2s current deliberately emitted DRIVE measurement AND1s continuous eitheraxis/gradientprogress<.10m/s before RELEASE. NonDRIVE/newrequest/invalid/gap clears short history. Existingguards and12/24 budgets unchanged.",
+      "limitation": "Provisional switching heuristic. Manualgoodzero release timings differ; does not establishoptimalboundary, traction estimate, orcounterfactualrouteoutcome."
+    },
+    {
+      "id": "measured-release-implementation-and-trial26",
+      "date": "2026-09-24",
+      "rating": 8.5,
+      "run_rating": 8,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": true,
+      "scope": "ONE trial26 seed42/full labeled prior/fresh evidence/same rocky policy and physics/existing900s maximum/normal HOLD andhardfault. Freezev24; nootherthreshold/routechanges.",
+      "independent_focused_tests": 275,
+      "full_suite_tests": 570,
+      "files_sha256": {
+        "source/rexmi_rl/nav/movement.py": "9eea607493e9325e2cfed8ae1ee8b8eb5f1a23d9ab98fca6bd02f24a2fc08fad",
+        "source/rexmi_rl/nav/ascent_behavior.py": "4146ce3c9429353e4194f42b4ce83f1c5b3a1baf0f3a4823390cfab747925e8c",
+        "source/rexmi_rl/nav/checkpoint_runner.py": "3a5eca480a5f4d8841f05e986ede5b19af64a53dcc4e76109285daed20228f64"
+      },
+      "acceptance": [
+        "Compareprefixagainsttrial25; expectedfirstactualdifferenceformer48.46s timer switch.",
+        "Log later drive_release_selected window/rates/dwell/exposure and actual uphilldistancebefore nextintervention.",
+        "Nooptimalboundary/calibration/ascentqualification claim."
+      ]
+    },
+    {
+      "id": "frozen-survey-route-diversity-diagnostic",
+      "date": "2026-09-24",
+      "rating": 9,
+      "agree": true,
+      "implementation_allowed": false,
+      "simulator_run_allowed": false,
+      "scope": "Read-only eight bearing sectors, one map-derived gentle elevated portal each; at most sixteen 60k existing heading searches. Fixed prior and initial trial26 pose/yaw, exact goal. Classify actual climb corridor, not portal bearing. Preserve rejected candidates and budget status, full approach/bend/onward/retreat checks and cost breakdown. No evidence/freshness mutation or physical success claim."
+    },
+    {
+      "id": "frozen-survey-grade-ladder-diagnostic",
+      "date": "2026-09-24",
+      "rating": 9,
+      "agree": true,
+      "implementation_allowed": false,
+      "simulator_run_allowed": false,
+      "scope": "Read-only four exact-goal searches at uphill caps28,30,32,33 with unchanged60k budget, geometry/costs and fixed prior/pose/yaw. Preserve exhaustion and source hashes. No live selection change."
+    },
+    {
+      "id": "untested-corridor-characterization-proposal",
+      "date": "2026-09-24",
+      "rating": 8,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": false,
+      "scope": "Opt-in initial characterization only: eight map-derived gentle sector portal alternatives; choose lowest unchanged-cost eligible complete route whose first sustained climb has not been executed in comparable history. Coverage metadata only, no probabilities/no-go/evidence imports. Default and qualified routing unchanged. Existing executor/recovery/guards unchanged.",
+      "conditions": [
+        "Spatial plus continuous-heading corridor classes, stable under subcell shifts and floor/rim detours.",
+        "At least1m longitudinal overlap, maximum1.2m lateral separation throughout overlap, <=10deg heading difference; document overlap fractions.",
+        "Validate available source/policy/geometry/task/seed/spawn/capability/materials, disclose missing historical body mass/config hashes.",
+        "Separate candidate selection/adoption/executed physical evidence.",
+        "No eligible initial untested route must be reported, not silently replaced by a covered experiment."
+      ]
+    },
+    {
+      "id": "route-exploration-implementation-and-trial27",
+      "date": "2026-09-24",
+      "rating": 8.5,
+      "run_rating": 8,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": true,
+      "scope": "ONE trial27:seed42/labeled full survey/fresh mission evidence/unchanged V24 executor/policy/physics configuration/existing900s andnormalHOLD/fault, addingonly trial26 coveragehistory; no additional run.",
+      "independent_focused_tests": 287,
+      "full_suite_tests": 582,
+      "files_sha256": {
+        "source/rexmi_rl/nav/ascent_behavior.py": "1910278202632e25aed03f1ed5c51e487b98bf6e8441b140b50461d5a61d48c2",
+        "source/rexmi_rl/nav/ascent_control.py": "44872ea24426083b8cb1a9d153416a8d6c74b94e117a417a9914ca75bee05078",
+        "source/rexmi_rl/nav/route_exploration.py": "38d3aeb8b4ee7194ab3d88dda6db74fa94117e3a9a64fe2b3ab94ff6eb0df139",
+        "source/rexmi_rl/nav/movement.py": "9eea607493e9325e2cfed8ae1ee8b8eb5f1a23d9ab98fca6bd02f24a2fc08fad",
+        "source/rexmi_rl/nav/checkpoint_runner.py": "4fc5fd3e1841056ab0fb7d89bf1c8ff54d9dd302d4625fe7b3c3c46b51294363",
+        "scripts/navigate.py": "c0f2a2bd120f12a4e5c8c713f8e04f55a3ff632c63b0241cee8099a702371788"
+      },
+      "corrections": [
+        "Completed successfulattempts collectactualuphillDRIVE chunks acrossmovementoutcomes; physicalflagrequiredonlyforfailures.",
+        "Corridorclass uses>=1moverlap andmaximumlateral separationoveroverlap; coverageonly."
+      ],
+      "acceptance": [
+        "Separate selection/adoption/actualclimbexecution.",
+        "Preserveallfailures; noP(success),best-route,orqualification claim."
+      ]
+    },
+    {
+      "id": "entrance-experiment-ledger-proposal",
+      "date": "2026-09-24",
+      "rating": 8,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": false,
+      "scope": "Initial-only characterization scheduling distinguishes completed sustainedclimb coverage from physically executed climb-containingentrance censoredby exactexecutiongeometry rejection. Combine trial26+27 history, selectlowestunchanged-cost untriedentrance; no actuator/guard/terrainprobability/exclusionchanges.",
+      "conditions": [
+        "Require>=.4m measuredadvanceprojectedalongplannedleg,notlateralmotion.",
+        "Require associatedmatchingterminalmovement andCSVfirstemissiontarget/action/pose/positiveDRIVE; rejectmissingduplicate/nonfinite/mismatchevidence.",
+        "Direction<=10deg,band<=1.2m,within1mpresteep; coarsemembershiponly.",
+        "Verifyarchivedguardprovenance andmatchingsemantics; rejectstale/operator/planning/floor-onlyoutcomes."
+      ]
+    },
+    {
+      "id": "entrance-ledger-implementation-and-trial28",
+      "date": "2026-09-24",
+      "rating": 8.5,
+      "run_rating": 8,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": true,
+      "scope": "ONE trial28 seed42/fullsurvey/freshmissionevidence/trial26+27 schedulingmetadata only, unchangedV24executor/costs/protections, exactgoal13,0 and900s/normalHOLD/fault bounds. No subsequentrunincluded.",
+      "independent_full_suite_tests": 588,
+      "full_suite_tests": 588,
+      "independent_ledger_tests": 18,
+      "files_sha256": {
+        "source/rexmi_rl/nav/ascent_behavior.py": "edac5bce8c58ab7d4a047831dc2fb69597cbbcc3a1b8ef97255311d6ef7417d8",
+        "source/rexmi_rl/nav/ascent_control.py": "44872ea24426083b8cb1a9d153416a8d6c74b94e117a417a9914ca75bee05078",
+        "source/rexmi_rl/nav/route_exploration.py": "7020fbb449a77f9fa93716b468afa1a3fc8d71770131a6cd489d40aebb2c5752",
+        "source/rexmi_rl/nav/movement.py": "9eea607493e9325e2cfed8ae1ee8b8eb5f1a23d9ab98fca6bd02f24a2fc08fad",
+        "source/rexmi_rl/nav/checkpoint_runner.py": "1927981ef0d9fa10387c55afa3a512af119b9a8ee2384a3537a1d875a7c1b914",
+        "scripts/navigate.py": "5076cc8c64c4c96739f233716bc607f4e9ebe29d260e714b6db0d5715e6d9250"
+      },
+      "acceptance": [
+        "Report entranceexecution and sustainedclimbcharacterization separately.",
+        "No importedprobability/no-go votes.",
+        "Preserveallphysical/censoredoutcomes; noqualificationclaim."
+      ]
+    },
+    {
+      "id": "checked-forward-speed-proposal",
+      "date": "2026-09-24",
+      "rating": 8.5,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": false,
+      "scope": "Bounded pure forward-command selection within unchanged actual-drift and stopping fan; nominal first, descending .025m/s candidates to .10. Exact recheck before emission. Preserve reverse/brake/turn/RELEASE-zero, priorities and clocks. Explicit reviewed legacy26/27 scheduling only.",
+      "evidence": "outputs/ascent_behavior_tree/trial28/guard-command-replay.json",
+      "independent_evidence": "outputs/control_review/trial28_independent_review.json"
+    },
+    {
+      "id": "checked-forward-speed-implementation-and-trial29",
+      "date": "2026-09-24",
+      "rating": 8.5,
+      "run_rating": 8,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": true,
+      "scope": "ONE trial29 seed42/fullsurvey/fresh mission evidence/exact13,0; trial26+27 reviewed legacy scheduling only; unchanged policy/physics/costs/limits and900s/HOLD/fault; no scan logging.",
+      "independent_full_suite_tests": 603,
+      "full_suite_tests": 603,
+      "files_sha256": {
+        "source/rexmi_rl/nav/movement.py": "b55a11ed800c4c7919238874f9806e75080fcf253fec7872225d2e89a2963fb1",
+        "source/rexmi_rl/nav/ascent_behavior.py": "001acaea31283dca6ed18223d385b5611ea936dd8279225f3cd8d0bad85789de",
+        "source/rexmi_rl/nav/route_exploration.py": "83cd14ea2a6f10ec903776848a4b9da7724392c5f9919b6ed6ab79f4e2b611e2",
+        "source/rexmi_rl/nav/command_selection.py": "4eba3bd093ad831a12ec7efb6e33638903ee73364315665f0bde1d29aac6e7a5",
+        "source/rexmi_rl/nav/checkpoint_runner.py": "17c6ce78afd66cb04dc9fdfd2fe2a0d4b4c8bd3a7d8ce185de0e98e5cb004dca",
+        "source/rexmi_rl/nav/swept_footprint.py": "b3ca6484b909478c239b1ffe48dcccc061872930d60034dd726684d268afac71",
+        "source/rexmi_rl/nav/ascent_map.py": "a8bed2eaddbfbc3b3e197c05f98468f463106660bbeca2907c347637dbd401f1"
+      },
+      "corrections": [
+        "Snapshot immutable command ceiling before callback; pass and return copies; reject invalid selector results."
+      ],
+      "acceptance": [
+        "Compare trial28 pose/command prefix and first selected-speed emission.",
+        "Report actual vscommanded speed, freshness and controller latency; no qualification claim."
+      ]
+    },
+    {
+      "id": "directional-occupied-exit-proposal",
+      "date": "2026-09-24",
+      "rating": 8.5,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": false,
+      "scope": "Incidental reverse-recovery stopping/braking may leave occupied directional exclusion with non-increasing full-mask depth including diagonal bridges, no re-entry. Normal forward/route planning and commanded reverse geometry unchanged. Preserve all masks, deadlines, physical guards and outcome rules.",
+      "evidence": "outputs/control_review/trial29_directional_exit_replay.json",
+      "legacy_scope": "Exact archived26/27 movement+behavior pairs and map/swept hashes only; explicit v28 profile addition, scheduling-only witnesses."
+    },
+    {
+      "id": "directional-exit-implementation-and-trial30",
+      "date": "2026-09-24",
+      "rating": 8.5,
+      "run_rating": 8,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": true,
+      "scope": "ONE trial30 seed42/fullsurvey/fresh evidence/history26+27 legacy only; exactgoal13,0; unchangedpolicy/physics/commandcaps/900s/HOLD/fault. Test checkedreverse recovery thenreplan. Adaptiveuphill continuation andlateral-failure reclassification excluded.",
+      "independent_full_suite_tests": 614,
+      "full_suite_tests": 614,
+      "files_sha256": {
+        "source/rexmi_rl/nav/movement.py": "b55a11ed800c4c7919238874f9806e75080fcf253fec7872225d2e89a2963fb1",
+        "source/rexmi_rl/nav/ascent_behavior.py": "e1ed638cabc439bad3b55eb947e3539f5b44690f8e6f4f45863fd2050ef295a4",
+        "source/rexmi_rl/nav/route_exploration.py": "853db16a80e870fc5140771b35e2fe5051e09b6bcc84177f894986764478e3e1",
+        "source/rexmi_rl/nav/command_selection.py": "4eba3bd093ad831a12ec7efb6e33638903ee73364315665f0bde1d29aac6e7a5",
+        "source/rexmi_rl/nav/checkpoint_runner.py": "6f1c06756c36444e39764835a36aff6b58e58054b944737cf485d96241958e84",
+        "source/rexmi_rl/nav/swept_footprint.py": "9074eccfa5afef7f487413e0a08ee4b8c87aaccab250b3407dfdbdfd77367b96",
+        "source/rexmi_rl/nav/ascent_map.py": "806a31ea8512b92f67e82a4f6fad49d59eeab731260316e07def3e1247640f77"
+      },
+      "acceptance": [
+        "Compare prefix to29 andretainedexclusionmask.",
+        "Report actualreverse/staging/replan,commandvsactualspeed,tip/backslide,latency."
+      ]
+    },
+    {
+      "id": "departure75-diagnostic-proposal",
+      "date": "2026-09-24",
+      "rating": 9,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": false,
+      "scope": "Onlyopt-in capture_ascent_departure ceiling65\u219275andCLIhelp; normalcontrolunchanged. One diagnosticrequiresseparatecode/rungate. Exactpre-rejectionmap toassessproductiveascentlateralcutoff."
+    },
+    {
+      "id": "departure75-implementation-and-corridor02",
+      "date": "2026-09-24",
+      "rating": 9,
+      "run_rating": 9,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": true,
+      "scope": "ONE corridor02 diagnostic sameastrial30 pluscapture_ascent_departure,75simsecondsmax; stoponfirstcapturebeforepolicy_actions/env.step orHOLD/fault. Nomission/qualificationcredit; nocontrolchange.",
+      "independent_focused_tests": 7,
+      "files_sha256": {
+        "source/rexmi_rl/nav/checkpoint_runner.py": "01fe38307a4433f670679c5759889a5800f7d7962823f5541de85fb61965720d",
+        "scripts/navigate.py": "9df980f2b848026594a0f6961a19b65b038f779f0ba7e022adc954681b66c1af"
+      },
+      "acceptance": [
+        "Compareexactpose/commandprefixwithtrial30.",
+        "Capturepre-failuremap/request/axis/budgetsandoriginalreturneddecision/output."
+      ]
+    },
+    {
+      "id": "paired-launch-variant-proposal",
+      "date": "2026-09-24",
+      "rating": 8,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": false,
+      "scope": "Initial opt-in paired_launch_variant / same_climb_class. Retain map-derived prefixes through first post-climb gentle vertex; re-search suffix to exact goal. Original lowest-cost eligible reference, strictly fewer compacted pre-climb bends and flatter full-footprint launch, original costs and all guards. No variant means diagnostic HOLD. Unchanged executor, policy and physics; exact trial26/27 scheduling witnesses only.",
+      "evidence": "outputs/ascent_departure_diagnostics/corridor02/run.departure.npz",
+      "reason": "Local forward motion remains feasible but current heading misses endpoint by2.61m without a confirmed gentle turning spot. Blanket corridor widening does not establish completion; compare launch preparation."
+    },
+    {
+      "id": "paired-launch-implementation-and-trial31",
+      "date": "2026-09-24",
+      "rating": 8.5,
+      "run_rating": 8,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": true,
+      "independent_full_suite_tests": 627,
+      "full_suite_tests": 627,
+      "scope": "ONE trial31 seed42/full survey/fresh mission evidence/history26+27 plus ascent_launch_variant. Exact13,0; <=900simseconds/HOLD/fault; unchanged executor/guards/costs/taxonomy/policy/physics; frozen sources. Paired same-class launch characterization only.",
+      "files_sha256": {
+        "source/rexmi_rl/nav/ascent_behavior.py": "43d1906f4ce6f9b697a1c80682b71a343e96ec3bc74249146fdcb97f44ca1b39",
+        "source/rexmi_rl/nav/ascent_control.py": "f8506107138269edaaa6e8ea7ff0a5173ecdf20cb7af16281297a1d213625c08",
+        "source/rexmi_rl/nav/route_exploration.py": "5e52ef20c07f913f53534e15634bc0ad73636813cd6380ea18d986ade255cd28",
+        "source/rexmi_rl/nav/movement.py": "b55a11ed800c4c7919238874f9806e75080fcf253fec7872225d2e89a2963fb1",
+        "source/rexmi_rl/nav/ascent_map.py": "806a31ea8512b92f67e82a4f6fad49d59eeab731260316e07def3e1247640f77",
+        "source/rexmi_rl/nav/swept_footprint.py": "9074eccfa5afef7f487413e0a08ee4b8c87aaccab250b3407dfdbdfd77367b96",
+        "source/rexmi_rl/nav/command_selection.py": "4eba3bd093ad831a12ec7efb6e33638903ee73364315665f0bde1d29aac6e7a5",
+        "source/rexmi_rl/nav/checkpoint_runner.py": "bb80bff7c33b1668917fcac250be0475c7995ad95548019bdfeac1fe6cafeb1e",
+        "scripts/navigate.py": "3a4312dfffb08ebee7dcdbdc345a42818751dbc0436baf23647d0bdb37e7bbdc"
+      },
+      "corrections": [
+        "Match adjacent launch-start/end edge when coordinates repeat.",
+        "Copy paired comparison into actual approach_start prediction event."
+      ],
+      "acceptance": [
+        "Report actual adopted reference/variant and measured climb entry.",
+        "Report sustained climb, progress/drift/recovery/exclusions/outcomes/speeds/latency.",
+        "No-variant/live-adoption rejection is an outcome, not permission to rerun."
+      ]
+    },
+    {
+      "id": "paired-launch-corridor03-diagnostic",
+      "date": "2026-09-24",
+      "rating": 8.5,
+      "agree": true,
+      "implementation_allowed": false,
+      "simulator_run_allowed": true,
+      "scope": "ONE unchanged-code corridor03 diagnostic, same trial31 plus capture_ascent_departure;<=75simsec orfirstcapture/HOLD/fault; no postdecision physics step, no mission credit. No governor or continuation changes.",
+      "evidence": "outputs/control_review/trial31_speed_events.json",
+      "reason": "Trial31 terminal body alignment differs materially from30; exact pre-rejection map needed to assess current-heading onward geometry."
+    },
+    {
+      "id": "uphill-speed-zero-response-proposal",
+      "date": "2026-09-24",
+      "rating": 8,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": false,
+      "scope": "Explicit characterization opt-in: one admitted uphill-surge RELEASE response per executed mission-forward primitive. Trigger>.45;>=.50 immediate damping, .20s nonrenewable response, decay<=.45 retains normal checked RELEASE. Fresh continuous2s actual-forward history with both axis/gradient>=.02, positive instantaneousboth,up_z>=.8,validattitude/normal,all original protections/clocks/geometry. No outcome vote. Default unchanged.",
+      "provisional_bounds": {
+        "intervention_speed_mps": 0.5,
+        "response_seconds": 0.2
+      },
+      "evidence": [
+        "outputs/control_review/trial31_speed_events.json",
+        "outputs/control_review/corridor03_geometry.json"
+      ],
+      "declined_alternative": {
+        "proposal": "current-heading checkpoint handoff",
+        "rating": 7,
+        "reason": "Incomplete live near-field freshness and robust settling/stop support; do not implement."
+      }
+    },
+    {
+      "id": "uphill-speed-response-implementation-and-trial32",
+      "date": "2026-09-24",
+      "rating": 8.5,
+      "run_rating": 8,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": true,
+      "full_suite_tests": 641,
+      "independent_full_suite_tests": 641,
+      "scope": "ONE trial32 exact trial31 flags plus ascent_uphill_speed_response. Seed42/fullsurvey/fresh mission evidence/history26+27/pairedlaunch/exact13,0; <=900simsec/HOLD/fault. Frozen sources; no further run or threshold change.",
+      "files_sha256": {
+        "source/rexmi_rl/nav/checkpoint_runner.py": "0fa1c0c4eea5de333d16b9d747e7e1e3fde21da66e06e1a9cbb708353f52f6ea",
+        "source/rexmi_rl/nav/checkpoint_control.py": "d6af33727fe7a7f39d5a5795d0ec231db3e6a826bb24803b29338c0c3df39408",
+        "source/rexmi_rl/nav/observed_map.py": "c883a8632ff2c04e44d4ba6dc12dd77a6f64c88cccc8b9eb384c5603b3abe7a2",
+        "source/rexmi_rl/nav/ascent_control.py": "f8506107138269edaaa6e8ea7ff0a5173ecdf20cb7af16281297a1d213625c08",
+        "source/rexmi_rl/nav/ascent_map.py": "806a31ea8512b92f67e82a4f6fad49d59eeab731260316e07def3e1247640f77",
+        "source/rexmi_rl/nav/ascent_routes.py": "eb2ec6527f67bd91ecf232219605620e992064dcdb72ec9cf8e6e892aace1a95",
+        "source/rexmi_rl/nav/reachability.py": "890447f85ae0cf1be4ca0f1eb31cbc51a4def8da6bf0cf6355d2f583f1c1acce",
+        "source/rexmi_rl/nav/ascent_behavior.py": "fe3a35448922997ad1f49dad1ca4ca8aac171e6e19ecd5657e68b2b8ff2766b6",
+        "source/rexmi_rl/nav/behavior_tree.py": "4fecda3274fa47724a50f8e8dab1e4cb97cc42c67f6018b22b9fd679aa8a631e",
+        "source/rexmi_rl/nav/movement.py": "13c31cc1342bb8b02150014cefe05acc6854738670e2e446cd590be62ff54f8b",
+        "source/rexmi_rl/nav/staged_routes.py": "4036aa785aae1ffbe0d6103b92bd8d46addcb09d664bb7c8a1bcb9d6997b05c6",
+        "source/rexmi_rl/nav/swept_footprint.py": "9074eccfa5afef7f487413e0a08ee4b8c87aaccab250b3407dfdbdfd77367b96",
+        "source/rexmi_rl/nav/departure_diagnostics.py": "1454286cfe6414e8d2b0dea7d3e3a2219f4bc40186a1926ee42aed90553e9876",
+        "source/rexmi_rl/nav/route_exploration.py": "a8c5ce431d68223a720bcc632298d5da386d2e82db5143a65b4bda7ce9d768af",
+        "source/rexmi_rl/nav/command_selection.py": "4eba3bd093ad831a12ec7efb6e33638903ee73364315665f0bde1d29aac6e7a5",
+        "source/rexmi_rl/nav/terrain_prior.py": "70aeebb2877c9360abd9f57136f19aa08658fda64f5b377b21402578abb390c1",
+        "scripts/navigate.py": "ff35af85c5001b46c33875fef6322bbe7d853455576431b06a7cee83ff604f21",
+        "source/rexmi_rl/drive_adapter.py": "94ba01e807966c3809ab6f504107c1894c5c89fd76b05fc1a26703afbe11bf67"
+      },
+      "default_replay": "outputs/control_review/v30_default_replay.json",
+      "acceptance": [
+        "Compare first changed command and measured response; one admitted episode per primitive.",
+        "Retain downhill damping, command limits, original route and budgets.",
+        "Report actual speed, tip/backslide, recovery, exclusions/outcomes and latency; no qualification claim."
+      ]
+    },
+    {
+      "id": "recovery-purpose-capture-proposal",
+      "date": "2026-09-24",
+      "rating": 9,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": false,
+      "scope": "Diagnostic-only purpose filter: skip mission departures without side effects, preserve failure/exclusion/recovery, capture first recovery lateral departure before returned output is applied; retain 75s cap.",
+      "acceptance": [
+        "Default any unchanged; match filter before attempted/copy/logging.",
+        "Detached recovery clocks, actions, progress, direction and executor stage/speed state.",
+        "No navigation changes; separate implementation and one-run gates."
+      ],
+      "evidence": [
+        "outputs/control_review/trial32_independent_review.json"
+      ]
+    },
+    {
+      "id": "recovery-purpose-capture-implementation-and-recovery01",
+      "date": "2026-09-24",
+      "rating": 9,
+      "run_rating": 9,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": true,
+      "independent_full_suite_tests": 644,
+      "scope": "ONE diagnostic recovery01: exact trial32 settings plus capture_ascent_departure and purpose recovery. 75simsec ceiling; stop before selected output physics. No motion changes.",
+      "files_sha256": {
+        "source/rexmi_rl/nav/departure_diagnostics.py": "b893e64abad8504262c0dbf58ea8d58cdaed53c71a274abf91fb97eaf9263b1b",
+        "source/rexmi_rl/nav/checkpoint_runner.py": "22dca50d8cd56e450e3f8bb69d9c17bbffaf96d020c082cbf1cd393ec513ae71",
+        "scripts/navigate.py": "dc315a06466ceaa55762bc4e2eb21d2111dc2ffbbc84fc27ee268001e711d395",
+        "source/rexmi_rl/nav/movement.py": "13c31cc1342bb8b02150014cefe05acc6854738670e2e446cd590be62ff54f8b"
+      },
+      "acceptance": [
+        "Compare complete pose/command prefix through67.18s.",
+        "Retain51.58 mission physical outcome and exclusion in snapshot.",
+        "Original recovery command/result preserved, purpose recovery.",
+        "No mission/qualification credit."
+      ]
+    },
+    {
+      "id": "functional-recovery-region-proposal",
+      "date": "2026-09-24",
+      "rating": 8,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": false,
+      "scope": "One immutable reverse functional-staging certificate per recovery episode; fixed1m outer/.5m inner region, finite independently checked approach; same executor action, original request deadline/axis/progress/recovery budget.",
+      "evidence": [
+        "outputs/ascent_departure_diagnostics/recovery01/recovery_analysis.json",
+        "outputs/control_review/recovery01_geometry.json",
+        "outputs/control_review/recovery01_fan.json"
+      ],
+      "acceptance": [
+        "Keep physical failures, STOP/tip/posture/overspeed priority and live fresh stopping checks.",
+        "Known surveyed distant approach; entire staging region fresh before inner-core entry/settling.",
+        "Censor original point prediction once; separate explicitly unvalidated region phase and phase execution attribution.",
+        "One terminal movement outcome; settled region is censored REPOSITIONED, no point/mission success.",
+        "No repeated certificate or moving goal; preserve all previous exclusions.",
+        "Separate independent code and one-run gates."
+      ]
+    },
+    {
+      "id": "functional-recovery-implementation-review-iteration",
+      "date": "2026-09-24",
+      "rating": 7,
+      "agree": false,
+      "implementation_allowed": false,
+      "simulator_run_allowed": false,
+      "scope": "Pre-final V31 implementation review; no run performed.",
+      "blockers": [
+        "Intentional inner-core waiting could become a physical locomotion stall.",
+        "Executor-only invalid observation stop allowed next controller tick to damp from NaN input."
+      ],
+      "resolution": "Implemented shared fixed core/stage observation clock and controller-level latched invalid-input HOLD; final independent review pending."
+    },
+    {
+      "id": "functional-recovery-implementation-and-trial33",
+      "date": "2026-09-24",
+      "rating": 8,
+      "run_rating": 8,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": true,
+      "independent_full_suite_tests": 679,
+      "independent_post_timing_focused_tests": 45,
+      "scope": "ONE trial33: exact trial32 settings plus ascent_recovery_continuation; seed42 fullsurvey/history26+27/pairedlaunch/speedresponse/exact13,0. Fresh mission evidence, frozen source, <=900simsec or normal HOLD/fault. No other run/stage authorization.",
+      "files_sha256": {
+        "source/rexmi_rl/nav/movement.py": "ceb397b09f34b9b47fccf7ade6b2f8f3fc22ae42a2fceca7134624557b1a56e2",
+        "source/rexmi_rl/nav/ascent_behavior.py": "f10e01148519c05c21369e14b6a31fab911e75313a21ad0c9f8d4c01502aaed1",
+        "source/rexmi_rl/nav/recovery_continuation.py": "fec6cd29fcb849c2055948eccd0d29eddfcf8140995e179ef4a25cdd404a8022",
+        "source/rexmi_rl/nav/checkpoint_runner.py": "41034edccad33459286fb89765179be4f0382f9509f637ab5b5c0265d721164e",
+        "source/rexmi_rl/nav/departure_diagnostics.py": "924cefedf5bd0aced817baee596e87060a8a6ca6db20edb1e62df08733bfe9dc",
+        "source/rexmi_rl/nav/route_exploration.py": "291eebc68917c777c11e08ffaae59c35d5cf9b8804fbb14a3eef52839b42af97",
+        "scripts/navigate.py": "21e9b3dd40471a5b5194ad40ae7f0c318b46e95a0a8fdf0105d1275ddcb9b83b",
+        "scripts/fit_reachability.py": "035421dff1acc98ec0bfa2fe938e0e234f3c4fd86740bb7c8a2e3cfcce212cf6"
+      },
+      "review_artifact": "outputs/control_review/v31_final_review.json",
+      "acceptance": [
+        "Expected unchanged prefix to67.16; examine firstdivergence67.18.",
+        "Retain51.58 original exclusion; nominalcensor/regionunvalidated phases beforecontinuedoutput.",
+        "No mission or endpointsuccess for recovery staging; no clocks/budget reset or duplicatefailure.",
+        "Report completed mission, recovery, speed/tilt/backslide and admission/continued/core timing."
+      ]
+    },
+    {
+      "id": "productive-ascent-capture-climb01",
+      "date": "2026-09-24",
+      "rating": 9,
+      "agree": true,
+      "implementation_allowed": false,
+      "simulator_run_allowed": true,
+      "scope": "ONE climb01 unchanged frozen V31/trial33 settings plus existing mission-filtered departure capture. Stop before applying original51.58s returned failure output,75simsec ceiling. No additional reverse exposure or motion edits.",
+      "files_sha256": {
+        "source/rexmi_rl/nav/movement.py": "ceb397b09f34b9b47fccf7ade6b2f8f3fc22ae42a2fceca7134624557b1a56e2",
+        "source/rexmi_rl/nav/ascent_behavior.py": "f10e01148519c05c21369e14b6a31fab911e75313a21ad0c9f8d4c01502aaed1",
+        "source/rexmi_rl/nav/recovery_continuation.py": "fec6cd29fcb849c2055948eccd0d29eddfcf8140995e179ef4a25cdd404a8022",
+        "source/rexmi_rl/nav/checkpoint_runner.py": "41034edccad33459286fb89765179be4f0382f9509f637ab5b5c0265d721164e",
+        "source/rexmi_rl/nav/departure_diagnostics.py": "924cefedf5bd0aced817baee596e87060a8a6ca6db20edb1e62df08733bfe9dc",
+        "source/rexmi_rl/nav/route_exploration.py": "291eebc68917c777c11e08ffaae59c35d5cf9b8804fbb14a3eef52839b42af97",
+        "scripts/navigate.py": "21e9b3dd40471a5b5194ad40ae7f0c318b46e95a0a8fdf0105d1275ddcb9b83b",
+        "scripts/fit_reachability.py": "035421dff1acc98ec0bfa2fe938e0e234f3c4fd86740bb7c8a2e3cfcce212cf6"
+      },
+      "acceptance": [
+        "Compare complete pose/command prefix.",
+        "Analyze unchanged fresh stopping plus surveyed full approach, body and measured-response spread, supported settling region and complete onward exact13,0 route.",
+        "No continuation or following simulator run authorized."
+      ]
+    },
+    {
+      "id": "climb01-fixed-continuation-rejected",
+      "date": "2026-09-24",
+      "rating": 5,
+      "agree": false,
+      "implementation_allowed": false,
+      "simulator_run_allowed": false,
+      "scope": "Reject fixed uphill region handoff from51.58s exactcapture. Body and observed RELEASE displacement modes lack one usable supported settling region and onward approach under unchanged gates.",
+      "evidence": [
+        "outputs/ascent_departure_diagnostics/climb01/capture_audit.json",
+        "outputs/control_review/climb01_geometry.json",
+        "outputs/control_review/climb01_fine_drift_geometry.json"
+      ],
+      "reason": "Body ray no gentle footprint before known extent; observed passive drift ray blocked ahead including >35 degree support; reachable original-heading staging would require steep turn. commanded=False replay confirms rejection does not rely solely on displacement directional-grade calculation."
+    },
+    {
+      "id": "default-cost-v30-revisit-trial34",
+      "date": "2026-09-24",
+      "rating": 8,
+      "agree": true,
+      "implementation_allowed": false,
+      "simulator_run_allowed": true,
+      "scope": "ONE unchanged-source trial34 default-cost45degree revisit: seed42/fullsurvey/freshmap/evidence, uphill-speed-response ON, history/pairedlaunch/recoverycontinuation OFF, <=900simsec or normal HOLD/fault. Policy/physics/guards unchanged.",
+      "review_artifact": "outputs/control_review/trial34_gate.json",
+      "files_sha256": {
+        "source/rexmi_rl/nav/movement.py": "ceb397b09f34b9b47fccf7ade6b2f8f3fc22ae42a2fceca7134624557b1a56e2",
+        "source/rexmi_rl/nav/ascent_behavior.py": "f10e01148519c05c21369e14b6a31fab911e75313a21ad0c9f8d4c01502aaed1",
+        "source/rexmi_rl/nav/recovery_continuation.py": "fec6cd29fcb849c2055948eccd0d29eddfcf8140995e179ef4a25cdd404a8022",
+        "source/rexmi_rl/nav/checkpoint_runner.py": "41034edccad33459286fb89765179be4f0382f9509f637ab5b5c0265d721164e",
+        "source/rexmi_rl/nav/departure_diagnostics.py": "924cefedf5bd0aced817baee596e87060a8a6ca6db20edb1e62df08733bfe9dc",
+        "source/rexmi_rl/nav/route_exploration.py": "291eebc68917c777c11e08ffaae59c35d5cf9b8804fbb14a3eef52839b42af97",
+        "scripts/navigate.py": "21e9b3dd40471a5b5194ad40ae7f0c318b46e95a0a8fdf0105d1275ddcb9b83b",
+        "scripts/fit_reachability.py": "035421dff1acc98ec0bfa2fe938e0e234f3c4fd86740bb7c8a2e3cfcce212cf6"
+      },
+      "acceptance": [
+        "Report actual route/first divergence against26 including V27/V28 changes; no isolated V30 causal claim.",
+        "Report complete failures, actual speed/tilt/backslide/recovery/latency.",
+        "No additional run or descent gate."
+      ]
+    },
+    {
+      "id": "passive-event-snapshot-proposal",
+      "date": "2026-09-24",
+      "rating": 9,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": false,
+      "scope": "Optional bounded passive executor-termination and first actual brake-rejection snapshots; max4 per mission, detached arrays and async export. No motion rule changes. Flush existing hard-fault movement result once without recovery/replan/evidence duplication.",
+      "acceptance": [
+        "Capture after last held traversal observation and before request clearing/exclusions.",
+        "Preserve exact underlying brake reason without duplicate geometry evaluation; pure probes do not capture.",
+        "Distinct returned/submitted/completed output metadata; stop and exception not misreported applied.",
+        "Bound queue memory, deduplicate action/reason family, expose dropped/error counts and copy latency.",
+        "Errors cannot alter original commands or outcome; separate implementation/run review."
+      ]
+    },
+    {
+      "id": "release-overspeed-snapshot-extension",
+      "date": "2026-09-24",
+      "rating": 9,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": false,
+      "scope": "Extend passive recorder to first actual release-owned overspeed brake transition per action, before state change; no DRIVE-entry capture slot, unchanged limits/commands.",
+      "acceptance": [
+        "Preserve posture/suspended-release ownership and raw/projected motion/clocks.",
+        "Capture only after higher-priority decisions select actual braking; no repeated BRAKE-tick snapshots.",
+        "Explicit cap-drop counts and offline trial34 budget-sequence check.",
+        "Separate implementation and physics gate."
+      ]
+    },
+    {
+      "id": "passive-event-snapshot-implementation",
+      "date": "2026-09-24",
+      "rating": 8.5,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": false,
+      "independent_full_suite_tests": 690,
+      "independent_default_replay_observations": 1741,
+      "scope": "Optional passive event snapshots and one-time hard-fault result publication. No command, speed, geometry, timing budget or evidence-vote change.",
+      "files_sha256": {
+        "source/rexmi_rl/nav/movement.py": "6c67fd38bdf350587e72e32547fe49508e66468f232e75c529ad001200829740",
+        "source/rexmi_rl/nav/ascent_behavior.py": "caf63b93dc73b863349e8ff5ea75c99b24a80a83bf80ffb3f00bb274ff4a29b5",
+        "source/rexmi_rl/nav/departure_diagnostics.py": "aaa54783eb862121c597a2cd9467721b5045125e578a81d476cad888e2850357",
+        "source/rexmi_rl/nav/checkpoint_runner.py": "90d0ae3c8099e9ef1e574a8132e0b3e16a429908c77bdd14fd790fbdae9a59a4",
+        "scripts/navigate.py": "e6721aeb9308cda6735199b63940f67cf620b8b0421cc7765b9c3f409004e1e5"
+      },
+      "acceptance": [
+        "Independent fullsuite690 and defaultdisabled1741observation equivalence passed.",
+        "Separate bounded diagnostic gate required."
+      ]
+    },
+    {
+      "id": "passive-snapshots-brake02-diagnostic",
+      "date": "2026-09-24",
+      "rating": 9,
+      "agree": true,
+      "implementation_allowed": false,
+      "simulator_run_allowed": true,
+      "scope": "ONE brake02 diagnostic: trial34 motion settings +ascent_event_snapshots +max_steps3900 (78simsec). No recovery-continuation/history/pairedlaunch. May include about1s unchanged recovery after77.02failure. No qualification or subsequentrun.",
+      "files_sha256": {
+        "source/rexmi_rl/nav/movement.py": "6c67fd38bdf350587e72e32547fe49508e66468f232e75c529ad001200829740",
+        "source/rexmi_rl/nav/ascent_behavior.py": "caf63b93dc73b863349e8ff5ea75c99b24a80a83bf80ffb3f00bb274ff4a29b5",
+        "source/rexmi_rl/nav/departure_diagnostics.py": "aaa54783eb862121c597a2cd9467721b5045125e578a81d476cad888e2850357",
+        "source/rexmi_rl/nav/checkpoint_runner.py": "90d0ae3c8099e9ef1e574a8132e0b3e16a429908c77bdd14fd790fbdae9a59a4",
+        "scripts/navigate.py": "e6721aeb9308cda6735199b63940f67cf620b8b0421cc7765b9c3f409004e1e5"
+      },
+      "review_artifact": "outputs/control_review/event_snapshot_review.json",
+      "acceptance": [
+        "Compare complete pose/command prefix to34.",
+        "Keep every prior failure/exclusion; inspect68.22 and77.02 snapshots.",
+        "Report copycost/drops/dispatchflags; no geometry or control changes."
+      ]
+    },
+    {
+      "id": "navigation-joint-telemetry-proposal",
+      "rating": 9,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": false,
+      "scope": "Optional raw action and physics-rate joint telemetry; reused unchanged teleop logger.",
+      "date": "2026-09-24"
+    },
+    {
+      "id": "release-response-memory-proposal",
+      "rating": 8,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": false,
+      "scope": "One-use characterize-only post-brake mode experiment; complete held RELEASE two/four-second nonpositive response; independently guarded forward admission, actual prior forward witness, unchanged protections/budgets.",
+      "date": "2026-09-24"
+    },
+    {
+      "id": "navigation-joint-telemetry-implementation",
+      "rating": 8.5,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": false,
+      "scope": "Correct completion bookkeeping and best-effort exception cleanup; 24 distinct independent tests passed.",
+      "review_artifact": "outputs/control_review/navigation_joint_telemetry_review.json",
+      "date": "2026-09-24"
+    },
+    {
+      "id": "release-response-memory-implementation",
+      "rating": 8.5,
+      "simulator_run_allowed": false,
+      "independent_full_suite_tests": 708,
+      "scope": "V32 implementation including independent posture interruption check,29 final focused tests and both branch/default replays.",
+      "date": "2026-09-24",
+      "agree": true,
+      "implementation_allowed": true,
+      "files_sha256": {
+        "source/rexmi_rl/nav/movement.py": "05d1b70d19ce9804314debc88fec8543315892f3eb488713a371a7537441ff05",
+        "source/rexmi_rl/nav/release_memory.py": "21a29c82079d79bbcb7c5d0a400c746aa3b8af20ecc1332770c549c0cb403250",
+        "source/rexmi_rl/nav/ascent_behavior.py": "fbd44ce7479bd3fc4abde2f9c7c21f504f262a2b41243dfc4f2d8e013f59f884",
+        "source/rexmi_rl/nav/checkpoint_runner.py": "0a54a8ab7dca933844bfe87f6b65a2cd5e4441e411a60954d0c49c806c4402b5",
+        "source/rexmi_rl/nav/departure_diagnostics.py": "e3a912acfb88179301225c4650361028b8eeacfba451f72662729664ac5eb080",
+        "source/rexmi_rl/nav/joint_diagnostics.py": "d1d6f106a115732d3621323cfa2fd94e24ecfbb2aa79e686e3b19f5f80c0f94b",
+        "scripts/navigate.py": "67df5510bbb1ffcb4ca9b2961a81b144e1d1b93c47b56d3894c3b2dec79351a9",
+        "scripts/joint_telemetry.py": "2da642dd0a25f20096437352fe3941da3732fcbcce3e80e4e321c5e086ffbe54"
+      }
+    },
+    {
+      "id": "trial35-release-memory",
+      "rating": 8,
+      "simulator_run_allowed": true,
+      "scope": "ONE default-route characterization, trial34 settings plusrelease memory, jointtelemetry andpassivesnapshots; <=900simseconds ornormalHOLD/fault; seed42 fullsurvey freshmissionevidence exact13,0; nohistory/pairedlaunch/recoverycontinuation.",
+      "date": "2026-09-24",
+      "agree": true,
+      "implementation_allowed": true,
+      "files_sha256": {
+        "source/rexmi_rl/nav/movement.py": "05d1b70d19ce9804314debc88fec8543315892f3eb488713a371a7537441ff05",
+        "source/rexmi_rl/nav/release_memory.py": "21a29c82079d79bbcb7c5d0a400c746aa3b8af20ecc1332770c549c0cb403250",
+        "source/rexmi_rl/nav/ascent_behavior.py": "fbd44ce7479bd3fc4abde2f9c7c21f504f262a2b41243dfc4f2d8e013f59f884",
+        "source/rexmi_rl/nav/checkpoint_runner.py": "0a54a8ab7dca933844bfe87f6b65a2cd5e4441e411a60954d0c49c806c4402b5",
+        "source/rexmi_rl/nav/departure_diagnostics.py": "e3a912acfb88179301225c4650361028b8eeacfba451f72662729664ac5eb080",
+        "source/rexmi_rl/nav/joint_diagnostics.py": "d1d6f106a115732d3621323cfa2fd94e24ecfbb2aa79e686e3b19f5f80c0f94b",
+        "scripts/navigate.py": "67df5510bbb1ffcb4ca9b2961a81b144e1d1b93c47b56d3894c3b2dec79351a9",
+        "scripts/joint_telemetry.py": "2da642dd0a25f20096437352fe3941da3732fcbcce3e80e4e321c5e086ffbe54"
+      }
+    },
+    {
+      "id": "correction-release-proposal",
+      "date": "2026-09-24",
+      "rating": 8,
+      "agree": true,
+      "implementation_allowed": true,
+      "simulator_run_allowed": false,
+      "scope": "One V32 correction episode: complete2s window+1s deficient dwell+3s actualforward exposure; ordinaryDRIVE5s unchanged; guards/budgets unchanged; no recovery-exclusion changes."
+    }
+  ]
+}

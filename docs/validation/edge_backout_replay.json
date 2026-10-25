@@ -1,0 +1,138 @@
+{
+  "source": "logs/nav/edge_recovery_review/manual_return_route.map.npz",
+  "snapshot_s": 60.0,
+  "position": [
+    7.336764812469482,
+    -0.40353065729141235
+  ],
+  "yaw": -2.2702288175703074,
+  "up_z": 0.7455170452594757,
+  "old_support_rejection": "slope >35 degrees in body/turn envelope",
+  "old_reverse_allowed": false,
+  "old_reverse_rejection": "uphill grade 31.6 exceeds autonomous limit 25 degrees",
+  "new_escape_selected": true,
+  "command": {
+    "vx": -0.4,
+    "omega": 0.0
+  },
+  "reason": "reverse backout: steep footprint cells 1 \u2192 1; teleop boost",
+  "candidates": [
+    {
+      "initial_steep_cells": 1,
+      "final_steep_cells": 0,
+      "peak_steep_cells": 1,
+      "distance_m": 0.4,
+      "direction": "reverse",
+      "curvature": 0.0,
+      "accepted": true,
+      "reason": ""
+    },
+    {
+      "initial_steep_cells": 1,
+      "final_steep_cells": 0,
+      "peak_steep_cells": 1,
+      "distance_m": 0.4,
+      "direction": "reverse",
+      "curvature": -0.25,
+      "accepted": true,
+      "reason": ""
+    },
+    {
+      "initial_steep_cells": 1,
+      "final_steep_cells": 0,
+      "peak_steep_cells": 1,
+      "distance_m": 0.4,
+      "direction": "reverse",
+      "curvature": 0.25,
+      "accepted": true,
+      "reason": ""
+    },
+    {
+      "direction": "forward",
+      "curvature": 0.0,
+      "distance_m": 0.4,
+      "accepted": false,
+      "reason": "backout increases or re-enters cliff exposure"
+    },
+    {
+      "direction": "forward",
+      "curvature": 0.0,
+      "distance_m": 0.6,
+      "accepted": false,
+      "reason": "backout increases or re-enters cliff exposure"
+    },
+    {
+      "direction": "forward",
+      "curvature": 0.0,
+      "distance_m": 0.8,
+      "accepted": false,
+      "reason": "backout increases or re-enters cliff exposure"
+    },
+    {
+      "direction": "forward",
+      "curvature": -0.25,
+      "distance_m": 0.4,
+      "accepted": false,
+      "reason": "backout increases or re-enters cliff exposure"
+    },
+    {
+      "direction": "forward",
+      "curvature": -0.25,
+      "distance_m": 0.6,
+      "accepted": false,
+      "reason": "backout increases or re-enters cliff exposure"
+    },
+    {
+      "direction": "forward",
+      "curvature": -0.25,
+      "distance_m": 0.8,
+      "accepted": false,
+      "reason": "backout increases or re-enters cliff exposure"
+    },
+    {
+      "direction": "forward",
+      "curvature": 0.25,
+      "distance_m": 0.4,
+      "accepted": false,
+      "reason": "backout increases or re-enters cliff exposure"
+    },
+    {
+      "direction": "forward",
+      "curvature": 0.25,
+      "distance_m": 0.6,
+      "accepted": false,
+      "reason": "backout increases or re-enters cliff exposure"
+    },
+    {
+      "direction": "forward",
+      "curvature": 0.25,
+      "distance_m": 0.8,
+      "accepted": false,
+      "reason": "backout increases or re-enters cliff exposure"
+    }
+  ],
+  "reverse_footprint_profile": [
+    {
+      "reverse_distance_m": 0,
+      "steep_cells": 1,
+      "max_footprint_slope_deg": 35.76063082518902
+    },
+    {
+      "reverse_distance_m": 0.1,
+      "steep_cells": 0,
+      "max_footprint_slope_deg": 34.32670515543274
+    },
+    {
+      "reverse_distance_m": 0.2,
+      "steep_cells": 0,
+      "max_footprint_slope_deg": 34.32670515543274
+    },
+    {
+      "reverse_distance_m": 0.4,
+      "steep_cells": 0,
+      "max_footprint_slope_deg": 32.872451127584284
+    }
+  ],
+  "proof": "Saved-map/controller replay only, not proof of physical recovery or foot contact.",
+  "freshness": "Nearest measured height timestamp, eight-second freshness, unchanged observed map geometry."
+}

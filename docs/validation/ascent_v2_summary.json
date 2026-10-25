@@ -1,0 +1,1525 @@
+{
+  "scope": "Ascent development only; descent and performance stages remain gated.",
+  "ascent_qualified": false,
+  "descent_started": false,
+  "optimization_started": false,
+  "completed_ascent_trials": 20,
+  "completed_ascent_missions": 0,
+  "diagnostic_model_evaluation": {
+    "qualified": false,
+    "reasons": [
+      "all qualification outcomes need the same controller source version",
+      "all qualification outcomes need the same recorded environment and capability profile",
+      "need at least three independent runs per split",
+      "need at least 50 completed training attempts",
+      "need at least 10 held-out attempts with prior within-run evidence to validate the online update",
+      "initial: need 20 held-out attempts in 60%\u201380% band",
+      "initial: each operational band needs support from three held-out runs",
+      "initial: need 20 held-out attempts in 80%\u2013100% band",
+      "initial: each operational band needs support from three held-out runs",
+      "online: need 20 held-out attempts in 60%\u201380% band",
+      "online: each operational band needs support from three held-out runs",
+      "online: need 20 held-out attempts in 80%\u2013100% band",
+      "online: each operational band needs support from three held-out runs"
+    ],
+    "brier": 5.7241849534286176e-05,
+    "base_rate_brier": 0.19444444444444445,
+    "online_brier": 5.7241849534286176e-05,
+    "diagnostic_all_attempts_brier": 0.1177827350720787,
+    "brier_scope": "feature-supported held-out attempts only",
+    "supported_evaluation_attempts": 4,
+    "unsupported_evaluation_attempts": 8,
+    "reliability": [
+      {
+        "lower": 0.0,
+        "upper": 0.6,
+        "count": 1,
+        "run_count": 1,
+        "predicted": 0.015125946341975663,
+        "observed": 0.0,
+        "descriptive_wilson_90_interval": [
+          0.0,
+          0.7301691165062297
+        ],
+        "run_bootstrap_90_interval": null,
+        "absolute_error": 0.015125946341975663
+      },
+      {
+        "lower": 0.6,
+        "upper": 0.8,
+        "count": 0,
+        "run_count": 0,
+        "predicted": null,
+        "observed": null,
+        "descriptive_wilson_90_interval": null,
+        "run_bootstrap_90_interval": null,
+        "absolute_error": null
+      },
+      {
+        "lower": 0.8,
+        "upper": 1.0,
+        "count": 3,
+        "run_count": 1,
+        "predicted": 0.9997906886284729,
+        "observed": 1.0,
+        "descriptive_wilson_90_interval": [
+          0.5257600518749919,
+          1.0
+        ],
+        "run_bootstrap_90_interval": null,
+        "absolute_error": 0.0002093113715271322
+      }
+    ],
+    "online_reliability": [
+      {
+        "lower": 0.0,
+        "upper": 0.6,
+        "count": 1,
+        "run_count": 1,
+        "predicted": 0.015125946341975663,
+        "observed": 0.0,
+        "descriptive_wilson_90_interval": [
+          0.0,
+          0.7301691165062297
+        ],
+        "run_bootstrap_90_interval": null,
+        "absolute_error": 0.015125946341975663
+      },
+      {
+        "lower": 0.6,
+        "upper": 0.8,
+        "count": 0,
+        "run_count": 0,
+        "predicted": null,
+        "observed": null,
+        "descriptive_wilson_90_interval": null,
+        "run_bootstrap_90_interval": null,
+        "absolute_error": null
+      },
+      {
+        "lower": 0.8,
+        "upper": 1.0,
+        "count": 3,
+        "run_count": 1,
+        "predicted": 0.9997906886284729,
+        "observed": 1.0,
+        "descriptive_wilson_90_interval": [
+          0.5257600518749919,
+          1.0
+        ],
+        "run_bootstrap_90_interval": null,
+        "absolute_error": 0.0002093113715271322
+      }
+    ],
+    "repeated_evidence_attempts": 0,
+    "sample_counts": [
+      12,
+      9,
+      12
+    ]
+  },
+  "qualification_manifests": [],
+  "trials": [
+    {
+      "result": "hold",
+      "sim_seconds": 64.68,
+      "seed": 42,
+      "manual_intervention": false,
+      "policy_switches": 0,
+      "climb_failures": 0,
+      "backslide_m": 0.0,
+      "map_update_ms_mean": 25.583566765425935,
+      "final_state": "HOLD",
+      "final_reason": "downhill retreat made no progress; inspect clearance",
+      "max_uphill_deg": 25.0,
+      "max_side_slope_deg": 25.0,
+      "name": "baseline",
+      "summary": "outputs/ascent_v2/baseline/run.summary.json",
+      "checkpoint_attempt_successes": 0,
+      "checkpoint_attempt_failures": 0,
+      "censored_attempts": 0,
+      "physical_failures": 0,
+      "recovery_maneuvers": 0,
+      "peak_active_tilt_deg": 0.0,
+      "final_xy": [
+        4.921149730682373,
+        -2.635364532470703
+      ],
+      "speed_by_terrain": {
+        "flat": {
+          "samples": 164,
+          "peak_command_mps": 0.3998312992665712,
+          "peak_actual_mps": 0.48132657790349187,
+          "actual_p95_mps": 0.44038845927552067
+        },
+        "slope_5_to_25": {
+          "samples": 2921,
+          "peak_command_mps": 0.39999998028141487,
+          "peak_actual_mps": 0.49314598981120433,
+          "actual_p95_mps": 0.4065971265504374
+        }
+      }
+    },
+    {
+      "result": "hold",
+      "sim_seconds": 47.4,
+      "controller": "ascent",
+      "ascent_mode": "characterize",
+      "model_id": null,
+      "seed": 42,
+      "min_up_z": 0.6196586787700653,
+      "peak_command_mps": 0.4,
+      "peak_actual_speed_mps": 1.9733674154418084,
+      "manual_intervention": false,
+      "policy_switches": 0,
+      "climb_failures": 0,
+      "backslide_m": 0.4528791495868411,
+      "map_update_ms_mean": 33.821133294105195,
+      "controller_ms_mean": 16.037592671868836,
+      "controller_ms_p95": 4.5937300001241965,
+      "final_state": "HOLD",
+      "final_reason": "distinct recovery approaches exhausted; assistance required",
+      "spawn": [
+        0.0,
+        0.0,
+        1.15,
+        0.0
+      ],
+      "goal": [
+        13.0,
+        0.0
+      ],
+      "max_uphill_deg": 25.0,
+      "max_side_slope_deg": 25.0,
+      "name": "trial01",
+      "summary": "outputs/ascent_v2/trial01/run.summary.json",
+      "checkpoint_attempt_successes": 2,
+      "checkpoint_attempt_failures": 0,
+      "censored_attempts": 0,
+      "physical_failures": 0,
+      "recovery_maneuvers": 6,
+      "peak_active_tilt_deg": 0.0,
+      "final_xy": [
+        2.660405397415161,
+        -1.1029340028762817
+      ],
+      "speed_by_terrain": {
+        "flat": {
+          "samples": 1011,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.4577835566620719,
+          "actual_p95_mps": 0.37075921967550385
+        },
+        "slope_5_to_25": {
+          "samples": 1210,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.4811521156396394,
+          "actual_p95_mps": 0.4002374373937161
+        }
+      }
+    },
+    {
+      "result": "hold",
+      "sim_seconds": 127.9,
+      "controller": "ascent",
+      "ascent_mode": "characterize",
+      "model_id": null,
+      "seed": 42,
+      "min_up_z": 0.6196586787700653,
+      "peak_command_mps": 0.4,
+      "peak_actual_speed_mps": 1.9733674154418084,
+      "manual_intervention": false,
+      "policy_switches": 0,
+      "climb_failures": 1,
+      "backslide_m": 0.4531624302252197,
+      "map_update_ms_mean": 35.315999670314824,
+      "controller_ms_mean": 19.078234975764257,
+      "controller_ms_p95": 4.5164339999246295,
+      "final_state": "HOLD",
+      "final_reason": "distinct recovery approaches exhausted; assistance required",
+      "spawn": [
+        0.0,
+        0.0,
+        1.15,
+        0.0
+      ],
+      "goal": [
+        13.0,
+        0.0
+      ],
+      "max_uphill_deg": 25.0,
+      "max_side_slope_deg": 25.0,
+      "name": "trial02",
+      "summary": "outputs/ascent_v2/trial02/run.summary.json",
+      "checkpoint_attempt_successes": 5,
+      "checkpoint_attempt_failures": 1,
+      "censored_attempts": 9,
+      "physical_failures": 0,
+      "recovery_maneuvers": 6,
+      "peak_active_tilt_deg": 0.0,
+      "final_xy": [
+        5.684260845184326,
+        -2.7777748107910156
+      ],
+      "speed_by_terrain": {
+        "flat": {
+          "samples": 976,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.4577835566620719,
+          "actual_p95_mps": 0.39557349732789804
+        },
+        "slope_5_to_25": {
+          "samples": 3803,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.4658315720543022,
+          "actual_p95_mps": 0.3833686869199442
+        },
+        "slope_above_25": {
+          "samples": 1467,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.35145108321324764,
+          "actual_p95_mps": 0.17063762323438952
+        }
+      }
+    },
+    {
+      "result": "hold",
+      "sim_seconds": 202.42000000000002,
+      "controller": "ascent",
+      "ascent_mode": "characterize",
+      "model_id": null,
+      "seed": 42,
+      "min_up_z": 0.6196586787700653,
+      "min_active_up_z": 0.8707836419343948,
+      "peak_command_mps": 0.4,
+      "peak_actual_speed_mps": 1.9733674154418084,
+      "peak_active_speed_mps": 0.48692783343156243,
+      "manual_intervention": false,
+      "policy_switches": 0,
+      "climb_failures": 0,
+      "backslide_m": 0.5407641414024684,
+      "map_update_ms_mean": 35.662751016789365,
+      "controller_ms_mean": 10.765599618653079,
+      "controller_ms_p95": 4.588920999935908,
+      "final_state": "HOLD",
+      "final_reason": "distinct recovery approaches exhausted; assistance required",
+      "spawn": [
+        0.0,
+        0.0,
+        1.15,
+        0.0
+      ],
+      "goal": [
+        13.0,
+        0.0
+      ],
+      "max_uphill_deg": 25.0,
+      "max_side_slope_deg": 25.0,
+      "name": "trial03",
+      "summary": "outputs/ascent_v2/trial03/run.summary.json",
+      "checkpoint_attempt_successes": 10,
+      "checkpoint_attempt_failures": 0,
+      "censored_attempts": 12,
+      "physical_failures": 0,
+      "recovery_maneuvers": 6,
+      "peak_active_tilt_deg": 29.450168178131523,
+      "final_xy": [
+        0.3155454695224762,
+        5.382968425750732
+      ],
+      "speed_by_terrain": {
+        "flat": {
+          "samples": 2471,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.4697195942491641,
+          "actual_p95_mps": 0.3965464092823634
+        },
+        "slope_5_to_25": {
+          "samples": 6591,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.48692783343156243,
+          "actual_p95_mps": 0.3925730359319088
+        },
+        "slope_above_25": {
+          "samples": 910,
+          "peak_command_mps": 0.23185065584632902,
+          "peak_actual_mps": 0.35207493525499517,
+          "actual_p95_mps": 0.1702896522546347
+        }
+      }
+    },
+    {
+      "result": "hold",
+      "sim_seconds": 219.58,
+      "controller": "ascent",
+      "ascent_mode": "characterize",
+      "model_id": null,
+      "seed": 42,
+      "min_up_z": 0.29923123121261597,
+      "min_active_up_z": 0.29923123121261597,
+      "peak_command_mps": 0.4,
+      "peak_actual_speed_mps": 1.9733674154418084,
+      "peak_active_speed_mps": 0.7843264245842686,
+      "manual_intervention": false,
+      "policy_switches": 0,
+      "climb_failures": 0,
+      "backslide_m": 0.670300073237815,
+      "map_update_ms_mean": 35.846355310571134,
+      "controller_ms_mean": 13.582362288522782,
+      "controller_ms_p95": 4.727874000195697,
+      "final_state": "HOLD",
+      "final_reason": "robot tipped; assistance required",
+      "spawn": [
+        0.0,
+        0.0,
+        1.15,
+        0.0
+      ],
+      "goal": [
+        13.0,
+        0.0
+      ],
+      "max_uphill_deg": 25.0,
+      "max_side_slope_deg": 25.0,
+      "name": "trial04",
+      "summary": "outputs/ascent_v2/trial04/run.summary.json",
+      "checkpoint_attempt_successes": 9,
+      "checkpoint_attempt_failures": 0,
+      "censored_attempts": 30,
+      "physical_failures": 0,
+      "recovery_maneuvers": 6,
+      "peak_active_tilt_deg": 72.5885650507114,
+      "final_xy": [
+        1.7866922616958618,
+        4.023240089416504
+      ],
+      "speed_by_terrain": {
+        "flat": {
+          "samples": 2765,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.47359601791616956,
+          "actual_p95_mps": 0.3854450518096021
+        },
+        "slope_5_to_25": {
+          "samples": 3545,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.47300323673048444,
+          "actual_p95_mps": 0.4169126548375243
+        },
+        "slope_above_25": {
+          "samples": 4520,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.7843264245842686,
+          "actual_p95_mps": 0.2887964647975281
+        }
+      }
+    },
+    {
+      "name": "trial05",
+      "result": "infrastructure_failure",
+      "reason": "Concurrent simulator processes exhausted GPU memory; PhysX reported CUDA code 2 and corrupted scene. Process terminated; excluded from physical outcome data.",
+      "qualification": false
+    },
+    {
+      "result": "hold",
+      "sim_seconds": 111.02,
+      "controller": "ascent",
+      "ascent_mode": "characterize",
+      "model_id": null,
+      "source_id": "535adc4c34c38684aae8abad9f5f1ddffd57b2bda6f6d7b8b65303c982d17cec",
+      "seed": 42,
+      "min_up_z": 0.6196586787700653,
+      "min_active_up_z": 0.8345166146755219,
+      "peak_command_mps": 0.4,
+      "peak_actual_speed_mps": 1.9733674154418084,
+      "peak_active_speed_mps": 0.46909819379624557,
+      "manual_intervention": false,
+      "policy_switches": 0,
+      "climb_failures": 0,
+      "backslide_m": 0.4237323879958245,
+      "map_update_ms_mean": 40.38768210611772,
+      "controller_ms_mean": 1.8066279805517265,
+      "controller_ms_p95": 4.52265660037483,
+      "final_state": "HOLD",
+      "final_reason": "distinct recovery approaches exhausted; assistance required",
+      "spawn": [
+        0.0,
+        0.0,
+        1.15,
+        0.0
+      ],
+      "goal": [
+        13.0,
+        0.0
+      ],
+      "max_uphill_deg": 35.0,
+      "max_side_slope_deg": 25.0,
+      "name": "trial06",
+      "summary": "outputs/ascent_v2/trial06/run.summary.json",
+      "checkpoint_attempt_successes": 5,
+      "checkpoint_attempt_failures": 0,
+      "censored_attempts": 5,
+      "physical_failures": 0,
+      "recovery_maneuvers": 6,
+      "peak_active_tilt_deg": 33.434461687019436,
+      "final_xy": [
+        5.5382561683654785,
+        -4.321799278259277
+      ],
+      "speed_by_terrain": {
+        "flat": {
+          "samples": 475,
+          "peak_command_mps": 0.39994191887641833,
+          "peak_actual_mps": 0.42658827548030914,
+          "actual_p95_mps": 0.391408246934685
+        },
+        "slope_5_to_25": {
+          "samples": 2886,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.46909819379624557,
+          "actual_p95_mps": 0.4028650226077307
+        },
+        "slope_above_25": {
+          "samples": 2041,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.33607032484144667,
+          "actual_p95_mps": 0.21439197129540316
+        }
+      }
+    },
+    {
+      "result": "hold",
+      "sim_seconds": 132.2,
+      "controller": "ascent",
+      "ascent_mode": "characterize",
+      "model_id": null,
+      "source_id": "4150681d79dda7f475ea742257bb89921a11210324248e87bef4b167bc3a963b",
+      "seed": 42,
+      "min_up_z": 0.6196497082710266,
+      "min_active_up_z": 0.7528454959392548,
+      "peak_command_mps": 0.4,
+      "peak_actual_speed_mps": 1.9378382863836496,
+      "peak_active_speed_mps": 0.569817238519894,
+      "manual_intervention": false,
+      "policy_switches": 0,
+      "climb_failures": 0,
+      "backslide_m": 0.5876834411833569,
+      "map_update_ms_mean": 48.87125777643322,
+      "controller_ms_mean": 0.5365403002534618,
+      "controller_ms_p95": 2.433603000099538,
+      "final_state": "HOLD",
+      "final_reason": "distinct recovery approaches exhausted; assistance required",
+      "spawn": [
+        0.0,
+        0.0,
+        1.15,
+        0.0
+      ],
+      "goal": [
+        13.0,
+        0.0
+      ],
+      "max_uphill_deg": 35.0,
+      "max_side_slope_deg": 25.0,
+      "name": "trial07",
+      "summary": "outputs/ascent_v2/trial07/run.summary.json",
+      "checkpoint_attempt_successes": 3,
+      "checkpoint_attempt_failures": 0,
+      "censored_attempts": 9,
+      "physical_failures": 0,
+      "recovery_maneuvers": 2,
+      "peak_active_tilt_deg": 41.162531600207174,
+      "final_xy": [
+        5.977958679199219,
+        -1.6765562295913696
+      ],
+      "speed_by_terrain": {
+        "flat": {
+          "samples": 410,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.4517866069497912,
+          "actual_p95_mps": 0.4047279122496506
+        },
+        "slope_5_to_25": {
+          "samples": 1301,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.47078391849690326,
+          "actual_p95_mps": 0.4006105627507483
+        },
+        "slope_above_25": {
+          "samples": 4750,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.569817238519894,
+          "actual_p95_mps": 0.22147870334444048
+        }
+      }
+    },
+    {
+      "result": "hold",
+      "sim_seconds": 87.06,
+      "controller": "ascent",
+      "ascent_mode": "characterize",
+      "model_id": null,
+      "source_id": "fbb5f4112ec21e24be59aa0128fe602ed8937ebd6e15c8fa5994a61a9eece33b",
+      "seed": 42,
+      "min_up_z": 0.6196497082710266,
+      "min_active_up_z": 0.7642282992601395,
+      "peak_command_mps": 0.4,
+      "peak_actual_speed_mps": 1.9378382863836496,
+      "peak_active_speed_mps": 0.49825972561411835,
+      "peak_slope_speed_mps": 0.49825972561411835,
+      "slope_overspeed_seconds": 0.1,
+      "manual_intervention": false,
+      "policy_switches": 0,
+      "climb_failures": 1,
+      "backslide_m": 1.4315351572972526,
+      "map_update_ms_mean": 45.64951697940251,
+      "controller_ms_mean": 1.133293144700044,
+      "controller_ms_p95": 2.489975349863016,
+      "final_state": "HOLD",
+      "final_reason": "distinct recovery approaches exhausted; assistance required",
+      "spawn": [
+        0.0,
+        0.0,
+        1.15,
+        0.0
+      ],
+      "goal": [
+        13.0,
+        0.0
+      ],
+      "max_uphill_deg": 35.0,
+      "max_side_slope_deg": 35.0,
+      "name": "trial08",
+      "summary": "outputs/ascent_v2/trial08/run.summary.json",
+      "checkpoint_attempt_successes": 4,
+      "checkpoint_attempt_failures": 1,
+      "censored_attempts": 8,
+      "physical_failures": 0,
+      "recovery_maneuvers": 6,
+      "peak_active_tilt_deg": 40.16161312111263,
+      "final_xy": [
+        6.000016689300537,
+        -2.287158966064453
+      ],
+      "speed_by_terrain": {
+        "flat": {
+          "samples": 423,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.46163398020848084,
+          "actual_p95_mps": 0.3787013492225546
+        },
+        "slope_5_to_25": {
+          "samples": 1431,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.49825972561411835,
+          "actual_p95_mps": 0.40793785478725486
+        },
+        "slope_above_25": {
+          "samples": 2350,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.4702590070817013,
+          "actual_p95_mps": 0.3143855513576537
+        }
+      }
+    },
+    {
+      "result": "hold",
+      "sim_seconds": 133.9,
+      "controller": "ascent",
+      "ascent_mode": "characterize",
+      "model_id": null,
+      "source_id": "dd1984e015d2d34fd336fde12cacc26192675e673917e63b5faa97436bffc0ae",
+      "seed": 42,
+      "min_up_z": 0.6196497082710266,
+      "min_active_up_z": 0.7335667610168457,
+      "peak_command_mps": 0.4,
+      "peak_actual_speed_mps": 1.9378382863836496,
+      "peak_active_speed_mps": 0.5065925527867318,
+      "peak_slope_speed_mps": 0.5065925527867318,
+      "slope_overspeed_seconds": 0.27999999999999997,
+      "manual_intervention": false,
+      "policy_switches": 0,
+      "climb_failures": 1,
+      "backslide_m": 0.7918709428363975,
+      "map_update_ms_mean": 44.87740880146716,
+      "controller_ms_mean": 0.9286485915440243,
+      "controller_ms_p95": 2.467265249833872,
+      "final_state": "HOLD",
+      "final_reason": "distinct recovery approaches exhausted; assistance required",
+      "spawn": [
+        0.0,
+        0.0,
+        1.15,
+        0.0
+      ],
+      "goal": [
+        13.0,
+        0.0
+      ],
+      "max_uphill_deg": 35.0,
+      "max_side_slope_deg": 35.0,
+      "name": "trial09",
+      "summary": "outputs/ascent_v2/trial09/run.summary.json",
+      "checkpoint_attempt_successes": 4,
+      "checkpoint_attempt_failures": 3,
+      "censored_attempts": 10,
+      "physical_failures": 1,
+      "recovery_maneuvers": 6,
+      "peak_active_tilt_deg": 42.813752373338566,
+      "final_xy": [
+        5.865886211395264,
+        -4.770155429840088
+      ],
+      "speed_by_terrain": {
+        "flat": {
+          "samples": 407,
+          "peak_command_mps": 0.39999960413358143,
+          "peak_actual_mps": 0.4014490124677681,
+          "actual_p95_mps": 0.35084126985683955
+        },
+        "slope_5_to_25": {
+          "samples": 1465,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.4605540749829841,
+          "actual_p95_mps": 0.40616558770521793
+        },
+        "slope_above_25": {
+          "samples": 4674,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.5065925527867318,
+          "actual_p95_mps": 0.2893126406305857
+        }
+      }
+    },
+    {
+      "result": "hold",
+      "sim_seconds": 143.70000000000002,
+      "controller": "ascent",
+      "ascent_mode": "characterize",
+      "model_id": null,
+      "source_id": "19b98e42c224808d2d1b532b46cfc29aa254124a3326e7e1d09c24e9c0315585",
+      "seed": 42,
+      "min_up_z": 0.6196497082710266,
+      "min_active_up_z": 0.652521938085556,
+      "peak_command_mps": 0.4,
+      "peak_actual_speed_mps": 1.9378382863836496,
+      "peak_active_speed_mps": 0.5478146278789228,
+      "peak_slope_speed_mps": 0.5478146278789228,
+      "slope_overspeed_seconds": 0.25999999999999995,
+      "manual_intervention": false,
+      "policy_switches": 0,
+      "climb_failures": 0,
+      "backslide_m": 0.46749361414356216,
+      "map_update_ms_mean": 39.763777055629255,
+      "controller_ms_mean": 1.7134888373225556,
+      "controller_ms_p95": 2.7591205002863717,
+      "final_state": "HOLD",
+      "final_reason": "committed regroup timed out; assistance required",
+      "spawn": [
+        0.0,
+        0.0,
+        1.15,
+        0.0
+      ],
+      "goal": [
+        13.0,
+        0.0
+      ],
+      "max_uphill_deg": 35.0,
+      "max_side_slope_deg": 35.0,
+      "name": "trial10",
+      "summary": "outputs/ascent_v2/trial10/run.summary.json",
+      "checkpoint_attempt_successes": 4,
+      "checkpoint_attempt_failures": 5,
+      "censored_attempts": 1,
+      "physical_failures": 0,
+      "recovery_maneuvers": 0,
+      "peak_active_tilt_deg": 49.267983827531644,
+      "final_xy": [
+        4.591460704803467,
+        -3.808061122894287
+      ],
+      "speed_by_terrain": {
+        "flat": {
+          "samples": 401,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.45100345081992155,
+          "actual_p95_mps": 0.3605178754185778
+        },
+        "slope_5_to_25": {
+          "samples": 2725,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.4730546627103943,
+          "actual_p95_mps": 0.3826508248377743
+        },
+        "slope_above_25": {
+          "samples": 3910,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.5478146278789228,
+          "actual_p95_mps": 0.29013383509844987
+        }
+      }
+    },
+    {
+      "result": "hold",
+      "sim_seconds": 241.04,
+      "controller": "ascent",
+      "ascent_mode": "characterize",
+      "model_id": null,
+      "source_id": "386a0f1bcb3d1257354d9ec1e902ee866620b0db859c68dea6fab60a327ff927",
+      "seed": 42,
+      "min_up_z": 0.6196497082710266,
+      "min_active_up_z": 0.6316188275814056,
+      "peak_command_mps": 0.4,
+      "peak_actual_speed_mps": 1.9378382863836496,
+      "peak_active_speed_mps": 1.1091359695375524,
+      "peak_slope_speed_mps": 1.1091359695375524,
+      "slope_overspeed_seconds": 2.4000000000000017,
+      "manual_intervention": false,
+      "policy_switches": 0,
+      "climb_failures": 2,
+      "backslide_m": 1.5133904407827092,
+      "map_update_ms_mean": 39.41443459120329,
+      "controller_ms_mean": 1.8141627764035617,
+      "controller_ms_p95": 4.1257249999034675,
+      "final_state": "HOLD",
+      "final_reason": "committed regroup timed out; assistance required",
+      "spawn": [
+        0.0,
+        0.0,
+        1.15,
+        0.0
+      ],
+      "goal": [
+        13.0,
+        0.0
+      ],
+      "max_uphill_deg": 35.0,
+      "max_side_slope_deg": 35.0,
+      "name": "trial11",
+      "summary": "outputs/ascent_v2/trial11/run.summary.json",
+      "checkpoint_attempt_successes": 7,
+      "checkpoint_attempt_failures": 5,
+      "censored_attempts": 18,
+      "physical_failures": 2,
+      "recovery_maneuvers": 8,
+      "peak_active_tilt_deg": 50.83034206130688,
+      "final_xy": [
+        6.164971351623535,
+        -2.022960901260376
+      ],
+      "speed_by_terrain": {
+        "flat": {
+          "samples": 401,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.45100345081992155,
+          "actual_p95_mps": 0.3605178754185778
+        },
+        "slope_5_to_25": {
+          "samples": 2648,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.4683444587877383,
+          "actual_p95_mps": 0.3957815961326594
+        },
+        "slope_above_25": {
+          "samples": 8854,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 1.1091359695375524,
+          "actual_p95_mps": 0.3227671267597708
+        }
+      }
+    },
+    {
+      "result": "hold",
+      "sim_seconds": 146.48,
+      "controller": "ascent",
+      "ascent_mode": "characterize",
+      "model_id": null,
+      "source_id": "23ebb46db1ab619c57e30ea133baff2d935b7957b2486835cdaa3d409df0028d",
+      "seed": 42,
+      "min_up_z": 0.6196497082710266,
+      "min_active_up_z": 0.652521938085556,
+      "peak_command_mps": 0.4,
+      "peak_actual_speed_mps": 1.9378382863836496,
+      "peak_active_speed_mps": 1.2443030018349368,
+      "peak_slope_speed_mps": 1.2443030018349368,
+      "slope_overspeed_seconds": 2.4200000000000017,
+      "manual_intervention": false,
+      "policy_switches": 0,
+      "climb_failures": 1,
+      "backslide_m": 0.674006909530333,
+      "map_update_ms_mean": 40.381955536120046,
+      "controller_ms_mean": 0.8901144031372872,
+      "controller_ms_p95": 2.6152987997193122,
+      "final_state": "HOLD",
+      "final_reason": "committed regroup timed out; assistance required",
+      "spawn": [
+        0.0,
+        0.0,
+        1.15,
+        0.0
+      ],
+      "goal": [
+        13.0,
+        0.0
+      ],
+      "max_uphill_deg": 35.0,
+      "max_side_slope_deg": 25.0,
+      "name": "trial12",
+      "summary": "outputs/ascent_v2/trial12/run.summary.json",
+      "checkpoint_attempt_successes": 9,
+      "checkpoint_attempt_failures": 4,
+      "censored_attempts": 10,
+      "physical_failures": 1,
+      "recovery_maneuvers": 9,
+      "peak_active_tilt_deg": 49.267983827531644,
+      "final_xy": [
+        4.543336868286133,
+        -1.5362995862960815
+      ],
+      "speed_by_terrain": {
+        "flat": {
+          "samples": 401,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.45100345081992155,
+          "actual_p95_mps": 0.3605178754185778
+        },
+        "slope_5_to_25": {
+          "samples": 3900,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.4730546627103943,
+          "actual_p95_mps": 0.38207561599741763
+        },
+        "slope_above_25": {
+          "samples": 2874,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 1.2443030018349368,
+          "actual_p95_mps": 0.40988487622403597
+        }
+      }
+    },
+    {
+      "result": "hold",
+      "sim_seconds": 58.36,
+      "controller": "ascent",
+      "ascent_mode": "characterize",
+      "model_id": null,
+      "source_id": "5aeeef915372f6ed504c9425fe39cc3331d12103a29a2a7c9ee482ac58843286",
+      "seed": 42,
+      "min_up_z": 0.47111940383911133,
+      "min_active_up_z": 0.47111940383911133,
+      "peak_command_mps": 0.4,
+      "peak_actual_speed_mps": 1.9378382863836496,
+      "peak_active_speed_mps": 0.9661409376357238,
+      "peak_slope_speed_mps": 0.9661409376357238,
+      "slope_overspeed_seconds": 1.560000000000001,
+      "manual_intervention": false,
+      "policy_switches": 0,
+      "climb_failures": 1,
+      "backslide_m": 1.497030408931984,
+      "map_update_ms_mean": 42.883579880123,
+      "controller_ms_mean": 1.1907408239125636,
+      "controller_ms_p95": 2.4839530002282117,
+      "final_state": "HOLD",
+      "final_reason": "excessive body tilt; assistance required",
+      "spawn": [
+        0.0,
+        0.0,
+        1.15,
+        0.0
+      ],
+      "goal": [
+        13.0,
+        0.0
+      ],
+      "max_uphill_deg": 35.0,
+      "max_side_slope_deg": 25.0,
+      "name": "trial13",
+      "summary": "outputs/ascent_v2/trial13/run.summary.json",
+      "checkpoint_attempt_successes": 5,
+      "checkpoint_attempt_failures": 1,
+      "censored_attempts": 0,
+      "physical_failures": 1,
+      "recovery_maneuvers": 0,
+      "peak_active_tilt_deg": 61.893015978707176,
+      "final_xy": [
+        5.605291843414307,
+        -2.5722436904907227
+      ],
+      "speed_by_terrain": {
+        "flat": {
+          "samples": 407,
+          "peak_command_mps": 0.39999960413358143,
+          "peak_actual_mps": 0.4014490124677681,
+          "actual_p95_mps": 0.35084126985683955
+        },
+        "slope_5_to_25": {
+          "samples": 1439,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.47176048733091663,
+          "actual_p95_mps": 0.4021746806958142
+        },
+        "slope_above_25": {
+          "samples": 923,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.9661409376357238,
+          "actual_p95_mps": 0.5539754588537766
+        }
+      }
+    },
+    {
+      "result": "hold",
+      "sim_seconds": 137.18,
+      "controller": "ascent",
+      "ascent_mode": "characterize",
+      "model_id": null,
+      "source_id": "9f838fe6c6bd44372debaf101a86eff7bb8a09e606c841159af7ad7ba0099b09",
+      "seed": 42,
+      "min_up_z": 0.6196497082710266,
+      "min_active_up_z": 0.7507980465888977,
+      "peak_command_mps": 0.4,
+      "peak_actual_speed_mps": 1.9378382863836496,
+      "peak_active_speed_mps": 0.7303653819128473,
+      "peak_slope_speed_mps": 0.7303653819128473,
+      "slope_overspeed_seconds": 0.5400000000000001,
+      "manual_intervention": false,
+      "policy_switches": 0,
+      "climb_failures": 4,
+      "backslide_m": 1.010913298504245,
+      "map_update_ms_mean": 37.69261765012852,
+      "controller_ms_mean": 1.174014880458535,
+      "controller_ms_p95": 2.8730609994454426,
+      "final_state": "HOLD",
+      "final_reason": "distinct recovery approaches exhausted; assistance required",
+      "spawn": [
+        0.0,
+        0.0,
+        1.15,
+        0.0
+      ],
+      "goal": [
+        13.0,
+        0.0
+      ],
+      "max_uphill_deg": 25.0,
+      "max_side_slope_deg": 25.0,
+      "name": "trial14",
+      "summary": "outputs/ascent_v2/trial14/run.summary.json",
+      "checkpoint_attempt_successes": 3,
+      "checkpoint_attempt_failures": 5,
+      "censored_attempts": 6,
+      "physical_failures": 4,
+      "recovery_maneuvers": 5,
+      "peak_active_tilt_deg": 41.34044548980485,
+      "final_xy": [
+        5.958992958068848,
+        -2.2145607471466064
+      ],
+      "speed_by_terrain": {
+        "flat": {
+          "samples": 502,
+          "peak_command_mps": 0.39931873417127584,
+          "peak_actual_mps": 0.4330075870150517,
+          "actual_p95_mps": 0.36277628923591654
+        },
+        "slope_5_to_25": {
+          "samples": 1745,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.4931663797288878,
+          "actual_p95_mps": 0.40489704596593074
+        },
+        "slope_above_25": {
+          "samples": 4463,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.7303653819128473,
+          "actual_p95_mps": 0.21314101054979165
+        }
+      }
+    },
+    {
+      "result": "hold",
+      "sim_seconds": 349.3,
+      "controller": "ascent",
+      "ascent_mode": "characterize",
+      "model_id": null,
+      "source_id": "d45b1c574cc80e7f2c16934766074a7996038cf731051eb08b911bd89ba2aa2b",
+      "seed": 42,
+      "min_up_z": 0.6196497082710266,
+      "min_active_up_z": 0.7386364042758942,
+      "peak_command_mps": 0.4,
+      "peak_actual_speed_mps": 1.9378382863836496,
+      "peak_active_speed_mps": 0.8554949318451159,
+      "peak_slope_speed_mps": 0.8554949318451159,
+      "slope_overspeed_seconds": 0.6800000000000003,
+      "manual_intervention": false,
+      "policy_switches": 0,
+      "climb_failures": 3,
+      "backslide_m": 1.2894426680649198,
+      "map_update_ms_mean": 41.187678634210506,
+      "controller_ms_mean": 1.398598682868282,
+      "controller_ms_p95": 2.9176752505009063,
+      "final_state": "HOLD",
+      "final_reason": "distinct recovery approaches exhausted; assistance required",
+      "spawn": [
+        0.0,
+        0.0,
+        1.15,
+        0.0
+      ],
+      "goal": [
+        13.0,
+        0.0
+      ],
+      "max_uphill_deg": 25.0,
+      "max_side_slope_deg": 25.0,
+      "name": "trial15",
+      "summary": "outputs/ascent_v2/trial15/run.summary.json",
+      "checkpoint_attempt_successes": 8,
+      "checkpoint_attempt_failures": 9,
+      "censored_attempts": 11,
+      "physical_failures": 3,
+      "recovery_maneuvers": 7,
+      "peak_active_tilt_deg": 42.38461267661934,
+      "final_xy": [
+        6.267903804779053,
+        -3.192035675048828
+      ],
+      "speed_by_terrain": {
+        "flat": {
+          "samples": 5139,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.5037045393801031,
+          "actual_p95_mps": 0.40008484329882127
+        },
+        "slope_5_to_25": {
+          "samples": 7591,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.4667192269347757,
+          "actual_p95_mps": 0.372574547803689
+        },
+        "slope_above_25": {
+          "samples": 4586,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.8554949318451159,
+          "actual_p95_mps": 0.23199657996044026
+        }
+      }
+    },
+    {
+      "result": "hold",
+      "sim_seconds": 71.28,
+      "controller": "ascent",
+      "ascent_mode": "characterize",
+      "model_id": null,
+      "source_id": "91631482ef96389ee0bdb15a034b658909bc81a25e1704d6e1b9929eca671287",
+      "seed": 42,
+      "min_up_z": 0.6196497082710266,
+      "min_active_up_z": 0.6623580455780029,
+      "peak_command_mps": 0.4,
+      "peak_actual_speed_mps": 1.9378382863836496,
+      "peak_active_speed_mps": 0.5388093289698976,
+      "peak_slope_speed_mps": 0.5388093289698976,
+      "slope_overspeed_seconds": 0.38000000000000006,
+      "manual_intervention": false,
+      "policy_switches": 0,
+      "climb_failures": 1,
+      "backslide_m": 0.639568273712724,
+      "map_update_ms_mean": 39.01399349580629,
+      "controller_ms_mean": 1.5319962372745306,
+      "controller_ms_p95": 3.0317220003780676,
+      "final_state": "HOLD",
+      "final_reason": "distinct recovery approaches exhausted; assistance required",
+      "spawn": [
+        0.0,
+        0.0,
+        1.15,
+        0.0
+      ],
+      "goal": [
+        13.0,
+        0.0
+      ],
+      "max_uphill_deg": 35.0,
+      "max_side_slope_deg": 25.0,
+      "name": "trial16",
+      "summary": "outputs/ascent_v2/trial16/run.summary.json",
+      "checkpoint_attempt_successes": 3,
+      "checkpoint_attempt_failures": 2,
+      "censored_attempts": 7,
+      "physical_failures": 1,
+      "recovery_maneuvers": 6,
+      "peak_active_tilt_deg": 48.520040334740585,
+      "final_xy": [
+        8.039053916931152,
+        0.10055150091648102
+      ],
+      "speed_by_terrain": {
+        "flat": {
+          "samples": 236,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.4529888480657039,
+          "actual_p95_mps": 0.4249364352191261
+        },
+        "slope_5_to_25": {
+          "samples": 696,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.4719655688347268,
+          "actual_p95_mps": 0.43067397504310323
+        },
+        "slope_above_25": {
+          "samples": 2483,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.5388093289698976,
+          "actual_p95_mps": 0.3540616928103812
+        }
+      }
+    },
+    {
+      "result": "hold",
+      "sim_seconds": 82.98,
+      "controller": "ascent",
+      "ascent_mode": "characterize",
+      "model_id": null,
+      "source_id": "a51ed36ae05e9bd8e801ca11cf4766ed28ece388a1cb29778c73689682343f63",
+      "seed": 42,
+      "min_up_z": 0.6196497082710266,
+      "min_active_up_z": 0.7409583628177643,
+      "peak_command_mps": 0.4,
+      "peak_actual_speed_mps": 1.9378382863836496,
+      "peak_active_speed_mps": 0.501721002680564,
+      "peak_slope_speed_mps": 0.501721002680564,
+      "slope_overspeed_seconds": 0.27999999999999997,
+      "manual_intervention": false,
+      "policy_switches": 0,
+      "climb_failures": 1,
+      "backslide_m": 0.8012243316825984,
+      "map_update_ms_mean": 39.65198938313701,
+      "controller_ms_mean": 1.2995820853012194,
+      "controller_ms_p95": 2.979507999134512,
+      "final_state": "HOLD",
+      "final_reason": "distinct recovery approaches exhausted after observed replan; assistance required",
+      "spawn": [
+        0.0,
+        0.0,
+        1.15,
+        0.0
+      ],
+      "goal": [
+        13.0,
+        0.0
+      ],
+      "max_uphill_deg": 35.0,
+      "max_side_slope_deg": 25.0,
+      "name": "trial17",
+      "summary": "outputs/ascent_v2/trial17/run.summary.json",
+      "checkpoint_attempt_successes": 1,
+      "checkpoint_attempt_failures": 1,
+      "censored_attempts": 7,
+      "physical_failures": 1,
+      "recovery_maneuvers": 6,
+      "peak_active_tilt_deg": 42.18688251357448,
+      "final_xy": [
+        7.709299087524414,
+        -1.1037317514419556
+      ],
+      "speed_by_terrain": {
+        "flat": {
+          "samples": 194,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.45599817861089514,
+          "actual_p95_mps": 0.431256554534534
+        },
+        "slope_5_to_25": {
+          "samples": 724,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.46528477519380457,
+          "actual_p95_mps": 0.4372305400655005
+        },
+        "slope_above_25": {
+          "samples": 3082,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.501721002680564,
+          "actual_p95_mps": 0.29867432691559026
+        }
+      }
+    },
+    {
+      "result": "hold",
+      "sim_seconds": 66.38,
+      "controller": "ascent",
+      "ascent_mode": "characterize",
+      "model_id": null,
+      "source_id": "a7811cd48fe022297bfbb0f6e093b34aa3de9717a9b5765cec3787c75f2cf6d9",
+      "seed": 42,
+      "min_up_z": 0.6196497082710266,
+      "min_active_up_z": 0.6829041540622711,
+      "peak_command_mps": 0.4,
+      "peak_actual_speed_mps": 1.9378382863836496,
+      "peak_active_speed_mps": 0.5691391332825952,
+      "peak_slope_speed_mps": 0.5691391332825952,
+      "slope_overspeed_seconds": 0.19999999999999998,
+      "manual_intervention": false,
+      "policy_switches": 0,
+      "climb_failures": 0,
+      "backslide_m": 0.5948800592480505,
+      "map_update_ms_mean": 37.81852417161469,
+      "controller_ms_mean": 1.4554261825180155,
+      "controller_ms_p95": 2.835022000090248,
+      "final_state": "HOLD",
+      "final_reason": "distinct recovery approaches exhausted after observed replan; assistance required",
+      "spawn": [
+        0.0,
+        0.0,
+        1.15,
+        0.0
+      ],
+      "goal": [
+        13.0,
+        0.0
+      ],
+      "max_uphill_deg": 35.0,
+      "max_side_slope_deg": 35.0,
+      "name": "trial18",
+      "summary": "outputs/ascent_v2/trial18/run.summary.json",
+      "checkpoint_attempt_successes": 3,
+      "checkpoint_attempt_failures": 0,
+      "censored_attempts": 5,
+      "physical_failures": 0,
+      "recovery_maneuvers": 6,
+      "peak_active_tilt_deg": 46.928997158727974,
+      "final_xy": [
+        7.793500900268555,
+        -1.0356534719467163
+      ],
+      "speed_by_terrain": {
+        "flat": {
+          "samples": 219,
+          "peak_command_mps": 0.39999999778465334,
+          "peak_actual_mps": 0.4300506215443511,
+          "actual_p95_mps": 0.41961867290596183
+        },
+        "slope_5_to_25": {
+          "samples": 717,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.4654103227993092,
+          "actual_p95_mps": 0.4285245562018221
+        },
+        "slope_above_25": {
+          "samples": 2234,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.5691391332825952,
+          "actual_p95_mps": 0.3514149404145893
+        }
+      }
+    },
+    {
+      "result": "hold",
+      "sim_seconds": 136.62,
+      "controller": "ascent",
+      "ascent_mode": "characterize",
+      "model_id": null,
+      "source_id": "88d807892437fea350f8fad46b1022f104ccea4c65d07ddc86b96fe55c02673a",
+      "seed": 42,
+      "min_up_z": 0.6196497082710266,
+      "min_active_up_z": 0.6223486661911011,
+      "peak_command_mps": 0.4,
+      "peak_actual_speed_mps": 1.8960379309379114,
+      "peak_active_speed_mps": 0.7166047913543729,
+      "peak_slope_speed_mps": 0.7166047913543729,
+      "slope_overspeed_seconds": 1.0000000000000004,
+      "manual_intervention": false,
+      "policy_switches": 0,
+      "climb_failures": 2,
+      "backslide_m": 0.9170460914353111,
+      "map_update_ms_mean": 36.81056413447896,
+      "controller_ms_mean": 1.623300272391066,
+      "controller_ms_p95": 2.93094549970192,
+      "final_state": "HOLD",
+      "final_reason": "committed regroup timed out; assistance required",
+      "spawn": [
+        0.0,
+        0.0,
+        1.15,
+        0.0
+      ],
+      "goal": [
+        13.0,
+        0.0
+      ],
+      "max_uphill_deg": 35.0,
+      "max_side_slope_deg": 35.0,
+      "name": "trial19",
+      "summary": "outputs/ascent_v2/trial19/run.summary.json",
+      "checkpoint_attempt_successes": 2,
+      "checkpoint_attempt_failures": 3,
+      "censored_attempts": 7,
+      "physical_failures": 2,
+      "recovery_maneuvers": 2,
+      "peak_active_tilt_deg": 51.51214989156153,
+      "final_xy": [
+        6.193629264831543,
+        -2.053394079208374
+      ],
+      "speed_by_terrain": {
+        "flat": {
+          "samples": 205,
+          "peak_command_mps": 0.39999951169536924,
+          "peak_actual_mps": 0.4484442341978037,
+          "actual_p95_mps": 0.42357698969696755
+        },
+        "slope_5_to_25": {
+          "samples": 751,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.4619351543787704,
+          "actual_p95_mps": 0.42457964283925387
+        },
+        "slope_above_25": {
+          "samples": 5726,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.7166047913543729,
+          "actual_p95_mps": 0.30960750756800426
+        }
+      }
+    },
+    {
+      "result": "hold",
+      "sim_seconds": 202.92000000000002,
+      "controller": "ascent",
+      "ascent_mode": "characterize",
+      "model_id": null,
+      "source_id": "8083dac0ec60f4d273a549e1d8f4e8c78c5d6b0a4e2f4bbfc959260c95acbe2c",
+      "seed": 42,
+      "min_up_z": 0.5363750755786896,
+      "min_active_up_z": 0.5363750755786896,
+      "peak_command_mps": 0.4,
+      "peak_actual_speed_mps": 1.8960379309379114,
+      "peak_active_speed_mps": 0.6560808738338917,
+      "peak_slope_speed_mps": 0.6560808738338917,
+      "slope_overspeed_seconds": 2.0200000000000014,
+      "manual_intervention": false,
+      "policy_switches": 0,
+      "climb_failures": 3,
+      "backslide_m": 2.221687179341752,
+      "map_update_ms_mean": 40.07586578918025,
+      "controller_ms_mean": 1.479923466252298,
+      "controller_ms_p95": 2.6354510004239273,
+      "final_state": "HOLD",
+      "final_reason": "distinct recovery approaches exhausted after observed replan; assistance required",
+      "spawn": [
+        0.0,
+        0.0,
+        1.15,
+        0.0
+      ],
+      "goal": [
+        13.0,
+        0.0
+      ],
+      "max_uphill_deg": 35.0,
+      "max_side_slope_deg": 35.0,
+      "name": "trial20",
+      "summary": "outputs/ascent_v2/trial20/run.summary.json",
+      "checkpoint_attempt_successes": 2,
+      "checkpoint_attempt_failures": 5,
+      "censored_attempts": 8,
+      "physical_failures": 3,
+      "recovery_maneuvers": 7,
+      "peak_active_tilt_deg": 57.56278620994863,
+      "final_xy": [
+        3.091041326522827,
+        2.9223544597625732
+      ],
+      "speed_by_terrain": {
+        "flat": {
+          "samples": 1719,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.4803031115709494,
+          "actual_p95_mps": 0.4293411767831175
+        },
+        "slope_5_to_25": {
+          "samples": 2518,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.4849614596673219,
+          "actual_p95_mps": 0.4252216044995255
+        },
+        "slope_above_25": {
+          "samples": 5760,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.6560808738338917,
+          "actual_p95_mps": 0.3713128476673772
+        }
+      }
+    },
+    {
+      "result": "hold",
+      "sim_seconds": 221.44,
+      "controller": "ascent",
+      "ascent_mode": "characterize",
+      "model_id": null,
+      "source_id": "8083dac0ec60f4d273a549e1d8f4e8c78c5d6b0a4e2f4bbfc959260c95acbe2c",
+      "seed": 42,
+      "min_up_z": 0.6196497082710266,
+      "min_active_up_z": 0.8651786893606186,
+      "peak_command_mps": 0.4,
+      "peak_actual_speed_mps": 1.8960379309379114,
+      "peak_active_speed_mps": 0.4789269515752098,
+      "peak_slope_speed_mps": 0.4789269515752098,
+      "slope_overspeed_seconds": 0.38000000000000006,
+      "manual_intervention": false,
+      "policy_switches": 0,
+      "climb_failures": 0,
+      "backslide_m": 0.37131054248499984,
+      "map_update_ms_mean": 39.990195299643325,
+      "controller_ms_mean": 1.3785706490590421,
+      "controller_ms_p95": 3.0557174002751704,
+      "final_state": "HOLD",
+      "final_reason": "distinct recovery approaches exhausted; assistance required",
+      "spawn": [
+        0.0,
+        0.0,
+        1.15,
+        0.0
+      ],
+      "goal": [
+        13.0,
+        0.0
+      ],
+      "max_uphill_deg": 25.0,
+      "max_side_slope_deg": 25.0,
+      "name": "trial21",
+      "summary": "outputs/ascent_v2/trial21/run.summary.json",
+      "checkpoint_attempt_successes": 2,
+      "checkpoint_attempt_failures": 4,
+      "censored_attempts": 10,
+      "physical_failures": 0,
+      "recovery_maneuvers": 6,
+      "peak_active_tilt_deg": 30.096884493593624,
+      "final_xy": [
+        5.057889938354492,
+        -1.9120322465896606
+      ],
+      "speed_by_terrain": {
+        "flat": {
+          "samples": 3555,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.4666971802005889,
+          "actual_p95_mps": 0.4188056042898043
+        },
+        "slope_5_to_25": {
+          "samples": 6921,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.4789269515752098,
+          "actual_p95_mps": 0.4051636215842471
+        },
+        "slope_above_25": {
+          "samples": 447,
+          "peak_command_mps": 0.4,
+          "peak_actual_mps": 0.1713939765222294,
+          "actual_p95_mps": 0.11895308299041897
+        }
+      }
+    }
+  ],
+  "limitation": "Characterization outcomes are not calibrated probabilities or qualification successes. Source versions differ; preserved failures are not overwritten."
+}

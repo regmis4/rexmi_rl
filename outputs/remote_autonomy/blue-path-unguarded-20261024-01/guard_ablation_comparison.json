@@ -1,0 +1,15 @@
+{
+  "through_sim_s": 42.160000000000004,
+  "matched_rows": 2109,
+  "columns": [
+    "sim_time",
+    "x",
+    "y",
+    "z",
+    "yaw",
+    "vx_cmd",
+    "omega_cmd"
+  ],
+  "max_absolute_difference": 0.0,
+  "identical": true
+}

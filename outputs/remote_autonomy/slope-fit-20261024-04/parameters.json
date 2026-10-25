@@ -1,0 +1,8 @@
+{
+  "easy_angle_deg": 15.0,
+  "exponential_scale_deg": 6.0,
+  "uphill_weight": 1.0,
+  "roughness_interaction": 0.5,
+  "cross_weight": 1.0,
+  "terrain_weight": 1.0
+}

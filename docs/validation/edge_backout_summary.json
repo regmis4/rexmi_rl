@@ -1,0 +1,249 @@
+{
+  "validated": false,
+  "regressions": {
+    "passed": 207,
+    "navigation": 175,
+    "checkpoint_selection": 10,
+    "flat_sidestep": 14,
+    "perception": 8,
+    "edge_recovery_cases": 18
+  },
+  "saved_map_replay": "edge_backout_replay.json",
+  "trials": [
+    {
+      "result": "hold",
+      "sim_seconds": 1.86,
+      "final_state": "HOLD",
+      "final_reason": "edge backout stopped: footprint exposure increased or became unknown",
+      "policy": "rocky_slope",
+      "policy_switches": 0,
+      "manual_intervention": false,
+      "waypoints_reached": 0,
+      "total_waypoints": 1,
+      "checkpoint_replay": null,
+      "replayed_selections": null,
+      "name": "edge_start",
+      "note": "First revision: creep reverse; stopped after increased cliff overlap.",
+      "csv": "logs/nav/edge_recovery_review/edge_start.csv",
+      "min_up_z": 0.7939658463001251,
+      "final_xy": [
+        7.143826007843018,
+        -0.698819100856781
+      ],
+      "edge_events": [],
+      "materials": {
+        "robot_static_friction_range": [
+          0.800000011920929,
+          0.800000011920929
+        ],
+        "robot_dynamic_friction_range": [
+          0.6000000238418579,
+          0.6000000238418579
+        ],
+        "terrain_static_friction": 1.0,
+        "terrain_dynamic_friction": 1.0,
+        "terrain_combine_mode": "multiply"
+      }
+    },
+    {
+      "result": "hold",
+      "sim_seconds": 2.44,
+      "final_state": "HOLD",
+      "final_reason": "edge backout stopped: footprint exposure increased or became unknown",
+      "policy": "rocky_slope",
+      "policy_switches": 0,
+      "manual_intervention": false,
+      "waypoints_reached": 0,
+      "total_waypoints": 1,
+      "checkpoint_replay": null,
+      "replayed_selections": null,
+      "name": "edge_start_teleop",
+      "note": "Normal teleop reverse used for uphill escape; continued downhill drift.",
+      "csv": "logs/nav/edge_recovery_review/edge_start_teleop.csv",
+      "min_up_z": 0.7842497825622559,
+      "final_xy": [
+        7.141432285308838,
+        -0.6753795742988586
+      ],
+      "edge_events": [
+        {
+          "event": "edge_exit_started",
+          "time": 1.0,
+          "position": [
+            7.242415428161621,
+            -0.609667956829071
+          ],
+          "target": [
+            7.522272055303755,
+            -0.3238703566910915
+          ],
+          "direction": -1.0,
+          "curvature": 0.0,
+          "initial_steep_cells": 2
+        }
+      ],
+      "materials": {
+        "robot_static_friction_range": [
+          0.800000011920929,
+          0.800000011920929
+        ],
+        "robot_dynamic_friction_range": [
+          0.6000000238418579,
+          0.6000000238418579
+        ],
+        "terrain_static_friction": 1.0,
+        "terrain_dynamic_friction": 1.0,
+        "terrain_combine_mode": "multiply"
+      }
+    },
+    {
+      "result": "hold",
+      "sim_seconds": 36.86,
+      "final_state": "HOLD",
+      "final_reason": "checkpoint rejected: selected cell: unobserved terrain",
+      "policy": "rocky_slope",
+      "policy_switches": 0,
+      "manual_intervention": true,
+      "waypoints_reached": 0,
+      "total_waypoints": 4,
+      "checkpoint_replay": "logs/nav/edge_recovery_review/manual_return_route.events.jsonl",
+      "replayed_selections": 3,
+      "name": "click_replay",
+      "note": "Recorded accepted clicks replayed from normal spawn; all rejected with incomplete map coverage. Not a physical recovery trial.",
+      "csv": "logs/nav/edge_recovery_review/click_replay.csv",
+      "min_up_z": 0.8262230455875397,
+      "final_xy": [
+        12.897631645202637,
+        0.08088424801826477
+      ],
+      "edge_events": [],
+      "materials": {
+        "robot_static_friction_range": [
+          0.800000011920929,
+          0.800000011920929
+        ],
+        "robot_dynamic_friction_range": [
+          0.6000000238418579,
+          0.6000000238418579
+        ],
+        "terrain_static_friction": 1.0,
+        "terrain_dynamic_friction": 1.0,
+        "terrain_combine_mode": "multiply"
+      }
+    },
+    {
+      "result": "hold",
+      "sim_seconds": 2.86,
+      "final_state": "HOLD",
+      "final_reason": "edge backout exhausted: measured drift increased cliff overlap",
+      "policy": "rocky_slope",
+      "policy_switches": 0,
+      "manual_intervention": false,
+      "waypoints_reached": 0,
+      "total_waypoints": 1,
+      "checkpoint_replay": null,
+      "replayed_selections": 0,
+      "name": "edge_feedback",
+      "note": "Final motion revision: strong counter-command and bounded alternative arcs. Logging wording/dashboard labels updated after this run only.",
+      "csv": "logs/nav/edge_recovery_review/edge_feedback.csv",
+      "min_up_z": 0.7838680297136307,
+      "final_xy": [
+        7.1216721534729,
+        -0.6678639650344849
+      ],
+      "edge_events": [
+        {
+          "event": "edge_exit_started",
+          "time": 1.0,
+          "position": [
+            7.242415428161621,
+            -0.609667956829071
+          ],
+          "target": [
+            7.522272055303755,
+            -0.3238703566910915
+          ],
+          "direction": -1.0,
+          "curvature": 0.0,
+          "initial_steep_cells": 2
+        },
+        {
+          "event": "edge_exit_retry",
+          "time": 2.4,
+          "position": [
+            7.162554740905762,
+            -0.6655926704406738
+          ],
+          "reason": "measured drift increased cliff overlap"
+        },
+        {
+          "event": "edge_exit_started",
+          "time": 2.42,
+          "position": [
+            7.160445690155029,
+            -0.6658221483230591
+          ],
+          "target": [
+            7.441424532788218,
+            -0.37906457360091994
+          ],
+          "direction": -1.0,
+          "curvature": -0.25,
+          "initial_steep_cells": 3
+        },
+        {
+          "event": "edge_exit_retry",
+          "time": 2.6,
+          "position": [
+            7.142237186431885,
+            -0.6671874523162842
+          ],
+          "reason": "measured drift increased cliff overlap"
+        },
+        {
+          "event": "edge_exit_started",
+          "time": 2.62,
+          "position": [
+            7.140286922454834,
+            -0.6675021052360535
+          ],
+          "target": [
+            7.386942829941583,
+            -0.3509820457564347
+          ],
+          "direction": -1.0,
+          "curvature": 0.25,
+          "initial_steep_cells": 3
+        },
+        {
+          "event": "edge_exit_retry",
+          "time": 2.86,
+          "position": [
+            7.1216721534729,
+            -0.6678639650344849
+          ],
+          "reason": "measured drift increased cliff overlap"
+        }
+      ],
+      "materials": {
+        "robot_static_friction_range": [
+          0.800000011920929,
+          0.800000011920929
+        ],
+        "robot_dynamic_friction_range": [
+          0.6000000238418579,
+          0.6000000238418579
+        ],
+        "terrain_static_friction": 1.0,
+        "terrain_dynamic_friction": 1.0,
+        "terrain_combine_mode": "multiply"
+      }
+    }
+  ],
+  "limitations": [
+    "Saved-map replay verifies a reverse command is permitted, not physical wheel contact or successful backing.",
+    "Nearby hillside starts do not restore the original settled articulation pose.",
+    "Recorded-click replay did not reproduce the route because its sensor coverage differed.",
+    "No successful physical edge recovery has been established."
+  ]
+}

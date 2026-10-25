@@ -1,0 +1,30 @@
+{
+  "status": "complete_static_guard_ablation; physical_ascent_unproven",
+  "tests": 223,
+  "controls_review": 8.5,
+  "practicality_review": 8.6,
+  "authorization": "A2 EXACT100",
+  "physical_trials": 0,
+  "runtime_unchanged": true,
+  "all_stages_connected": true,
+  "selected_score": 91.90150718144261,
+  "selected_length_m": 75.47717055820392,
+  "shorter_same_guards": [
+    92.58177473442524,
+    28.64425340482649
+  ],
+  "optimizer_censored": true,
+  "optimizer_improvements": 0,
+  "findings": [
+    "All tested guard stages have complete routes.",
+    "Turn checks reject the stage-4 witness at 14 locations; no other static guard group rejects it.",
+    "Best-of-witnesses scores are not certified optimal constraint-cost differences.",
+    "The score-selected route is 164% longer for 0.73% lower modeled score."
+  ],
+  "unproven": [
+    "Physical traction and mission completion",
+    "Calibrated success probability",
+    "Optimality outside the frozen candidate graph",
+    "Dynamic stopping/posture checks from a static map"
+  ]
+}

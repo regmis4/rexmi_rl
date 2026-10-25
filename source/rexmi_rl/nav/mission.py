@@ -47,6 +47,7 @@ class Mission(Enum):
     SURVEY         = "survey"
     RIM_CIRCUIT    = "rim_circuit"
     VELOCITY_GOAL  = "velocity_goal"   # single user-specified waypoint — flat terrain debug
+    ROUND_TRIP    = "round_trip"      # destinations only; controller selects the route
 
 
 @dataclass
@@ -126,6 +127,13 @@ class MissionPlanner:
             return self._rim_circuit()
         elif mission == Mission.VELOCITY_GOAL:
             return self._velocity_goal(goal_x, goal_y, goal_radius)
+        elif mission == Mission.ROUND_TRIP:
+            if not all(math.isfinite(v) for v in (goal_x, goal_y, goal_radius)) or goal_radius <= 0:
+                raise ValueError('Invalid exterior destination')
+            if math.hypot(goal_x-self.cx, goal_y-self.cy)-goal_radius <= self.r_rim:
+                raise ValueError('Exterior destination disk overlaps the crater rim')
+            return [Waypoint(self.cx, self.cy, 1., 'Reach crater center'),
+                    Waypoint(goal_x, goal_y, goal_radius, 'Climb to exterior')]
         else:
             raise ValueError(f"Unknown mission: {mission}")
 

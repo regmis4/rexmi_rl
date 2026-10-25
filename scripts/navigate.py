@@ -39,15 +39,64 @@ import rexmi_rl  # noqa: F401 — registers all environments
 def _parse_args():
     p = argparse.ArgumentParser(description="REXMI autonomous navigation demo")
 
-    p.add_argument("--nav_controller", choices=["checkpoint", "legacy"], default="checkpoint")
+    p.add_argument("--nav_controller", choices=["checkpoint", "legacy", "ascent"], default=None)
+    p.add_argument('--ascent_architecture', choices=['behavior_tree', 'remote', 'legacy'], default='behavior_tree',
+                   help='Ascent behavior tree / exclusive movement FSM, or preserved previous supervisor')
+    p.add_argument('--ascent_route_objective', choices=['baseline', 'ascent_first', 'climb_burden', 'wheelbase_demand', 'sustained_climb'], default='baseline',
+                   help='Remote planner objective; experimental objectives have no silent baseline fallback')
+    p.add_argument('--ascent_goal', choices=['fixed', 'any_exit'], default='fixed',
+                   help='Any-exit searches supported exterior settling terrain; remote ascent only')
+    p.add_argument('--ascent_path_result', default=None,
+                   help='Execute the inspected any_exit route from a slope-fit result JSON; no runtime replanning')
+    p.add_argument('--ascent_unguarded', action='store_true',
+                   help='Simulator experiment: remove motion vetoes; use observed progress for recovery')
+    p.add_argument('--ascent_mode', choices=['qualified', 'characterize'], default='qualified',
+                   help='Characterization records attempts without claiming validated probabilities')
+    p.add_argument('--reachability_model', default=None, help='Offline fitted and held-out calibrated leg model JSON')
+    p.add_argument('--ascent_exploration_history', action='append', default=None,
+                   help='Characterization only: prior run directory for untried entrance coverage; repeat for multiple runs; no mission evidence import')
+    p.add_argument('--ascent_launch_variant',action='store_true',
+                   help='Initial characterization only: compare a flatter launch with fewer bends in the same climb class; requires exploration history')
+    p.add_argument('--ascent_uphill_speed_response',action='store_true',
+                   help='Characterization only: one bounded policy-active zero response to a qualifying uphill speed surge per primitive')
+    p.add_argument('--ascent_release_memory',action='store_true',
+                   help='Characterization only: retain measured RELEASE stagnation across braking; requires uphill speed response')
+    p.add_argument('--ascent_correction_release',action='store_true',
+                   help='Characterization only: response-driven return to zero after the single release-memory correction')
+    p.add_argument('--ascent_recovery_continuation',action='store_true',
+                   help='Characterization only: one fixed surveyed reverse staging region per recovery episode; requires uphill speed response')
+    p.add_argument('--capture_ascent_departure',action='store_true',
+                   help='Development diagnostic: capture first original lateral rejection and stop; at most 75 simulated seconds')
+    p.add_argument('--capture_ascent_departure_purpose',choices=['any','mission','recovery'],default='any',
+                   help='Select which original departure to capture; requires --capture_ascent_departure')
+    p.add_argument('--ascent_event_snapshots',action='store_true',
+                   help='Save at most four passive failure/brake snapshots while the mission continues')
+    p.add_argument('--ascent_gentle_turn_entry',action='store_true',
+                   help='Characterization: allow stable entry into guarded turns on 12–15 degree terrain')
+    p.add_argument('--ascent_active_zero_envelope',action='store_true',
+                   help='Characterization: check executed uphill zero-command travel with physical stopping limits')
+    p.add_argument('--reviewed_buttons',default=None,
+                   help='Development only: new ticket directory; agent-assisted buttons with frozen physics between reviews')
+    p.add_argument('--joint_log_dir',default=None,
+                   help='Ascent characterization only: physics-rate wheel/joint diagnostics in a new directory')
+    terrain=p.add_mutually_exclusive_group()
+    terrain.add_argument('--simulator_survey',action='store_true',
+                         help='Development: build a labeled full-crater terrain prior before ascent')
+    terrain.add_argument('--terrain_prior',default=None,
+                         help='Load a labeled terrain prior for this task/seed; start with fresh mission outcomes')
     p.add_argument("--headless", action="store_true")
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--capture_file", default=None, help="Optional viewport PNG for a visible test run")
     p.add_argument("--scan_log", default=None,
                    help="Optional directory for raw world-frame scans for repeatable mapping comparisons")
+    p.add_argument('--checkpoint_replay',default=None,
+                   help='Development trial: replay accepted clicks from an events.jsonl at their simulation times')
     p.add_argument("--capture_step", type=int, default=750)
     p.add_argument("--cruise_speed", type=float, default=0.4,
                    help="Forward ceiling, at most 0.8; above 0.4 is experimental")
+    p.add_argument('--preferred_uphill_deg',type=float,default=20.,help='Preferred along-route ascent grade')
+    p.add_argument('--max_uphill_deg',type=float,default=None,help='Uphill limit: 33 for behavior-tree ascent, 25 for baseline; at most 35')
+    p.add_argument('--max_side_slope_deg',type=float,default=25.,help='Autonomous cross-slope limit, at most 35')
     p.add_argument("--start_paused", action="store_true")
     p.add_argument("--spawn_y", type=float, default=0.0)
     p.add_argument("--spawn_z", type=float, default=4.50)
@@ -94,7 +143,7 @@ def _parse_args():
 
     # Mission
     p.add_argument("--mission",
-                   choices=["traverse", "survey", "rim_circuit", "velocity_goal"],
+                   choices=["traverse", "survey", "rim_circuit", "velocity_goal", "ascent", "round_trip"],
                    default="traverse")
 
     # velocity_goal — single flat-terrain waypoint for motion debugging
@@ -142,10 +191,16 @@ def _parse_args():
     p.add_argument("--map_keep_radius", type=float, default=20., help="Radius in metres retained in radius mode")
     p.add_argument("--lidar_display_points", type=int, default=2000, help="Display only; sensing keeps all returns")
     p.add_argument("--overlay_hz", type=float, default=30.)
+    p.add_argument("--flat_sidesteps", action="store_true", help="Experimental stopped-on-flat rough-policy sidesteps; requires --ckpt_rough")
     p.add_argument("--manual_checkpoints", action="store_true", help="Wait for dashboard map clicks")
-    p.add_argument("--survey_layer",choices=["terrain","slope","roughness","traversal"],default="terrain")
-    p.add_argument("--perception_view", action="store_true",
-                   help="Live in-scene LiDAR, observed terrain costs and route overlay")
+    p.add_argument("--selected_path_only", action="store_true",
+                   help="Display only the red active route; hide mission and candidate A-path overlays")
+    p.add_argument("--survey_layer",choices=["terrain","slope","roughness","footprint","steps","support","traversal"],default="terrain")
+    overlays=p.add_mutually_exclusive_group()
+    overlays.add_argument("--perception_view", action="store_true",default=None,
+                          help="In-scene LiDAR, terrain costs and route overlay (on by default for visible ascent)")
+    overlays.add_argument('--no_perception_view',action='store_false',dest='perception_view',
+                          help='Disable analysis overlays; sensing and navigation are unchanged')
     p.add_argument("--log_file",    default=None,
                    help="Path to write nav log (CSV: step,x,y,z,yaw,speed,wp_idx,policy,state). "
                         "Default: auto-generated under logs/nav/TIMESTAMP.log")
@@ -238,7 +293,100 @@ def _load_policy(checkpoint_path: str, nav_env, agent_cfg, device: str):
 
 def main():
     args = _parse_args()
-    if args.nav_controller == "checkpoint":
+    args.nav_controller = args.nav_controller or ('ascent' if args.mission in ('ascent', 'round_trip') else 'checkpoint')
+    if args.mission == 'round_trip':
+        from rexmi_rl.nav.round_trip import configure
+        try: configure(args, sys.argv[1:])
+        except ValueError as exc: raise SystemExit(str(exc)) from exc
+    if args.max_uphill_deg is None:
+        args.max_uphill_deg = 33. if args.nav_controller == 'ascent' and args.ascent_architecture in ('behavior_tree', 'remote') else 25.
+    if args.perception_view is None:
+        args.perception_view=not args.headless and args.nav_controller=='ascent'
+    if args.simulator_survey or args.terrain_prior:
+        if args.nav_controller!='ascent':
+            raise SystemExit('Full-crater prior tests currently use --nav_controller ascent.')
+        if args.terrain_prior and not os.path.isfile(args.terrain_prior):
+            raise SystemExit('--terrain_prior must name an existing labeled survey NPZ.')
+        if any(arg=='--map_retention=radius' or (arg=='--map_retention' and sys.argv[i+2:i+3]==['radius'])
+               for i,arg in enumerate(sys.argv[1:])):
+            raise SystemExit('A full-crater prior requires --map_retention full.')
+        args.map_retention='full'
+    if args.mission == 'ascent':
+        if args.nav_controller != 'ascent':
+            raise SystemExit('The ascent preset requires --nav_controller ascent; use velocity_goal for baseline comparisons.')
+        # Match teleop's established floor preset. Explicit development spawn
+        # overrides remain available, but are reported and not qualification.
+        presets = dict(spawn_x=0., spawn_y=0., spawn_z=1.15, spawn_yaw=0., goal_x=13., goal_y=0., goal_radius=.6,
+                       max_steps=45000, map_retention='full')
+        for key, value in presets.items():
+            if not any(arg == '--'+key or arg.startswith('--'+key+'=') for arg in sys.argv[1:]):
+                setattr(args, key, value)
+    if args.nav_controller == 'ascent':
+        if args.mission not in ('ascent', 'velocity_goal', 'round_trip'):
+            raise SystemExit('The new controller is under ascent qualification; descent and traverse are gated.')
+        if args.cruise_speed > .4 or args.flat_sidesteps:
+            raise SystemExit('Ascent qualification uses rocky-slope only and a maximum 0.40 m/s command.')
+        if args.reachability_model and not os.path.isfile(args.reachability_model):
+            raise SystemExit('--reachability_model must name an existing model JSON')
+        if args.log_file:
+            from pathlib import Path
+            log_path=Path(args.log_file)
+            if log_path.exists() or any(log_path.with_suffix(suffix).exists() for suffix in ('.csv','.events.jsonl','.summary.json','.provenance.json')):
+                raise SystemExit('Ascent trial artifacts already exist. Choose a fresh --log_file to preserve prior evidence.')
+    if args.capture_ascent_departure_purpose != 'any' and not args.capture_ascent_departure:
+        raise SystemExit('A departure purpose filter requires --capture_ascent_departure.')
+    if args.ascent_event_snapshots and not (args.nav_controller=='ascent'
+            and args.ascent_architecture=='behavior_tree' and args.ascent_mode=='characterize'):
+        raise SystemExit('Event snapshots require behavior-tree ascent characterization.')
+    if (args.ascent_gentle_turn_entry or args.ascent_active_zero_envelope) and not (args.nav_controller=='ascent'
+            and args.ascent_architecture=='behavior_tree' and args.ascent_mode=='characterize'
+            and not args.reviewed_buttons):
+        raise SystemExit('Gentle-turn entry and active-zero envelope require autonomous behavior-tree characterization.')
+    if args.reviewed_buttons:
+        if not (args.headless and args.nav_controller == 'ascent' and args.ascent_architecture == 'behavior_tree'
+                and args.ascent_mode == 'characterize' and args.terrain_prior
+                and args.mission == 'velocity_goal' and args.log_file):
+            raise SystemExit('Reviewed buttons require headless, behavior-tree characterize, terrain_prior, velocity_goal and log_file.')
+        if (args.flat_sidesteps or args.manual_checkpoints or args.checkpoint_replay
+                or args.capture_ascent_departure or args.ascent_event_snapshots or args.start_paused):
+            raise SystemExit('Reviewed buttons require exclusive command ownership.')
+        if os.path.exists(args.reviewed_buttons):
+            raise SystemExit('Reviewed button directory already exists; preserve it and select a fresh directory.')
+    if args.capture_ascent_departure and not (args.nav_controller=='ascent'
+            and args.ascent_architecture=='behavior_tree' and args.ascent_mode=='characterize'):
+        raise SystemExit('Departure capture requires behavior-tree ascent characterization.')
+    if args.ascent_exploration_history and not (args.nav_controller=='ascent'
+            and args.ascent_architecture=='behavior_tree' and args.ascent_mode=='characterize'
+            and (args.terrain_prior or args.simulator_survey)):
+        raise SystemExit('Route exploration requires behavior-tree ascent characterization and a labeled full survey.')
+    if args.ascent_launch_variant and not args.ascent_exploration_history:
+        raise SystemExit('Paired launch comparison requires --ascent_exploration_history and its characterization/survey constraints.')
+    if args.ascent_recovery_continuation and not args.ascent_uphill_speed_response:
+        raise SystemExit('Functional recovery requires --ascent_uphill_speed_response and its characterization constraints.')
+    if args.ascent_release_memory and (not args.ascent_uphill_speed_response or args.ascent_recovery_continuation):
+        raise SystemExit('Release memory requires --ascent_uphill_speed_response and excludes functional recovery continuation.')
+    if args.ascent_correction_release and not args.ascent_release_memory:
+        raise SystemExit('Correction release requires --ascent_release_memory and its characterization constraints.')
+    if args.ascent_uphill_speed_response and not (args.nav_controller=='ascent'
+            and args.ascent_architecture=='behavior_tree' and args.ascent_mode=='characterize'):
+        raise SystemExit('Uphill speed response requires behavior-tree ascent characterization.')
+    if args.joint_log_dir and not (args.nav_controller=='ascent'
+            and args.ascent_architecture in ('behavior_tree', 'remote') and args.ascent_mode=='characterize'):
+        raise SystemExit('Joint diagnostics require behavior-tree ascent characterization.')
+    if args.ascent_route_objective != 'baseline' and not (args.nav_controller=='ascent' and args.ascent_architecture=='remote'):
+        raise SystemExit('--ascent_route_objective requires the remote ascent controller.')
+    if args.ascent_goal == 'any_exit' and not (args.mission == 'ascent'
+            and args.nav_controller == 'ascent' and args.ascent_architecture == 'remote'
+            and args.ascent_mode == 'characterize' and args.ascent_route_objective == 'baseline'
+            and args.terrain_prior and not args.manual_checkpoints and not args.checkpoint_replay):
+        raise SystemExit('--ascent_goal any_exit requires remote ascent characterization, baseline additive costs and a terrain prior.')
+    if args.ascent_architecture == 'remote' and (args.nav_controller != 'ascent' or args.ascent_mode != 'characterize'):
+        raise SystemExit('Remote execution requires ascent characterization.')
+    if args.ascent_path_result and (args.ascent_goal != 'any_exit' or not os.path.isfile(args.ascent_path_result)):
+        raise SystemExit('--ascent_path_result requires an existing result JSON and --ascent_goal any_exit.')
+    if args.ascent_unguarded and not args.ascent_path_result:
+        raise SystemExit('--ascent_unguarded requires a saved path simulation experiment.')
+    if args.nav_controller in ("checkpoint", "ascent"):
         checkpoint = args.ckpt_rocky or args.checkpoint
         if not checkpoint or not os.path.isfile(checkpoint):
             raise SystemExit("Checkpoint navigation requires an existing rocky_slope --checkpoint or --ckpt_rocky.")
@@ -246,11 +394,25 @@ def main():
             raise SystemExit("Use --nav_controller legacy for the rough policy.")
         if args.max_steps < 1 or args.step_thresh <= 0 or not .1 <= args.cruise_speed <= .8:
             raise SystemExit("Require max_steps > 0, step_thresh > 0 and cruise_speed between 0.1 and 0.8.")
+        if not 0<args.preferred_uphill_deg<=args.max_uphill_deg<=35 or not 0<args.max_side_slope_deg<=35:
+            raise SystemExit('Require 0 < preferred_uphill_deg <= max_uphill_deg <= 35 and 0 < max_side_slope_deg <= 35.')
+
+    if args.flat_sidesteps and (args.nav_controller != 'checkpoint' or not args.ckpt_rough or not os.path.isfile(args.ckpt_rough)):
+        raise SystemExit("--flat_sidesteps requires checkpoint control and an existing --ckpt_rough file.")
 
     if args.lidar_display_points < 1 or args.lidar_display_points > 6000 or not 1 <= args.overlay_hz <= 60 or not math.isfinite(args.map_keep_radius) or args.map_keep_radius < 5:
         raise SystemExit("Use 1–6000 displayed points, 1–60 overlay Hz and retention radius >=5 m.")
-    if args.manual_checkpoints and (args.headless or args.no_dashboard or args.nav_controller != 'checkpoint'):
+    if args.manual_checkpoints and (args.headless or args.no_dashboard or args.nav_controller not in ('checkpoint', 'ascent')):
         raise SystemExit("Manual checkpoints require checkpoint control and a visible dashboard.")
+    if args.checkpoint_replay and (args.nav_controller not in ('checkpoint', 'ascent') or not os.path.isfile(args.checkpoint_replay)):
+        raise SystemExit('Checkpoint replay requires checkpoint control and an existing events.jsonl file.')
+
+    if args.nav_controller in ('checkpoint','ascent'):
+        from rexmi_rl.nav.checkpoint_runner import validate_output_paths
+        try:
+            validate_output_paths(args)
+        except ValueError as exc:
+            raise SystemExit(str(exc)) from exc
 
     # ------------------------------------------------------------------
     # 1. Boot Isaac Sim
@@ -258,7 +420,7 @@ def main():
     from isaaclab.app import AppLauncher
     app_launcher = AppLauncher(headless=args.headless)
     simulation_app = app_launcher.app
-    if args.nav_controller == "checkpoint":
+    if args.nav_controller in ("checkpoint", "ascent"):
         from rexmi_rl.nav.checkpoint_runner import run
         return run(args, simulation_app)
 

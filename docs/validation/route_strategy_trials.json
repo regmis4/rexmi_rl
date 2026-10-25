@@ -1,0 +1,519 @@
+{
+  "date": "2026-09-20",
+  "seed": 42,
+  "task": "RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0",
+  "initial_position": [
+    0,
+    -1.5,
+    0.6
+  ],
+  "initial_yaw": 0,
+  "goal": [
+    13,
+    0
+  ],
+  "map_retention": "full",
+  "initial_map": "empty, filled only from existing simulated sensors; not a pre-surveyed crater",
+  "policy": "rocky_slope model_13994.pt",
+  "physics": "No material, gravity, terrain or policy changes for these trials. Each trial has one initial reset; navigation disables automatic resets.",
+  "validated": false,
+  "unit_tests": {
+    "navigation": 106,
+    "flat_sidestep": 14,
+    "perception": 8,
+    "total": 128
+  },
+  "trials": [
+    {
+      "label": "Preliminary: footprint freshness too strict",
+      "log": "logs/nav/route_strategy/ascent_seed42.csv",
+      "result": {
+        "result": "hold",
+        "seed": 42,
+        "sim_seconds": 74.24,
+        "waypoints_reached": 0,
+        "total_waypoints": 1,
+        "manual_intervention": false,
+        "max_cross_track_m": 0.17463249123738228,
+        "policy": "rocky_slope",
+        "policy_switches": 0,
+        "flat_sidesteps": false,
+        "switch_events": [],
+        "footprint_radius_m": 0.5028253853321075,
+        "cruise_ceiling": 0.4,
+        "hold_failures": 2,
+        "rolling_checkpoints": 0,
+        "final_state": "HOLD",
+        "final_reason": "cannot stop for tight turn; manual assistance required",
+        "local_recovery_attempts": 0,
+        "last_hold_failure": "hold unavailable: speed=0.13m/s, drift=0.17m",
+        "climb_failures": 0,
+        "backslide_m": 0.23616272590287543,
+        "turn_repositions": 4,
+        "route_profile": {
+          "length_m": 2.4135171712240755,
+          "ascent_m": 1.2102889514974937,
+          "uphill_over_25deg_m": 2.2485281374238557,
+          "max_uphill_deg": 29.30492152311562,
+          "max_side_slope_deg": 25.24345014613601,
+          "max_ground_slope_deg": 30.967216237167047
+        },
+        "map_update_ms_mean": 24.49543962899942,
+        "validated": false
+      },
+      "final_position": [
+        6.002289295196533,
+        -2.1803762912750244,
+        1.9825783967971802
+      ],
+      "lowest_up_z": 0.7408307492733002,
+      "tip_detected": false,
+      "recovery_motions": [
+        {
+          "state": "TURN_REVERSE",
+          "start_s": 11.120000000000001,
+          "end_s": 14.44,
+          "net_distance_m": 0.281,
+          "yaw_change_rad": -0.1039,
+          "min_vx_command": -0.15
+        },
+        {
+          "state": "TURN_ALIGN",
+          "start_s": 14.780000000000001,
+          "end_s": 20.52,
+          "net_distance_m": 0.3747,
+          "yaw_change_rad": 0.5409,
+          "min_vx_command": -0.05521477400446135
+        },
+        {
+          "state": "TURN_REVERSE",
+          "start_s": 54.300000000000004,
+          "end_s": 61.980000000000004,
+          "net_distance_m": 0.4713,
+          "yaw_change_rad": 0.3784,
+          "min_vx_command": -0.15
+        },
+        {
+          "state": "TURN_REVERSE",
+          "start_s": 65.38,
+          "end_s": 66.16,
+          "net_distance_m": 0.0456,
+          "yaw_change_rad": 0.034,
+          "min_vx_command": -0.15
+        }
+      ]
+    },
+    {
+      "label": "Perimeter freshness corrected; failure learning still grade-gated",
+      "log": "logs/nav/route_strategy/ascent_final_seed42.csv",
+      "result": {
+        "result": "step_limit",
+        "seed": 42,
+        "sim_seconds": 119.98,
+        "waypoints_reached": 0,
+        "total_waypoints": 1,
+        "manual_intervention": false,
+        "max_cross_track_m": 0.18029266240312689,
+        "policy": "rocky_slope",
+        "policy_switches": 0,
+        "flat_sidesteps": false,
+        "switch_events": [],
+        "footprint_radius_m": 0.5028253853321075,
+        "cruise_ceiling": 0.4,
+        "hold_failures": 8,
+        "rolling_checkpoints": 0,
+        "final_state": "SETTLE",
+        "final_reason": "command rejected: turn clearance: slope >35 degrees in body/turn envelope",
+        "local_recovery_attempts": 0,
+        "last_hold_failure": "hold unavailable: speed=0.15m/s, drift=0.21m",
+        "climb_failures": 1,
+        "backslide_m": 0.30849523837222503,
+        "turn_repositions": 2,
+        "route_profile": {
+          "length_m": 1.824349105513014,
+          "ascent_m": 1.1159820077983382,
+          "uphill_over_25deg_m": 1.824349105513014,
+          "max_uphill_deg": 32.77556111890234,
+          "max_side_slope_deg": 15.782452470437677,
+          "max_ground_slope_deg": 34.98003037234816
+        },
+        "map_update_ms_mean": 24.44892604985701,
+        "validated": false
+      },
+      "final_position": [
+        7.688943386077881,
+        -1.0861644744873047,
+        3.2028181552886963
+      ],
+      "lowest_up_z": 0.755995362997055,
+      "tip_detected": false,
+      "recovery_motions": [
+        {
+          "state": "TURN_REVERSE",
+          "start_s": 11.120000000000001,
+          "end_s": 14.44,
+          "net_distance_m": 0.281,
+          "yaw_change_rad": -0.1039,
+          "min_vx_command": -0.15
+        },
+        {
+          "state": "TURN_ALIGN",
+          "start_s": 14.780000000000001,
+          "end_s": 20.52,
+          "net_distance_m": 0.3747,
+          "yaw_change_rad": 0.5409,
+          "min_vx_command": -0.05521477400446135
+        },
+        {
+          "state": "TURN_REVERSE",
+          "start_s": 97.9,
+          "end_s": 97.9,
+          "net_distance_m": 0.0,
+          "yaw_change_rad": 0.0,
+          "min_vx_command": -0.1874929354710439
+        }
+      ]
+    },
+    {
+      "label": "Broader failure learning and cliff preference; reverse creep ineffective",
+      "log": "logs/nav/route_strategy/ascent_revised_seed42.csv",
+      "result": {
+        "result": "step_limit",
+        "seed": 42,
+        "sim_seconds": 99.98,
+        "waypoints_reached": 0,
+        "total_waypoints": 1,
+        "manual_intervention": false,
+        "max_cross_track_m": 0.25943431909419035,
+        "policy": "rocky_slope",
+        "policy_switches": 0,
+        "flat_sidesteps": false,
+        "switch_events": [],
+        "footprint_radius_m": 0.5028253853321075,
+        "cruise_ceiling": 0.4,
+        "hold_failures": 0,
+        "rolling_checkpoints": 0,
+        "final_state": "FOLLOW",
+        "final_reason": "following observed route",
+        "local_recovery_attempts": 0,
+        "last_hold_failure": "",
+        "climb_failures": 2,
+        "backslide_m": 0.06573544852770477,
+        "turn_repositions": 4,
+        "route_profile": {
+          "length_m": 5.055423527962105,
+          "ascent_m": 2.2572334704602897,
+          "uphill_over_25deg_m": 3.072792206135782,
+          "max_uphill_deg": 29.994072437525645,
+          "max_side_slope_deg": 19.324600046004022,
+          "max_ground_slope_deg": 30.286604236529218
+        },
+        "mission_route_complete": false,
+        "map_update_ms_mean": 25.242317872180138,
+        "validated": false
+      },
+      "final_position": [
+        4.459595203399658,
+        -2.6590144634246826,
+        1.2639902830123901
+      ],
+      "lowest_up_z": 0.915910392999649,
+      "tip_detected": false,
+      "recovery_motions": [
+        {
+          "state": "TURN_REVERSE",
+          "start_s": 11.120000000000001,
+          "end_s": 14.44,
+          "net_distance_m": 0.281,
+          "yaw_change_rad": -0.1039,
+          "min_vx_command": -0.15
+        },
+        {
+          "state": "TURN_ALIGN",
+          "start_s": 14.780000000000001,
+          "end_s": 20.52,
+          "net_distance_m": 0.3747,
+          "yaw_change_rad": 0.5409,
+          "min_vx_command": -0.05521477400446135
+        },
+        {
+          "state": "TURN_REVERSE",
+          "start_s": 38.88,
+          "end_s": 48.88,
+          "net_distance_m": 0.0115,
+          "yaw_change_rad": -0.0117,
+          "min_vx_command": -0.15
+        },
+        {
+          "state": "TURN_REVERSE",
+          "start_s": 50.74,
+          "end_s": 60.74,
+          "net_distance_m": 0.0105,
+          "yaw_change_rad": -0.0041,
+          "min_vx_command": -0.15
+        },
+        {
+          "state": "TURN_REVERSE",
+          "start_s": 67.16,
+          "end_s": 77.16,
+          "net_distance_m": 0.0091,
+          "yaw_change_rad": -0.006,
+          "min_vx_command": -0.15
+        }
+      ]
+    },
+    {
+      "label": "Normal teleop reverse fallback; forward-only alignment still limiting",
+      "log": "logs/nav/route_strategy/ascent_teleop_reverse_seed42.csv",
+      "result": {
+        "result": "hold",
+        "seed": 42,
+        "sim_seconds": 57.88,
+        "waypoints_reached": 0,
+        "total_waypoints": 1,
+        "manual_intervention": false,
+        "max_cross_track_m": 0.25943431909419035,
+        "policy": "rocky_slope",
+        "policy_switches": 0,
+        "flat_sidesteps": false,
+        "switch_events": [],
+        "footprint_radius_m": 0.5028253853321075,
+        "cruise_ceiling": 0.4,
+        "hold_failures": 0,
+        "rolling_checkpoints": 0,
+        "final_state": "HOLD",
+        "final_reason": "tight-turn recovery exhausted; manual assistance required",
+        "local_recovery_attempts": 0,
+        "last_hold_failure": "",
+        "climb_failures": 2,
+        "backslide_m": 0.0656735804153047,
+        "turn_repositions": 3,
+        "route_profile": {
+          "length_m": 6.132676230809213,
+          "ascent_m": 2.3174361559841725,
+          "uphill_over_25deg_m": 2.8727922061357862,
+          "max_uphill_deg": 29.872683137728682,
+          "max_side_slope_deg": 19.67238571516379,
+          "max_ground_slope_deg": 30.286604236529218
+        },
+        "mission_route_complete": false,
+        "map_update_ms_mean": 25.318381010157314,
+        "validated": false
+      },
+      "final_position": [
+        2.943349599838257,
+        -3.039177894592285,
+        1.0095723867416382
+      ],
+      "lowest_up_z": 0.915910392999649,
+      "tip_detected": false,
+      "recovery_motions": [
+        {
+          "state": "TURN_REVERSE",
+          "start_s": 11.120000000000001,
+          "end_s": 14.44,
+          "net_distance_m": 0.281,
+          "yaw_change_rad": -0.1039,
+          "min_vx_command": -0.15
+        },
+        {
+          "state": "TURN_ALIGN",
+          "start_s": 14.780000000000001,
+          "end_s": 20.52,
+          "net_distance_m": 0.3747,
+          "yaw_change_rad": 0.5409,
+          "min_vx_command": -0.05521477400446135
+        },
+        {
+          "state": "TURN_REVERSE",
+          "start_s": 38.88,
+          "end_s": 42.300000000000004,
+          "net_distance_m": 0.2788,
+          "yaw_change_rad": -0.0912,
+          "min_vx_command": -0.4
+        },
+        {
+          "state": "TURN_ALIGN",
+          "start_s": 42.7,
+          "end_s": 50.7,
+          "net_distance_m": 0.1506,
+          "yaw_change_rad": 0.2794,
+          "min_vx_command": 0.0
+        },
+        {
+          "state": "TURN_REVERSE",
+          "start_s": 52.56,
+          "end_s": 56.34,
+          "net_distance_m": 0.2787,
+          "yaw_change_rad": -0.1089,
+          "min_vx_command": -0.15
+        }
+      ]
+    },
+    {
+      "label": "Reverse alignment arcs and successful-turn retry accounting; before final planner footprint correction",
+      "log": "logs/nav/route_strategy/ascent_reverse_arc_seed42.csv",
+      "result": {
+        "result": "step_limit",
+        "seed": 42,
+        "sim_seconds": 99.98,
+        "waypoints_reached": 0,
+        "total_waypoints": 1,
+        "manual_intervention": false,
+        "max_cross_track_m": 0.25943431909419035,
+        "policy": "rocky_slope",
+        "policy_switches": 0,
+        "flat_sidesteps": false,
+        "switch_events": [],
+        "footprint_radius_m": 0.5028253853321075,
+        "cruise_ceiling": 0.4,
+        "hold_failures": 4,
+        "rolling_checkpoints": 0,
+        "final_state": "SETTLE",
+        "final_reason": "command rejected: drift stopping corridor: slope >35 degrees in body/turn envelope",
+        "local_recovery_attempts": 0,
+        "last_hold_failure": "hold unavailable: speed=0.12m/s, drift=0.09m",
+        "climb_failures": 2,
+        "backslide_m": 0.0656735804153047,
+        "turn_repositions": 3,
+        "route_profile": {
+          "length_m": 2.0148467969006694,
+          "ascent_m": 1.00214009066871,
+          "uphill_over_25deg_m": 1.2485281374238575,
+          "max_uphill_deg": 31.22535410968829,
+          "max_side_slope_deg": 28.454386930246148,
+          "max_ground_slope_deg": 34.35170376021549
+        },
+        "mission_route_complete": false,
+        "map_update_ms_mean": 25.201442370307632,
+        "validated": false
+      },
+      "final_position": [
+        7.654969215393066,
+        -1.344335675239563,
+        3.0807230472564697
+      ],
+      "lowest_up_z": 0.8156401365995407,
+      "tip_detected": false,
+      "recovery_motions": [
+        {
+          "state": "TURN_REVERSE",
+          "start_s": 11.120000000000001,
+          "end_s": 14.44,
+          "net_distance_m": 0.281,
+          "yaw_change_rad": -0.1039,
+          "min_vx_command": -0.15
+        },
+        {
+          "state": "TURN_ALIGN",
+          "start_s": 14.780000000000001,
+          "end_s": 20.52,
+          "net_distance_m": 0.3747,
+          "yaw_change_rad": 0.5409,
+          "min_vx_command": -0.05521477400446135
+        },
+        {
+          "state": "TURN_REVERSE",
+          "start_s": 38.88,
+          "end_s": 42.300000000000004,
+          "net_distance_m": 0.2788,
+          "yaw_change_rad": -0.0912,
+          "min_vx_command": -0.4
+        },
+        {
+          "state": "TURN_ALIGN",
+          "start_s": 42.7,
+          "end_s": 50.4,
+          "net_distance_m": 0.5997,
+          "yaw_change_rad": 0.462,
+          "min_vx_command": -0.15
+        },
+        {
+          "state": "TURN_REVERSE",
+          "start_s": 52.34,
+          "end_s": 56.06,
+          "net_distance_m": 0.2907,
+          "yaw_change_rad": -0.2563,
+          "min_vx_command": -0.4
+        },
+        {
+          "state": "TURN_ALIGN",
+          "start_s": 56.44,
+          "end_s": 58.42,
+          "net_distance_m": 0.2731,
+          "yaw_change_rad": -0.3827,
+          "min_vx_command": 0.0021592055061181547
+        }
+      ]
+    },
+    {
+      "label": "Planner footprint correction; 30-second integration smoke, not a full ascent. Subsequent cached-route footprint rejection covered by regression tests",
+      "log": "logs/nav/route_strategy/footprint_planning_smoke_seed42.csv",
+      "result": {
+        "result": "step_limit",
+        "seed": 42,
+        "sim_seconds": 29.98,
+        "waypoints_reached": 0,
+        "total_waypoints": 1,
+        "manual_intervention": false,
+        "max_cross_track_m": 0.17463249123738228,
+        "policy": "rocky_slope",
+        "policy_switches": 0,
+        "flat_sidesteps": false,
+        "switch_events": [],
+        "footprint_radius_m": 0.5028253853321075,
+        "cruise_ceiling": 0.4,
+        "hold_failures": 0,
+        "rolling_checkpoints": 0,
+        "final_state": "FOLLOW",
+        "final_reason": "following observed route",
+        "local_recovery_attempts": 0,
+        "last_hold_failure": "",
+        "climb_failures": 0,
+        "backslide_m": 0.016518469024676383,
+        "turn_repositions": 1,
+        "route_profile": {
+          "length_m": 4.703279926915812,
+          "ascent_m": 1.8683580477015884,
+          "uphill_over_25deg_m": 2.1071067811865447,
+          "max_uphill_deg": 29.64619430315323,
+          "max_side_slope_deg": 20.139655453109572,
+          "max_ground_slope_deg": 30.29594769917174
+        },
+        "mission_route_complete": false,
+        "map_update_ms_mean": 25.3093977663472,
+        "validated": false
+      },
+      "final_position": [
+        3.277277946472168,
+        -3.0273196697235107,
+        1.0207139253616333
+      ],
+      "lowest_up_z": 0.915910392999649,
+      "tip_detected": false,
+      "recovery_motions": [
+        {
+          "state": "TURN_REVERSE",
+          "start_s": 11.120000000000001,
+          "end_s": 14.44,
+          "net_distance_m": 0.281,
+          "yaw_change_rad": -0.1039,
+          "min_vx_command": -0.15
+        },
+        {
+          "state": "TURN_ALIGN",
+          "start_s": 14.780000000000001,
+          "end_s": 20.52,
+          "net_distance_m": 0.3747,
+          "yaw_change_rad": 0.5409,
+          "min_vx_command": -0.05521477400446135
+        }
+      ]
+    }
+  ],
+  "current_source_sha256": {
+    "source/rexmi_rl/nav/checkpoint_control.py": "5b537f8c4d86e463e1caa82fd9944ba8d16cbff4277700d63853293b8c613a18",
+    "source/rexmi_rl/nav/observed_map.py": "a39d149d2cf7fffbd8640cab303fa94cc44a9703b12c1a3998c42baba4076405",
+    "source/rexmi_rl/nav/checkpoint_runner.py": "82c80f5eec8330cdc9dc6d33cd59ccb51616ad13fe3c6d07962fb0c5676a91df"
+  }
+}

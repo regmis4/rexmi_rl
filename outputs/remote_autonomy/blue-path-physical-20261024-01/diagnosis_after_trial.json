@@ -1,0 +1,147 @@
+{
+  "time": 42.18,
+  "position": [
+    6.18724250793457,
+    -3.3772337436676025
+  ],
+  "yaw": 0.16071376983649122,
+  "velocity": [
+    0.2760016918182373,
+    -0.17014923691749573
+  ],
+  "speed": 0.32423401535023333,
+  "yaw_rate": 0.07676275677177548,
+  "body_tilt_deg": 19.439808569352174,
+  "method_results": {
+    "super_command": "",
+    "saved_command": "oriented footprint exceeds 35 degree terrain boundary",
+    "actual_stopping": "",
+    "anticipation": ""
+  },
+  "variants": [
+    {
+      "name": "current_pose",
+      "start": [
+        6.18724250793457,
+        -3.3772337436676025
+      ],
+      "end": [
+        6.18724250793457,
+        -3.3772337436676025
+      ],
+      "yaw_offsets": [
+        0.0,
+        0.0
+      ],
+      "cell_count": 23,
+      "max_slope_deg": 30.4890919372071,
+      "reason": "",
+      "bad_cells": []
+    },
+    {
+      "name": "intended_stationary_half_second",
+      "start": [
+        6.18724250793457,
+        -3.3772337436676025
+      ],
+      "end": [
+        6.18724250793457,
+        -3.3772337436676025
+      ],
+      "yaw_offsets": [
+        0.0,
+        0.175
+      ],
+      "cell_count": 25,
+      "max_slope_deg": 30.4890919372071,
+      "reason": "",
+      "bad_cells": []
+    },
+    {
+      "name": "combined_saved_controller",
+      "start": [
+        6.18724250793457,
+        -3.3772337436676025
+      ],
+      "end": [
+        6.548966195797901,
+        -3.600228787862695
+      ],
+      "yaw_offsets": [
+        0.0,
+        0.4587047634314541
+      ],
+      "cell_count": 44,
+      "max_slope_deg": 35.572045241887395,
+      "reason": "oriented footprint exceeds 35 degree terrain boundary",
+      "bad_cells": [
+        {
+          "cell": [
+            195,
+            140
+          ],
+          "xy": [
+            7.100000000000001,
+            -3.8999999999999986
+          ],
+          "live_slope_deg": 35.572045241887395,
+          "planning_slope_deg": 35.54084406864905,
+          "surface_m": 2.253690004348755,
+          "hazard": false,
+          "known": true,
+          "fresh": true
+        }
+      ]
+    },
+    {
+      "name": "actual_stopping",
+      "start": [
+        6.18724250793457,
+        -3.3772337436676025
+      ],
+      "end": [
+        6.3681043518662355,
+        -3.4887312657651486
+      ],
+      "yaw_offsets": [
+        0.0,
+        0.08141343133660905
+      ],
+      "cell_count": 33,
+      "max_slope_deg": 32.68555687192322,
+      "reason": "",
+      "bad_cells": []
+    }
+  ],
+  "additional_forecast_components": [
+    {
+      "name": "stationary_full_forecast_yaw",
+      "max_slope_deg": 30.4890919372071,
+      "offending_cell_included": false
+    },
+    {
+      "name": "full_forecast_translation_no_yaw",
+      "max_slope_deg": 35.572045241887395,
+      "offending_cell_included": true
+    }
+  ],
+  "offending_cell_distance_to_route": {
+    "segment": 11,
+    "start": [
+      6.100000000000001,
+      -3.299999999999997
+    ],
+    "end": [
+      6.700000000000003,
+      -3.099999999999998
+    ],
+    "nearest_point": [
+      6.700000000000003,
+      -3.099999999999998
+    ],
+    "distance_m": 0.8944271909999163
+  },
+  "provisional_forecast_horizon_seconds": 1.3105850383755833,
+  "provisional_forecast_displacement_m": 0.42493624945045494,
+  "interpretation": "Predictive commanded-motion envelope refusal, not observed loss of traction, tip, collision, or autonomous mission completion. Exact current footprint and actual stopping envelope pass. No execution code changed and no retry performed."
+}

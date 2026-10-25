@@ -14,6 +14,20 @@ spec.loader.exec_module(v)
 
 
 class PerceptionGeometryTests(unittest.TestCase):
+    def test_footprint_layers_show_unavailable_and_cost_breakdown(self):
+        values=np.array([[0.,.05,np.nan]])
+        cost=np.ones_like(values);known=np.ones_like(values,bool)
+        for layer,name in [('footprint','footprint_rms'),('steps','footprint_step')]:
+            colors,legend=v.survey_colors(cost,known,layer=layer,footprint={name:values})
+            np.testing.assert_allclose(colors[0,2],[.32,.32,.32])
+            self.assertFalse(np.allclose(colors[0,0],colors[0,1]))
+            self.assertIn('proxy' if layer=='steps' else 'neighborhood',legend)
+        option=dict(selected=True,cost_components=dict(total=15,base=8,roughness=2,
+                    discontinuity=1,unknown=4,supported_fraction=.9))
+        text=v.route_cost_text([option])
+        self.assertIn('15.0 = base 8.0 + rough 2.0 + steps 1.0 + unknown 4.0',text)
+        self.assertIn('90%',text)
+
     def test_high_cost_and_steep_colours_are_distinct(self):
         cost=np.array([[6.,20.,20.]])
         colors,legend=v.survey_colors(cost,np.ones_like(cost,bool),slope=np.array([[.1,.8,.1]]))
@@ -30,9 +44,10 @@ class PerceptionGeometryTests(unittest.TestCase):
         view.nav=SimpleNamespace(_omap=g,_lidar=None,_lock=Lock(),shared={'planned_path':[]},
                     _sim_localizer=SimpleNamespace(get_pose=lambda:SimpleNamespace(x=0.,y=0.,z=0.)))
         view.point_limit=2000;view._tile_key=None;view._tile_count=0;view.layer='terrain';view.status=None
+        view.selected_path_only=False
         view._Usd=MagicMock();view._Sdf=MagicMock();view.stage=MagicMock()
         view.show=dict(lidar=True,costs=True,path=True,rays=False)
-        for name in ('points','tiles','route','rays','checkpoint_marker','target_marker','_set_curve','_update_tiles'):
+        for name in ('points','tiles','route','mission_curve','approaches','rays','checkpoint_marker','target_marker','_set_curve','_update_tiles'):
             setattr(view,name,MagicMock())
         view._update();view._update()
         self.assertEqual(view._update_tiles.call_count,1)

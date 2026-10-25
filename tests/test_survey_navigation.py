@@ -7,6 +7,13 @@ from test_checkpoint_navigation import m,c,surface,module
 v=module('survey_perception','nav/perception_view.py')
 
 class SurveyTests(unittest.TestCase):
+    def test_selected_path_only_hides_mission_and_candidate_overlays(self):
+        mission=[(13.,0.),(0.,0.)]
+        options=[{'path':[(13.,0.),(8.,2.)],'selected':False}]
+        shown=v.visible_path_overlays(mission,options)
+        self.assertEqual(shown,(mission,options))
+        self.assertEqual(v.visible_path_overlays(mission,options,True),([],[]))
+
     def test_fast_plane_filters_match_original_2d_filters(self):
         from pathlib import Path
         source=Path(m.__file__).read_text()
@@ -168,7 +175,7 @@ class SurveyTests(unittest.TestCase):
         route,complete=c.observed_route(g,(-1,0),(2,0),0)
         self.assertTrue(complete)
         self.assertTrue(math.isfinite(g.route_cost(route,0)))
-        self.assertTrue(any(abs(y)>.3 for x,y in route))
+        self.assertTrue(any(abs(y)>.2 for x,y in route))  # Finer diagonals may need less lateral offset.
 
     def test_gentler_route_beats_short_steep_corridor(self):
         g=surface()
@@ -188,7 +195,9 @@ class SurveyTests(unittest.TestCase):
         for r in range(g.n_cells):
             for col in range(g.n_cells):
                 x,y=g.cell_to_world(r,col)
-                if -.1<=x<3. and abs(y)<.5: g.known[r,col]=g.fresh[r,col]=True
+                # The start's whole footprint is observed; the goal still lies
+                # beyond unknown ground and exploration must head away from it.
+                if -.5<=x<3. and abs(y)<.6: g.known[r,col]=g.fresh[r,col]=True
         route,complete=c.observed_route(g,(.1,.1),(-3.,0.),0)
         self.assertFalse(complete)
         self.assertGreater(len(route),1)
@@ -277,21 +286,21 @@ class SurveyTests(unittest.TestCase):
         self.assertFalse(g.failures.any())
 
     def test_failed_climb_records_once_then_replans(self):
-        g=surface(.6);control=c.CheckpointController(g,[SimpleNamespace(x=3.,y=0.)])
+        g=surface(.4);control=c.CheckpointController(g,[SimpleNamespace(x=3.,y=0.)])
         control.state='FOLLOW';control.path=[(0,0),(3,0)];control.checkpoint=(3,0)
         control.previous_command=c.Motion(.4,0)
         for t in np.arange(0,2.1,.02): control.tick((0,0),0,0,float(t),velocity=(0,0,0))
         self.assertEqual(control.climb_failures,1)
-        self.assertIn(control.state,('SETTLE','OBSERVE'))
+        self.assertEqual(control.state,'ESCAPE_BRAKE')
         self.assertEqual(int(g.failures.max()),1)
         self.assertFalse(control.mission_route)
 
     def test_side_slip_records_failure_despite_forward_motion(self):
-        g=surface(.6);control=c.CheckpointController(g,[SimpleNamespace(x=3.,y=0.)])
+        g=surface(.4);control=c.CheckpointController(g,[SimpleNamespace(x=3.,y=0.)])
         control.state='FOLLOW';control.path=[(0,0),(3,0)];control.checkpoint=(3,0)
         control.previous_command=c.Motion(.4,0.)
         control.tick((1.,.8),0,.3,2.,velocity=(.2,.2,0.))
-        self.assertEqual(control.state,'SETTLE')
+        self.assertEqual(control.state,'ESCAPE_BRAKE')
         self.assertEqual(control.climb_failures,1)
         self.assertIn('lateral route error',control.reason)
 

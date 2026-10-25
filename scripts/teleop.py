@@ -224,6 +224,10 @@ def _parse_args():
     p.add_argument("--spawn_z", type=float, default=None)
     p.add_argument("--spawn_yaw", type=float, default=math.pi, help="radians")
     p.add_argument("--device", default="cuda:0")
+    p.add_argument("--seed", type=int, default=None, help="Explicit environment/terrain seed for repeatable comparisons")
+    p.add_argument("--perception_view", action="store_true", help="Display-only reference costmap, live LiDAR and manual trail")
+    p.add_argument("--display_map", default=None, help="Frozen planning snapshot NPZ used only for display/comparison")
+    p.add_argument("--stop_on_reset", action="store_true", help="End capture at the first reset; never join separate attempts")
     p.add_argument("--max_steps", type=int, default=100000)
     p.add_argument("--settle_s", type=float, default=2.0,
                    help="Zero-action settle after reset (s)")
@@ -239,7 +243,10 @@ def _parse_args():
                    help="Run annotations only; does NOT change simulated payload or terrain")
     p.add_argument("--headless", action="store_true",
                    help="Isaac Sim headless (still need remote)")
-    return p.parse_args()
+    args = p.parse_args()
+    if args.perception_view and (args.headless or not args.display_map or not args.joint_log_dir or args.seed is None):
+        p.error('--perception_view requires GUI, --display_map, --joint_log_dir and an explicit --seed')
+    return args
 
 
 # ---------------------------------------------------------------------------
@@ -808,7 +815,7 @@ def main():
         f"[teleop] spawn_preset={args.spawn_preset!r} → "
         f"x={sx:.2f} y={sy:.2f} z={sz:.2f} yaw={math.degrees(args.spawn_yaw):.0f}°"
     )
-    if abs(sx) < 1.0:
+    if abs(sx) < 1.0 and args.spawn_preset != 'floor':
         print(
             "[teleop] WARNING: |spawn_x|<1 → crater centre. "
             "For outside crater use default or --spawn_preset rim_out "
@@ -823,8 +830,13 @@ def main():
     mod, cls = env_cfg_entry.rsplit(":", 1)
     env_cfg: ManagerBasedRLEnvCfg = getattr(importlib.import_module(mod), cls)()
     env_cfg.scene.num_envs = 1
+    if args.seed is not None:
+        env_cfg.seed = args.seed
     if hasattr(env_cfg.scene, "terrain") and hasattr(env_cfg.scene.terrain, "terrain_generator"):
         tg = env_cfg.scene.terrain.terrain_generator
+        if tg is not None and args.seed is not None:
+            tg.seed = args.seed
+            tg.num_rows = tg.num_cols = 1
         if tg is not None and hasattr(tg, "num_cols") and tg.num_cols != 1:
             print(f"[teleop] Patching terrain num_cols {tg.num_cols} → 1")
             tg.num_cols = 1
@@ -977,7 +989,9 @@ def main():
             f"({float(p0[0]):+.2f},{float(p0[1]):+.2f},{float(p0[2]):+.2f}) "
             f"yaw={math.degrees(_yaw(robot)):+.0f}°"
         )
-        if abs(float(p0[0])) < 5.0:
+        if args.spawn_preset == 'floor':
+            print('[teleop] Floor start selected — manual ascent capture.')
+        elif abs(float(p0[0])) < 5.0:
             print(
                 "[teleop] WARNING: still near crater centre (|x|<5). "
                 "Check Force spawn logs above."
@@ -997,6 +1011,8 @@ def main():
 
     step = 0
     joint_logger = None
+    perception = None
+    end_reason = 'window_closed_or_step_limit'
     try:
         if args.joint_log_dir:
             from joint_telemetry import JointTelemetry, fingerprint
@@ -1013,9 +1029,13 @@ def main():
             )
             print(f"[teleop] Joint telemetry → {joint_logger.directory}")
             print("[teleop] Torque/power are actuator-model ESTIMATES; startup settling excluded.")
+        if args.perception_view:
+            from teleop_perception import TeleopPerception
+            perception = TeleopPerception(env.unwrapped, args, state)
         while simulation_app.is_running() and step < args.max_steps:
             with state.lock:
                 if state.quit:
+                    end_reason = 'manual_quit'
                     break
 
             pol_name, vx, omega = state.command()
@@ -1063,6 +1083,12 @@ def main():
                 f"{x:.3f}", f"{y:.3f}", f"{z:.3f}",
                 f"{math.degrees(yaw):.2f}", f"{spd:.3f}", f"{uz:.3f}",
             ])
+            if perception is not None:
+                perception.update(step, pol_name, vx, omega, done=bool(dones[0]))
+            if args.stop_on_reset and bool(dones[0]):
+                end_reason = 'auto_reset_capture_stopped'
+                print('[teleop] Reset recorded; ending this attempt without re-forcing spawn.')
+                break
 
             pose_s = (
                 f"pos=({x:+.1f},{y:+.1f},{z:+.1f}) "
@@ -1089,8 +1115,10 @@ def main():
 
             step += 1
 
-
+        if end_reason == 'window_closed_or_step_limit':
+            end_reason = 'step_limit' if step >= args.max_steps else 'window_closed'
     except KeyboardInterrupt:
+        end_reason = 'keyboard_interrupt'
         print("\n[teleop] Interrupted.")
     finally:
         exit_code = 1 if sys.exc_info()[0] is not None else 0
@@ -1098,6 +1126,14 @@ def main():
             # The Tk-safe hard exit below otherwise hides exceptions entirely.
             import traceback
             traceback.print_exc()
+            end_reason = 'exception'
+        if perception is not None:
+            try:
+                perception.close(end_reason)
+            except Exception as exc:
+                # Display finalization must not prevent physics-log flushing.
+                print(f'[teleop] Overlay finalization failed: {exc}')
+                exit_code = 1
         if joint_logger is not None:
             joint_logger.close()
             print(f"[teleop] Joint log saved: {joint_logger.directory} ({joint_logger.sample} samples)")

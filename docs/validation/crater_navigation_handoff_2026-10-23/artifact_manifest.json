@@ -1,0 +1,18 @@
+{
+  "route_comparison.png": {
+    "source": "outputs/remote_autonomy/guard-ablation/route_comparison.png",
+    "sha256": "a41ad9d01ad593e5f15dee9d2cda7f9ca36b7dc14bedfb78fe4e056a7187f218"
+  },
+  "guard_stages.png": {
+    "source": "outputs/remote_autonomy/guard-ablation/guard_stages.png",
+    "sha256": "a1b7399d4333b6f5facae0fd9860bdb3499d3e102b2daf34327acad64b11f7bc"
+  },
+  "corrected_height_comparison.png": {
+    "source": "outputs/remote_autonomy/wheelbase-section-comparison/corrected_height_comparison.png",
+    "sha256": "09ee27b0665f5ede0fe9de45b11b97659fa87b7b793ea1d67446495647ccd55a"
+  },
+  "status.json": {
+    "source": "outputs/remote_autonomy/guard-ablation/status.json",
+    "sha256": "9ad4424539ea6114ff828ce66d7990982d0d6dd94d26a83ce05bc399e3cf616b"
+  }
+}

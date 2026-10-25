@@ -1,0 +1,299 @@
+{
+  "date": "2026-09-20",
+  "seed": 42,
+  "duration_sim_s": 25,
+  "goal_selection_sim_s": 2,
+  "arrival_tolerance_m": 0.6,
+  "conditions": "Four matched environments per run: smooth flat left/right, 4 cm geometric texture, and 10 degree slope boundary. Same frozen policy checkpoints, sensor configuration, goals, robot friction (static 0.8 / dynamic 0.6) and seed. Control commands differ by mode. Demo physics unchanged. Single seed; not crater validation. Whole-run maxima include spawn settling.",
+  "runs": {
+    "guarded": {
+      "cases": [
+        {
+          "case": "flat_left",
+          "goal_accepted": true,
+          "tip": false,
+          "switches": 2,
+          "events": [
+            {
+              "time": 3.5,
+              "event": "flat_policy_switch",
+              "source": "rocky_slope",
+              "destination": "rough",
+              "position": [
+                -0.043497614562511444,
+                -36.107696533203125
+              ],
+              "max_slope_deg": 5.0,
+              "measured_max_slope_deg": 4.222709558071013e-06,
+              "speed_mps": 0.0015519123990088701,
+              "angular_speed_radps": 0.0032840571366250515,
+              "vertical_speed_mps": 0.018677575513720512,
+              "body_tilt_deg": 3.488351152003601
+            },
+            {
+              "time": 10.3,
+              "event": "flat_policy_switch",
+              "source": "rough",
+              "destination": "rocky_slope",
+              "position": [
+                0.18060354888439178,
+                -35.40192413330078
+              ],
+              "max_slope_deg": 5.0,
+              "measured_max_slope_deg": 3.5212507992275143e-06,
+              "speed_mps": 0.014261345379054546,
+              "angular_speed_radps": 0.05979618430137634,
+              "vertical_speed_mps": 0.0246700681746006,
+              "body_tilt_deg": 1.7474207435267992
+            }
+          ],
+          "final_policy": "rocky_slope",
+          "phase": "IDLE",
+          "reason": "rocky-slope restored after stable flat-ground stop",
+          "controller_state": "COMPLETE",
+          "final_position": [
+            0.28503093123435974,
+            0.6289939880371094,
+            0.3755486309528351
+          ],
+          "max_tilt_deg": 13.83681222414465,
+          "max_speed": 0.8754975199699402,
+          "completion_after_goal_s": 9.36,
+          "distance_before_completion_m": 0.835,
+          "final_goal_error_m": 0.468
+        },
+        {
+          "case": "flat_right",
+          "goal_accepted": true,
+          "tip": false,
+          "switches": 2,
+          "events": [
+            {
+              "time": 3.5,
+              "event": "flat_policy_switch",
+              "source": "rocky_slope",
+              "destination": "rough",
+              "position": [
+                -0.03974054753780365,
+                -12.118463516235352
+              ],
+              "max_slope_deg": 5.0,
+              "measured_max_slope_deg": 5.314894267051282e-06,
+              "speed_mps": 0.0019697833340615034,
+              "angular_speed_radps": 0.01956682652235031,
+              "vertical_speed_mps": 0.018848102539777756,
+              "body_tilt_deg": 2.2162901755469773
+            },
+            {
+              "time": 10.98,
+              "event": "flat_policy_switch",
+              "source": "rough",
+              "destination": "rocky_slope",
+              "position": [
+                0.06280367821455002,
+                -12.808502197265625
+              ],
+              "max_slope_deg": 5.0,
+              "measured_max_slope_deg": 3.0465508639053456e-06,
+              "speed_mps": 0.008492136374115944,
+              "angular_speed_radps": 0.028068626299500465,
+              "vertical_speed_mps": 0.02152140624821186,
+              "body_tilt_deg": 1.4652691932395174
+            }
+          ],
+          "final_policy": "rocky_slope",
+          "phase": "IDLE",
+          "reason": "rocky-slope restored after stable flat-ground stop",
+          "controller_state": "COMPLETE",
+          "final_position": [
+            0.2837541997432709,
+            -0.7877082824707031,
+            0.37246638536453247
+          ],
+          "max_tilt_deg": 13.726930494862662,
+          "max_speed": 0.8304413557052612,
+          "completion_after_goal_s": 9.52,
+          "distance_before_completion_m": 0.781,
+          "final_goal_error_m": 0.354
+        },
+        {
+          "case": "textured",
+          "goal_accepted": true,
+          "tip": false,
+          "switches": 2,
+          "events": [
+            {
+              "time": 3.5,
+              "event": "flat_policy_switch",
+              "source": "rocky_slope",
+              "destination": "rough",
+              "position": [
+                -0.09955500066280365,
+                11.919236183166504
+              ],
+              "max_slope_deg": 5.0,
+              "measured_max_slope_deg": 0.1378588876532392,
+              "speed_mps": 0.006900705862790346,
+              "angular_speed_radps": 0.045895207673311234,
+              "vertical_speed_mps": 0.025048648938536644,
+              "body_tilt_deg": 4.137348010500278
+            },
+            {
+              "time": 10.28,
+              "event": "flat_policy_switch",
+              "source": "rough",
+              "destination": "rocky_slope",
+              "position": [
+                0.16545622050762177,
+                12.461172103881836
+              ],
+              "max_slope_deg": 5.0,
+              "measured_max_slope_deg": 0.07023422093151631,
+              "speed_mps": 0.046288713812828064,
+              "angular_speed_radps": 0.09644375741481781,
+              "vertical_speed_mps": 0.014586071483790874,
+              "body_tilt_deg": 2.570549990630438
+            }
+          ],
+          "final_policy": "rocky_slope",
+          "phase": "IDLE",
+          "reason": "rocky-slope restored after stable flat-ground stop",
+          "controller_state": "COMPLETE",
+          "final_position": [
+            0.2871347963809967,
+            0.4758758544921875,
+            0.3541295826435089
+          ],
+          "max_tilt_deg": 13.783792060247261,
+          "max_speed": 0.7484890818595886,
+          "completion_after_goal_s": 9.42,
+          "distance_before_completion_m": 0.768,
+          "final_goal_error_m": 0.598
+        },
+        {
+          "case": "slope_guard",
+          "goal_accepted": true,
+          "tip": false,
+          "switches": 0,
+          "events": [],
+          "final_policy": "rocky_slope",
+          "phase": "IDLE",
+          "reason": "sidestep unavailable: ground exceeds 5 degree switching limit",
+          "controller_state": "COMPLETE",
+          "final_position": [
+            0.16215087473392487,
+            1.5414924621582031,
+            0.42181628942489624
+          ],
+          "max_tilt_deg": 13.909522783197309,
+          "max_speed": 0.6237747669219971,
+          "completion_after_goal_s": 8.06,
+          "distance_before_completion_m": 1.425,
+          "final_goal_error_m": 0.565
+        }
+      ],
+      "automatic_resets": 0
+    },
+    "rocky_only": {
+      "cases": [
+        {
+          "case": "flat_left",
+          "goal_accepted": true,
+          "tip": false,
+          "switches": 0,
+          "events": [],
+          "final_policy": "rocky_slope",
+          "phase": "IDLE",
+          "reason": "ready; flat-ground sidesteps enabled",
+          "controller_state": "COMPLETE",
+          "final_position": [
+            0.3241335451602936,
+            1.1990966796875,
+            0.3634495139122009
+          ],
+          "max_tilt_deg": 13.83681222414465,
+          "max_speed": 0.8754975199699402,
+          "completion_after_goal_s": 9.84,
+          "distance_before_completion_m": 1.736,
+          "final_goal_error_m": 0.38
+        },
+        {
+          "case": "flat_right",
+          "goal_accepted": true,
+          "tip": false,
+          "switches": 0,
+          "events": [],
+          "final_policy": "rocky_slope",
+          "phase": "IDLE",
+          "reason": "ready; flat-ground sidesteps enabled",
+          "controller_state": "COMPLETE",
+          "final_position": [
+            0.35811173915863037,
+            -0.9692258834838867,
+            0.3711431324481964
+          ],
+          "max_tilt_deg": 13.726930494862662,
+          "max_speed": 0.8304413557052612,
+          "completion_after_goal_s": 7.82,
+          "distance_before_completion_m": 1.136,
+          "final_goal_error_m": 0.359
+        },
+        {
+          "case": "textured",
+          "goal_accepted": true,
+          "tip": false,
+          "switches": 0,
+          "events": [],
+          "final_policy": "rocky_slope",
+          "phase": "IDLE",
+          "reason": "ready; flat-ground sidesteps enabled",
+          "controller_state": "COMPLETE",
+          "final_position": [
+            0.3835098147392273,
+            0.8614959716796875,
+            0.35622701048851013
+          ],
+          "max_tilt_deg": 13.783792060247261,
+          "max_speed": 0.7484890818595886,
+          "completion_after_goal_s": 7.5,
+          "distance_before_completion_m": 1.215,
+          "final_goal_error_m": 0.408
+        },
+        {
+          "case": "slope_guard",
+          "goal_accepted": true,
+          "tip": false,
+          "switches": 0,
+          "events": [],
+          "final_policy": "rocky_slope",
+          "phase": "IDLE",
+          "reason": "ready; flat-ground sidesteps enabled",
+          "controller_state": "COMPLETE",
+          "final_position": [
+            0.1858750283718109,
+            1.3631553649902344,
+            0.3923947215080261
+          ],
+          "max_tilt_deg": 13.716391742734148,
+          "max_speed": 0.6237747669219971,
+          "completion_after_goal_s": 8.04,
+          "distance_before_completion_m": 1.445,
+          "final_goal_error_m": 0.408
+        }
+      ],
+      "automatic_resets": 0
+    }
+  },
+  "unit_tests": {
+    "navigation": 83,
+    "perception": 8,
+    "flat_switch": 14,
+    "passed": 105
+  },
+  "visible_integration": {
+    "steps": 100,
+    "result": "step_limit",
+    "final_state": "HOLD",
+    "reason": "Waiting for manual checkpoint; both policies and dashboard loaded. No switch without a goal."
+  }
+}

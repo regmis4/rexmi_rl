@@ -1,0 +1,25 @@
+{
+  "directory": "/home/susan/rexmi_rl/outputs/remote_autonomy/blue-path-unguarded-20261024-01/joints",
+  "physics_samples": 20460,
+  "completed_control_steps": 5115,
+  "partial_step": null,
+  "final_error": null,
+  "logging_timing_ms": {
+    "control_pre_step_logging": {
+      "count": 5115,
+      "mean_ms": 0.06552299802448283,
+      "maximum_ms": 17.924596992088482
+    },
+    "physics_sample_logging": {
+      "count": 20460,
+      "mean_ms": 0.3400212649581681,
+      "maximum_ms": 1.228224005899392
+    },
+    "control_post_step_logging": {
+      "count": 5115,
+      "mean_ms": 0.002236182602620406,
+      "maximum_ms": 0.007580005330964923
+    }
+  },
+  "alignment": "nav CSV is pre-step; physics rows follow the same control_step. Navigation startup settling is included. Raw actions are before wrapper clipping; physics joint targets show processed actuator commands. Missing contact counts remain unavailable; raw per-body forces do not establish slip."
+}

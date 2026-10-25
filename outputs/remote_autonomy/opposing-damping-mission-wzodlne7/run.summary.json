@@ -1,0 +1,380 @@
+{
+  "result": "hold",
+  "seed": 42,
+  "sim_seconds": 147.36,
+  "waypoints_reached": 1,
+  "diagnostic": false,
+  "controller": "ascent",
+  "mission": "round_trip",
+  "terrain_prior": {
+    "coordinate_frame": "world",
+    "coverage": 1.0,
+    "description": "Top-down simulator terrain mesh survey; development ground truth, not onboard LiDAR",
+    "geometry_id": "87552488ff3913451653dc60010d0bdbe3f7f063c53fcd6860289d83bfb25671",
+    "hit_count": 409600,
+    "kind": "simulator_development",
+    "radius_m": 16.0,
+    "ray_count": 409600,
+    "sample_spacing_m": 0.05,
+    "seed": 42,
+    "task": "RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0",
+    "version": 1,
+    "mission_radius_m": 16.0,
+    "mission_coverage": 1.0,
+    "loaded_from": "/home/susan/rexmi_rl/outputs/ascent_full_survey/trial01/run.prior.npz",
+    "file_sha256": "30a170c590a8c61eae4fb6193905971ac6459ddf0af05d009cce3ce8b188edd4"
+  },
+  "ascent_architecture": "remote",
+  "perception_overlay_requested": false,
+  "perception_overlay_enabled": false,
+  "perception_overlay_tiles": 0,
+  "spawn": [
+    13.0,
+    0.0,
+    4.5,
+    3.141592653589793
+  ],
+  "goal": [
+    0.0,
+    13.0
+  ],
+  "ascent_mode": "characterize",
+  "model_id": null,
+  "probability_model_qualified": false,
+  "source_id": "68fb372683936f2d1e0b8c7ac42607ccdf5dde366d979861c05853cdbcd444f6",
+  "policy_sha256": "c8c997e2bff200522e01dfa45c0b85201777b919034bb3671fca452ae56e9aaa",
+  "min_up_z": 0.6466604769229889,
+  "peak_actual_speed_mps": 0.9719557303681897,
+  "peak_command_mps": 0.4,
+  "min_active_up_z": 0.6466604769229889,
+  "peak_active_speed_mps": 0.8115980840539545,
+  "peak_slope_speed_mps": 0.8115980840539545,
+  "slope_overspeed_seconds": 12.199999999999829,
+  "controller_ms_mean": 0.7170332750580999,
+  "controller_ms_p95": 1.0356630002206657,
+  "recovery_controller_timing_ms": {
+    "admission": {
+      "count": 0,
+      "mean": null,
+      "p95": null,
+      "maximum": null
+    },
+    "continued_reverse": {
+      "count": 0,
+      "mean": null,
+      "p95": null,
+      "maximum": null
+    },
+    "core_observation": {
+      "count": 0,
+      "mean": null,
+      "p95": null,
+      "maximum": null
+    },
+    "termination": {
+      "count": 0,
+      "mean": null,
+      "p95": null,
+      "maximum": null
+    }
+  },
+  "recovery_admission_timing": [],
+  "checkpoint_replay": null,
+  "replayed_selections": 0,
+  "total_waypoints": 2,
+  "manual_intervention": false,
+  "max_cross_track_m": 0.0,
+  "policy": "rocky_slope",
+  "policy_switches": 0,
+  "flat_sidesteps": false,
+  "switch_events": [],
+  "footprint_radius_m": 0.5028250873088836,
+  "cruise_ceiling": 0.4,
+  "body_envelope": {
+    "half_length": 0.47263298034667967,
+    "half_width": 0.2736251413822174
+  },
+  "hold_failures": 0,
+  "rolling_checkpoints": 0,
+  "final_state": "HOLD",
+  "final_reason": "physical envelope: uphill grade 33.6 exceeds autonomous limit 33 degrees",
+  "local_recovery_attempts": 0,
+  "last_hold_failure": "",
+  "climb_failures": 0,
+  "backslide_m": 0.13092711154620768,
+  "turn_repositions": 0,
+  "route_profile": {
+    "length_m": 12.252510174479655,
+    "ascent_m": 3.9476076967743383,
+    "uphill_over_25deg_m": 4.761106642027548,
+    "max_uphill_deg": 32.99120429398213,
+    "max_side_slope_deg": 17.710050303646334,
+    "max_ground_slope_deg": 34.585800170711664,
+    "max_footprint_slope_deg": 34.760859876575104
+  },
+  "motion_events": [],
+  "escape_events": [],
+  "failed_climbs": [],
+  "route_purpose": "mission",
+  "retreat_goal": null,
+  "retreat_candidates": [],
+  "preferred_uphill_deg": 20.0,
+  "max_uphill_deg": 33.0,
+  "max_side_slope_deg": 25.0,
+  "learned_no_go_cells": 0,
+  "route_options": [
+    {
+      "profile": "direct",
+      "complete": true,
+      "selected": true,
+      "score": 835.551478624372,
+      "endpoint": [
+        0.0,
+        13.0
+      ],
+      "path": [
+        [
+          -0.01090777013450861,
+          0.9050451517105103
+        ],
+        [
+          0.5890922298654915,
+          2.1050451517105104
+        ],
+        [
+          0.0,
+          13.0
+        ]
+      ],
+      "route_path": [
+        [
+          -0.01090777013450861,
+          0.9050451517105103
+        ],
+        [
+          0.5890922298654915,
+          2.1050451517105104
+        ],
+        [
+          0.0,
+          13.0
+        ]
+      ],
+      "reachability": {
+        "probability": null,
+        "interval": null,
+        "validated": false,
+        "reason": "no calibrated model; characterization only",
+        "successes": 0,
+        "failures": 0,
+        "prior": null
+      },
+      "tier": "unvalidated",
+      "retreat": true,
+      "recent_approach_cost": 0.0,
+      "rejection": "",
+      "length_m": 12.252510174479655,
+      "ascent_m": 3.9476076967743383,
+      "uphill_over_25deg_m": 4.761106642027548,
+      "max_uphill_deg": 32.99120429398213,
+      "max_side_slope_deg": 17.710050303646334,
+      "max_ground_slope_deg": 34.585800170711664,
+      "max_footprint_slope_deg": 34.760859876575104
+    },
+    {
+      "profile": "shelf-0",
+      "complete": true,
+      "selected": false,
+      "score": 837.7788363186776,
+      "endpoint": [
+        0.0,
+        13.0
+      ],
+      "path": [
+        [
+          -0.01090777013450861,
+          0.9050451517105103
+        ],
+        [
+          -0.8999999999999986,
+          -1.2999999999999972
+        ],
+        [
+          -1.4999999999999987,
+          -0.09999999999999698
+        ],
+        [
+          -1.4999999999999987,
+          0.30000000000000293
+        ],
+        [
+          -0.8999999999999986,
+          1.500000000000003
+        ],
+        [
+          0.7000000000000015,
+          2.300000000000003
+        ],
+        [
+          0.0,
+          13.0
+        ]
+      ],
+      "route_path": [
+        [
+          -0.01090777013450861,
+          0.9050451517105103
+        ],
+        [
+          -0.8999999999999986,
+          -1.2999999999999972
+        ],
+        [
+          -1.4999999999999987,
+          -0.09999999999999698
+        ],
+        [
+          -1.4999999999999987,
+          0.30000000000000293
+        ],
+        [
+          -0.8999999999999986,
+          1.500000000000003
+        ],
+        [
+          0.7000000000000015,
+          2.300000000000003
+        ],
+        [
+          0.0,
+          13.0
+        ]
+      ],
+      "reachability": {
+        "probability": null,
+        "interval": null,
+        "validated": false,
+        "reason": "no calibrated model; characterization only",
+        "successes": 0,
+        "failures": 0,
+        "prior": null
+      },
+      "tier": "unvalidated",
+      "retreat": true,
+      "recent_approach_cost": 0.0,
+      "rejection": "",
+      "length_m": 17.972551367387563,
+      "ascent_m": 4.07448393939383,
+      "uphill_over_25deg_m": 4.76572122195918,
+      "max_uphill_deg": 32.19410459911004,
+      "max_side_slope_deg": 17.92282485163574,
+      "max_ground_slope_deg": 34.33877669030913,
+      "max_footprint_slope_deg": 34.760859876575104
+    }
+  ],
+  "route_searches": [
+    {
+      "profile": "direct",
+      "connected": true,
+      "has_route": true,
+      "uphill_limit": 33.0,
+      "expansions": 6,
+      "budget": 60000,
+      "budget_exhausted": false,
+      "contract": "straight steep corridors; gentle turn staging"
+    },
+    {
+      "profile": "contour",
+      "connected": false,
+      "has_route": false,
+      "uphill_limit": 20.0,
+      "expansions": 14614,
+      "budget": 60000,
+      "budget_exhausted": false,
+      "contract": "straight steep corridors; gentle turn staging"
+    }
+  ],
+  "mission_route_complete": true,
+  "map_update_ms_mean": 50.296154689329214,
+  "validated": false,
+  "round_trip": {
+    "stage": "ASCEND_TO_EXTERIOR",
+    "goal": [
+      0.0,
+      13.0
+    ],
+    "completed_destinations": 1
+  },
+  "mission_stages": [
+    {
+      "event": "mission_stage",
+      "time": 0.0,
+      "position": [
+        13.0,
+        0.0
+      ],
+      "stage": "DESCEND_TO_CENTER",
+      "goal": [
+        0.0,
+        0.0
+      ],
+      "completed_destinations": 0
+    },
+    {
+      "event": "mission_stage",
+      "time": 104.10000000000001,
+      "position": [
+        -0.011029362678527832,
+        0.9053442478179932
+      ],
+      "stage": "ASCEND_TO_EXTERIOR",
+      "goal": [
+        0.0,
+        13.0
+      ],
+      "completed_destinations": 1
+    }
+  ],
+  "mission_deadline_seconds": 900.0,
+  "destinations": [
+    {
+      "x": 0.0,
+      "y": 0.0,
+      "radius": 1.0,
+      "label": "Reach crater center"
+    },
+    {
+      "x": 0.0,
+      "y": 13.0,
+      "radius": 0.6,
+      "label": "Climb to exterior"
+    }
+  ],
+  "counts_as_qualification": false,
+  "counts_as_mission": false,
+  "joint_diagnostics": {
+    "directory": "/home/susan/rexmi_rl/outputs/remote_autonomy/opposing-damping-mission-wzodlne7/joints",
+    "physics_samples": 29472,
+    "completed_control_steps": 7368,
+    "partial_step": null,
+    "final_error": null,
+    "logging_timing_ms": {
+      "control_pre_step_logging": {
+        "count": 7368,
+        "mean_ms": 0.0742224268459259,
+        "maximum_ms": 8.690586000739131
+      },
+      "physics_sample_logging": {
+        "count": 29472,
+        "mean_ms": 0.453203906625229,
+        "maximum_ms": 75.32212400110438
+      },
+      "control_post_step_logging": {
+        "count": 7368,
+        "mean_ms": 0.0022408664484291274,
+        "maximum_ms": 0.013199998647905886
+      }
+    },
+    "alignment": "nav CSV is pre-step; physics rows follow the same control_step. Navigation startup settling is included. Raw actions are before wrapper clipping; physics joint targets show processed actuator commands. Missing contact counts remain unavailable; raw per-body forces do not establish slip."
+  }
+}

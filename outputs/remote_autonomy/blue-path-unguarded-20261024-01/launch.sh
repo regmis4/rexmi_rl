@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /home/susan/rexmi_rl
+echo $$ > outputs/remote_autonomy/blue-path-unguarded-20261024-01/launcher.pid
+exec env LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6:/usr/lib/x86_64-linux-gnu/libgcc_s.so.1 ./run.sh scripts/navigate.py --task RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0 --checkpoint logs/rsl_rl/go2w_velocity_rocky_slope/2026-06-30_09-31-48/model_13994.pt --nav_controller ascent --ascent_architecture remote --ascent_mode characterize --ascent_goal any_exit --ascent_unguarded --ascent_path_result outputs/remote_autonomy/slope-fit-20261024-04/result.json --mission ascent --seed 42 --spawn_yaw 1.5707963267948966 --terrain_prior outputs/ascent_full_survey/trial01/run.prior.npz --cruise_speed .40 --max_side_slope_deg 32 --max_steps 45000 --headless --no_dashboard --joint_log_dir outputs/remote_autonomy/blue-path-unguarded-20261024-01/joints --log_file outputs/remote_autonomy/blue-path-unguarded-20261024-01/run.csv > outputs/remote_autonomy/blue-path-unguarded-20261024-01/console.log 2>&1

@@ -1,0 +1,343 @@
+{
+  "observation": {
+    "xy": [
+      14.214300155639648,
+      2.5765719413757324
+    ],
+    "yaw": 0.7023842463342416,
+    "velocity": [
+      0.052266430109739304,
+      0.020256517454981804
+    ],
+    "up_z": 0.976950578391552,
+    "yaw_rate": -0.28110841858887725,
+    "time": 32.24,
+    "inclination": 11.148690402906825,
+    "turn_allowed": true,
+    "fresh": true,
+    "terrain_gradient": [
+      -0.1360678381806623,
+      -0.0300406729025776
+    ],
+    "body_quaternion": [
+      0.9336893558502197,
+      -0.03304458409547806,
+      0.10214091837406158,
+      0.341612845659256
+    ]
+  },
+  "request": {
+    "action_id": "drive-intent-G4LadBXP-run:move:4",
+    "start": [
+      13.74821949005127,
+      2.355177164077759
+    ],
+    "endpoint": [
+      13.5259183883667,
+      3.441872221976519
+    ],
+    "direction": 1,
+    "speed": 0.4,
+    "deadline": 95.29998396753652,
+    "purpose": "mission",
+    "lateral_tolerance": 0.5,
+    "arrival_radius": 0.2772999198376826
+  },
+  "executor": {
+    "state": "BRAKE",
+    "reason": "settle measured yaw before drive",
+    "entered": 32.06,
+    "started": 24.84,
+    "stable_since": null,
+    "samples": [],
+    "stall_since": null,
+    "stall_origin": null,
+    "posture": [
+      [
+        31.64,
+        0.2049433596766604
+      ],
+      [
+        31.66,
+        0.20593226211649174
+      ],
+      [
+        31.68,
+        0.20733565588132816
+      ],
+      [
+        31.7,
+        0.2088106419885113
+      ],
+      [
+        31.720000000000002,
+        0.21008051972423566
+      ],
+      [
+        31.740000000000002,
+        0.21127846782853885
+      ],
+      [
+        31.76,
+        0.21233877382435234
+      ],
+      [
+        31.78,
+        0.21317836072569157
+      ],
+      [
+        31.8,
+        0.21382517719584485
+      ],
+      [
+        31.82,
+        0.21441777433283576
+      ],
+      [
+        31.84,
+        0.21496886246660743
+      ],
+      [
+        31.86,
+        0.21544674705500838
+      ],
+      [
+        31.88,
+        0.21602229502584205
+      ],
+      [
+        31.900000000000002,
+        0.2167678989540025
+      ],
+      [
+        31.92,
+        0.21761787777847985
+      ],
+      [
+        31.94,
+        0.21857734720918676
+      ],
+      [
+        31.96,
+        0.21945432959956576
+      ],
+      [
+        31.98,
+        0.22031783728253826
+      ],
+      [
+        32.0,
+        0.22128237814517576
+      ],
+      [
+        32.02,
+        0.2224224891842439
+      ],
+      [
+        32.04,
+        0.2233262059358756
+      ],
+      [
+        32.06,
+        0.22381786412110058
+      ],
+      [
+        32.08,
+        0.2242568311735425
+      ],
+      [
+        32.1,
+        0.22480012258750057
+      ],
+      [
+        32.12,
+        0.22494063542798262
+      ],
+      [
+        32.14,
+        0.22434275158171346
+      ],
+      [
+        32.160000000000004,
+        0.2227722904245141
+      ],
+      [
+        32.18,
+        0.2206610397984781
+      ],
+      [
+        32.2,
+        0.2183763812370407
+      ],
+      [
+        32.22,
+        0.21639375179320158
+      ],
+      [
+        32.24,
+        0.2151209701338019
+      ]
+    ],
+    "pulse_direction": 1,
+    "alignment_best": 1.2916784966333688,
+    "alignment_progress_at": 27.98,
+    "drive_exposure": 0.0,
+    "last_output_time": 32.24,
+    "forward_output": false,
+    "release_origin": null,
+    "release_bad_since": null,
+    "uphill_patience": false,
+    "executed_traversal": null,
+    "pending_traversal": null,
+    "suspended_release": false,
+    "release_memory": {
+      "enabled": true,
+      "correction_release_enabled": false,
+      "correction_active": false,
+      "used": false,
+      "pending": null,
+      "samples": [],
+      "drive_witness": null,
+      "token": null
+    },
+    "uphill_samples": [],
+    "uphill_stall_since": null,
+    "uphill_stall_origin": null,
+    "committed_heading": null,
+    "travel_axis": null,
+    "metrics": {
+      "status": "progress",
+      "forward_mps": 0.30608135291021255,
+      "progress_mps": 0.2510973805599039,
+      "lateral_mps": 0.024129115710745747,
+      "window_s": 0.17999999999999972,
+      "uphill_traversal_progress_mps": null,
+      "uphill_traversal_window_s": 0.0,
+      "uphill_budget_remaining_s": 12.0,
+      "uphill_exposure_s": 0.0,
+      "uphill_wall_remaining_s": 24.0,
+      "release_active": false,
+      "drive_response_window_s": 0.0,
+      "drive_response_axis_mps": null,
+      "drive_response_uphill_mps": null,
+      "drive_slow_dwell_s": 0.0,
+      "forward_exposure_s": 0.0,
+      "release_window_complete": null,
+      "release_plateau_s": null,
+      "posture_raw_rapid": false,
+      "posture_entry_exempt": false,
+      "posture_absolute_pause": false,
+      "posture_signal_time": 32.24,
+      "terrain_relative_tilt_deg": 6.186600387286736,
+      "straight_entry_continuation": false,
+      "straight_entry_heading_excursion_rad": 0.09763012885444033,
+      "straight_entry_yaw_trend_rps": -0.3254337628481337,
+      "straight_entry_rejection": "",
+      "heading_variation_rad": 0.8041393574469239,
+      "uphill_progress_mps": -0.24803501787748253,
+      "directional_grade_deg": -11.084370958656782
+    },
+    "entry_samples": [
+      [
+        32.08,
+        0.7473036449444068,
+        0.09942371162221987,
+        0.09779580812856195
+      ],
+      [
+        32.1,
+        0.7427357360283386,
+        0.0881721724352316,
+        0.08392838345453985
+      ],
+      [
+        32.12,
+        0.7369447463245141,
+        0.07435862900991809,
+        0.06892283368809708
+      ],
+      [
+        32.14,
+        0.7306907062588462,
+        0.061994645323179554,
+        0.05794188029531971
+      ],
+      [
+        32.160000000000004,
+        0.7249329977016861,
+        0.054750867239879826,
+        0.05285757826163566
+      ],
+      [
+        32.18,
+        0.7193669745544444,
+        0.05176844678444455,
+        0.0508662702542779
+      ],
+      [
+        32.2,
+        0.7136777800822762,
+        0.05193599063870025,
+        0.05088033844179056
+      ],
+      [
+        32.22,
+        0.70800641470602,
+        0.05396879682919933,
+        0.052080785174931025
+      ],
+      [
+        32.24,
+        0.7023842463342416,
+        0.05605449327056883,
+        0.0529816862416936
+      ]
+    ],
+    "brake_episode_started": 32.06,
+    "posture_pause": null,
+    "pending_drive_continuation": null,
+    "uphill_exposure": 0.0,
+    "posture_signal": [
+      false,
+      false,
+      false
+    ],
+    "recovery_stage_started": null,
+    "recovery_stage_anchor": null,
+    "recovery_stage_samples": [],
+    "uphill_speed_response_enabled": true,
+    "speed_response_used": false,
+    "speed_response_started": null,
+    "drive_response_samples": [],
+    "drive_slow_since": null,
+    "recovery_continuation": null,
+    "recovery_execution_heading": null,
+    "recovery_core_started": null,
+    "recovery_core_anchor": null,
+    "recovery_motion_samples": [],
+    "recovery_region_samples": [],
+    "recovery_region_stall_since": null
+  },
+  "returned_result": {
+    "action_id": "drive-intent-G4LadBXP-run:move:4",
+    "outcome": "censored",
+    "reason": "measured lateral departure from straight corridor",
+    "physical": false,
+    "time": 32.24,
+    "position": [
+      14.214300155639648,
+      2.5765719413757324
+    ],
+    "phase": "BRAKE",
+    "disposition": "repositioned",
+    "executed_traversal": null
+  },
+  "returned_command": {
+    "vx": -0.2119267449667744,
+    "omega": 0.0
+  },
+  "provenance": {
+    "source": "outputs/autonomy_resume/drive-intent-G4LadBXP/run.event-01.npz",
+    "scope": "Exact recorded controller and observation; test mocks geometry, not a full physical/map replay"
+  }
+}

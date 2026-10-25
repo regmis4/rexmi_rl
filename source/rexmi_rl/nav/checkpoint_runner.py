@@ -283,14 +283,31 @@ def run(args, app):
         from rexmi_rl.nav.flat_sidestep import FlatSidestep
         side=FlatSidestep(grid) if args.flat_sidesteps else None
         requests=queue.SimpleQueue()
+        from .dashboard_telemetry import TravelHistory
+        from .terrain_display import from_model, cost_view, heading_grade
+        travel_history=TravelHistory()
+        display_last_heading=None
+        display_model=None
+        display_reference=None
+        if not args.headless and hasattr(control,'saved_path_metadata'):
+            from . import planning_snapshot, slope_cost
+            display_model=getattr(control,'preference',None)
+            if display_model is None:
+                frozen,_=planning_snapshot.load(control.saved_path_metadata['map_path'])
+                display_model=slope_cost.Model(frozen,slope_cost.Parameters(**control.saved_path_metadata['parameters']))
+            display_reference=from_model(display_model)
         if args.start_paused: control.request('stop',0.)
         if args.manual_checkpoints or replay: control.checkpoint_mode(True,0.)
         lock=threading.Lock()
         empty=np.array([])
         shared=dict(manual_checkpoint_mode=args.manual_checkpoints,pose=localizer.get_pose(),wp_idx=0,planned_path=[],local_out=None,
+                    operator_mode=getattr(control,'operator_mode',None),
+                    assisted_control=bool(getattr(args,'reviewed_buttons',None)),
                     recovery_status='OBSERVE',mission=args.mission,cmd=(0.,0.,0.),cost_grid=grid.get_cost_grid(),
                     speed=0.,slam_converged=False,slam_map_size=0,slam_rms=0.,slam_icp_count=0,
                     fwd_cloud_xyz=(empty,empty,empty),policy_status='rocky_slope',trajectory=[])
+        if display_reference is not None:
+            shared['terrain_display']=display_reference
         nav=SimpleNamespace(_sim_localizer=localizer,_lidar=sensors['lidar'],_env_idx=0,
                             _omap=grid,_lock=lock,shared=shared,requests=requests if not args.no_dashboard else None)
         if args.perception_view and not args.headless:
@@ -336,6 +353,9 @@ def run(args, app):
         path.with_suffix('.events.jsonl').write_text('')
         source_root=Path(__file__).resolve().parents[3]
         sources=[Path(__file__),Path(__file__).with_name('checkpoint_control.py'),Path(__file__).with_name('observed_map.py')]
+        if not args.headless:
+            sources += [Path(__file__).with_name(name+'.py') for name in
+                        ('dashboard','dashboard_telemetry','terrain_display','perception_view')]
         if ascent:
             sources += [Path(__file__).with_name(name+'.py') for name in ('ascent_control','ascent_map','ascent_routes','reachability')]
             if getattr(args, 'ascent_architecture', 'behavior_tree') == 'behavior_tree':
@@ -616,7 +636,11 @@ def run(args, app):
                     if args.map_retention == 'radius': grid.retain_radius(xy,args.map_keep_radius)
                     grid.rebuild(now)
                     map_update_ms.append(1000*(time.perf_counter()-started))
+                    live_display=None
+                    if not args.headless and display_reference is None:
+                        live_display=cost_view(grid.cost,grid.known,grid.blocked)
                     with lock:
+                        if live_display is not None: shared['terrain_display']=live_display
                         shared.update(cost_grid=grid.get_cost_grid(),observed_mask=grid.known.copy(),clearance_mask=grid.clearance_mask)
                         shared['survey_layers']={k:getattr(grid,k).copy() for k in
                                                  ('slope','roughness','failures','successes','no_go','approach_blocked')}
@@ -751,8 +775,25 @@ def run(args, app):
                 if not trajectory or math.dist(xy,trajectory[-1])>.1: trajectory.append(xy)
                 cp=control.checkpoint or (math.nan,math.nan)
                 target=control.target or (math.nan,math.nan)
+                if not args.headless:
+                    grade_grid=display_model.grid if display_model is not None else grid
+                    grade=heading_grade(grade_grid,xy,pose.yaw,display_model)
+                    display_yaw_rate=float('nan')
+                    if display_last_heading is not None and now>display_last_heading[0]:
+                        delta=pose.yaw-display_last_heading[1]
+                        display_yaw_rate=math.atan2(math.sin(delta),math.cos(delta))/(now-display_last_heading[0])
+                    display_last_heading=(now,pose.yaw)
+                    # Start the climb profile at first commanded motion, after spawn settling.
+                    if travel_history.time is not None or abs(motion.vx)+abs(vy)+abs(motion.omega)>1e-6:
+                        travel_history.update(now,(pose.x,pose.y,pose.z),grade)
                 with lock:
+                    if not args.headless:
+                        shared.update(sim_time=now,actual_yaw_rate=display_yaw_rate,
+                                      travel_distance=travel_history.distance)
+                        if step%max(1,round(.1/dt))==0:
+                            shared['travel_profile']=travel_history.snapshot()
                     shared.update(pose=pose,wp_idx=control.wp_idx,planned_path=list(control.path),
+                                  operator_mode=getattr(control,'operator_mode',None),
                                   mission_stage=mission_status,
                                   mission_path=list(control.mission_route),route_profile=dict(control.route_profile),
                                   mission_route_complete=control.mission_route_complete,

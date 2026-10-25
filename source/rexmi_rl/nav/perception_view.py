@@ -136,7 +136,7 @@ def survey_colors(cost, observed, clearance=None, layer='terrain', slope=None,
     return colors,legend+' | red: obstacle | dark red: learned no-go | orange: slope >35° (blocked) | cream: obstacle clearance'
 
 
-def survey_tiles(height, observed, colors, origin, cell_size, robot_xy, radius=12.):
+def survey_tiles(height, observed, colors, origin, cell_size, robot_xy, radius=12., continuous=False):
     """Whole survey: 20 cm nearby, 40 cm distant, no unknown-cell infill.
 
     Aggregate only completely measured 2x2 groups. Use the most hazardous
@@ -170,6 +170,11 @@ def survey_tiles(height, observed, colors, origin, cell_size, robot_xy, radius=1
             failed=np.all(np.isclose(block_colors,[1.,.55,.12]),axis=-1)
             success=np.all(np.isclose(block_colors,[.12,.75,.3]),axis=-1)
             rank=block_colors[:,:,0]+red*10+steep*11+learned*12+cream*5+excluded*3+failed*2+success
+            if continuous:
+                # Magma is ordered by luminance, not its non-monotonic red channel.
+                rank=block_colors@np.array([.2126,.7152,.0722])
+                masked=np.all(np.isclose(block_colors,[.30,.31,.33]),axis=-1)
+                rank+=masked*2
             chosen=block_colors[np.arange(len(r)),rank.argmax(axis=-1)]
             groups.append((np.c_[x,y,z+.045],chosen,cell_size*.86))
     r,c=np.nonzero(valid & ~coarse)
@@ -234,6 +239,7 @@ class PerceptionView:
         self.point_limit = point_limit
         self.selected_path_only = selected_path_only
         self.nav = nav
+        self._cost_palette = True
         self.stage = omni.usd.get_context().get_stage()
         if self.stage.GetPrimAtPath(self.ROOT):
             raise RuntimeError(f'{self.ROOT} already exists; refusing to overwrite it')
@@ -257,7 +263,7 @@ class PerceptionView:
             self.points.CreateDisplayColorAttr([(0.15, 0.90, 1.0)])
             self.tiles = UsdGeom.Xform.Define(self.stage,self.ROOT+'/ObservedCosts')
             self.route = self._curve('/ObservedRoute', (0.2,1.0,0.15) if getattr(nav,'manual_trace',False)
-                                     else (1.0, 0.04, 0.06), 0.065)
+                                     else (0., 217/255., 1.), 0.065)
             self.mission_curve = self._curve('/MissionRoute', (1.0, 0.75, 0.20), 0.035)
             self.approaches = self._curve('/CandidateApproaches', (0.65, 0.70, 0.85), 0.025)
             self.checkpoint_marker = self._curve('/Checkpoint', (0.22, 0.91, 0.37), 0.055)
@@ -354,12 +360,13 @@ class PerceptionView:
             policy_status = nav.shared.get('policy_status','rocky_slope')
             switch_reason = nav.shared.get('switch_reason','single policy')
             options=list(nav.shared.get('route_options',[]))
+            terrain_display=nav.shared.get('terrain_display')
         mission_path,options=visible_path_overlays(
             mission_path,options,self.selected_path_only)
         started=time.perf_counter()
         tile_key = (getattr(nav._omap,'revision',None),
                     getattr(nav._omap,'traversal_revision',None),self.layer,
-                    int(np.floor(pose.x)),int(np.floor(pose.y)))
+                    int(np.floor(pose.x)),int(np.floor(pose.y)),id(terrain_display))
         update_tiles = tile_key != self._tile_key or tile_key[0] is None
         if update_tiles:
             if self.layer == 'terrain' and getattr(nav,'terrain_colorizer',None) is not None:
@@ -367,6 +374,17 @@ class PerceptionView:
                 vertices,colors=survey_tiles(height,observed,palette,nav._omap.origin,
                                             nav._omap.cell_size,(pose.x,pose.y))
                 if hasattr(self,'legend'): self.legend.text=legend
+            elif self.layer == 'terrain' and (terrain_display is not None or getattr(self,'_cost_palette',False)):
+                if terrain_display is None:
+                    from .terrain_display import cost_view
+                    terrain_display=cost_view(cost,observed,getattr(nav._omap,'blocked',cost>=20.))
+                palette=terrain_display['rgb']
+                # Frozen colors remain tied to the accepted planning geometry.
+                tile_height=terrain_display.get('surface',height)
+                tile_known=terrain_display.get('known',observed)
+                vertices,colors=survey_tiles(tile_height,tile_known,palette,nav._omap.origin,
+                                            nav._omap.cell_size,(pose.x,pose.y),continuous=True)
+                if hasattr(self,'legend'): self.legend.text=terrain_display['legend']
             elif hasattr(nav._omap,'roughness'):
                 palette,legend=survey_colors(cost,observed,nav._omap.clearance_mask,self.layer,
                                             nav._omap.slope,nav._omap.roughness,

@@ -1,5 +1,60 @@
 # REXMI live perception view
 
+## Live ascent dashboard (24 October 2026)
+
+The navigation dashboard now has one robot-centered map on the left, a live
+climb profile at upper right and a circular command/response display underneath.
+The full-world map panel is removed. Map clicks still select checkpoints when
+checkpoint mode is enabled; clicking either chart never sends a command.
+The prominent header reads **AUTONOMOUS NAVIGATION** during autonomous operation,
+switching to **MANUAL CONTROL**, **NAVIGATION PAUSED**, or **ASSISTED NAVIGATION**
+when applicable. The driving circle shows controller output, not manual buttons.
+
+For `--ascent_path_result`, the dashboard and Isaac terrain overlay share the
+**same frozen fitted magma/logarithmic cost colors** as the accepted blue-path
+figure: dark purple is low cost, orange/cream is expensive, grey is the planning
+mask and dark grey is unknown. The selected path is cyan/blue; the dashboard's
+actual trail is white with a dark outline. Live scan updates cannot rescale or
+recolor this frozen reference. Diagnostic layer selectors retain their labeled
+units and palettes. Other navigation runs use the same magma color family for
+their live terrain costs, without claiming the fitted objective.
+
+- **Climb profile:** cyan body elevation gain (left axis) and orange signed
+  terrain grade along heading (right axis), against accumulated horizontal
+  distance. Data starts at the first motion command, after initial settling.
+  Reverse motion adds distance. Elevation comes from the measured body position;
+  grade comes from the frozen model's 0.451 m wheelbase gradient for saved-path
+  runs. Grade is not body pitch or a derivative of the cyan line. Other runs use
+  their live terrain gradient. Unknown grade stays missing.
+- **Driving circle:** forward, reverse, left/right turning, braking and stop.
+  Simultaneous forward/turn commands light both sectors. Commanded forward,
+  lateral and yaw speeds are shown separately from measured speed and yaw rate.
+  Zero input while measured speed or yaw rate exceeds 0.05 is shown as braking,
+  not stopped; this labels the command/response and does not assert deceleration.
+  An active braking/settling state also retains the braking indication.
+- History is sampled from each control tick, published at 10 Hz and rendered
+  at about 2 Hz; spatial decimation bounds memory while retaining the start and
+  latest sample. Display changes do not alter commands, planning or recovery.
+
+![Dashboard replay at 70 simulated seconds](validation/navigation_dashboard_2026-10-24/dashboard.png)
+
+[Driving-state examples](validation/navigation_dashboard_2026-10-24/drive_states.png)
+use illustrative commands. The dashboard image replays the successful ascent
+recording, not a new simulation. CPU checks cover exact accepted-map RGB values,
+overlay inputs, telemetry accumulation, motion states and map-click isolation.
+The updated Isaac GUI has not yet been exercised in a fresh simulation session.
+Validation: **1,318 CPU tests passed**; both preview images were visually checked.
+
+Use the existing visible blue-path command:
+
+```bash
+cd /home/susan/rexmi_rl
+bash scripts/launch_remote_round_trip.sh \
+  --mission ascent --ascent_goal any_exit --ascent_unguarded \
+  --ascent_path_result outputs/remote_autonomy/slope-fit-20261024-04/result.json \
+  --spawn_yaw 1.5707963267948966
+```
+
 ## Manual ascent baseline with reference weights (24 October 2026)
 
 ```bash

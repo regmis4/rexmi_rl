@@ -5,6 +5,11 @@ seed-42 simulation ascent in 102.30 s with motion vetoes disabled as requested.
 See [completion evidence](#successful-autonomous-blue-path-ascent--24-october-2026)
 and [current execution/plot contract](#user-override-unguarded-simulation-and-measured-recovery).
 
+The [live dashboard](perception_view.md#live-ascent-dashboard-24-october-2026)
+now places the local map left and elevation/grade and circular driving displays
+right. Dashboard and Isaac overlay use the accepted frozen fitted cost palette
+for blue-path runs.
+
 The repository includes the selected planning maps, route results, control logs,
 plots and completion audits. Bulk joint/physics telemetry and the trained policy
 checkpoint remain local. Archived absolute planning-input paths can resolve to

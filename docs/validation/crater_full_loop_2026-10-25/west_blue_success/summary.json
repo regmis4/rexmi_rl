@@ -1,0 +1,793 @@
+{
+  "result": "complete",
+  "seed": 42,
+  "sim_seconds": 185.9,
+  "waypoints_reached": 2,
+  "diagnostic": false,
+  "controller": "checkpoint",
+  "mission": "crater_loop",
+  "terrain_prior": null,
+  "ascent_architecture": "remote",
+  "perception_overlay_requested": false,
+  "perception_overlay_enabled": false,
+  "perception_overlay_tiles": 0,
+  "spawn": [
+    13.0,
+    0.0,
+    4.5,
+    3.141592653589793
+  ],
+  "goal": null,
+  "ascent_mode": "characterize",
+  "model_id": null,
+  "probability_model_qualified": false,
+  "source_id": "ff4f8f141c3104fcfccf103a9bdb649400211d0cfd9a8cb357397144091cea6f",
+  "policy_sha256": "c8c997e2bff200522e01dfa45c0b85201777b919034bb3671fca452ae56e9aaa",
+  "min_up_z": 0.626917839050293,
+  "peak_actual_speed_mps": 0.9146286398000457,
+  "peak_command_mps": 0.4,
+  "min_active_up_z": 0.626917839050293,
+  "peak_active_speed_mps": 0.9127185673987612,
+  "peak_slope_speed_mps": 0.9127185673987612,
+  "slope_overspeed_seconds": 4.839999999999985,
+  "controller_ms_mean": 0.3212480396995615,
+  "controller_ms_p95": 0.5254559946479276,
+  "recovery_controller_timing_ms": {
+    "admission": {
+      "count": 0,
+      "mean": null,
+      "p95": null,
+      "maximum": null
+    },
+    "continued_reverse": {
+      "count": 0,
+      "mean": null,
+      "p95": null,
+      "maximum": null
+    },
+    "core_observation": {
+      "count": 0,
+      "mean": null,
+      "p95": null,
+      "maximum": null
+    },
+    "termination": {
+      "count": 0,
+      "mean": null,
+      "p95": null,
+      "maximum": null
+    }
+  },
+  "recovery_admission_timing": [],
+  "checkpoint_replay": null,
+  "replayed_selections": 0,
+  "operator_replay": [],
+  "replayed_operator_events": 0,
+  "total_waypoints": 2,
+  "manual_intervention": false,
+  "max_cross_track_m": 0.754584881350155,
+  "policy": "rocky_slope",
+  "policy_switches": 0,
+  "flat_sidesteps": false,
+  "switch_events": [],
+  "footprint_radius_m": 0.5028250873088836,
+  "cruise_ceiling": 0.4,
+  "body_envelope": {
+    "half_length": 0.47263298034667967,
+    "half_width": 0.2736251413822174
+  },
+  "hold_failures": 0,
+  "rolling_checkpoints": 0,
+  "final_state": "COMPLETE",
+  "final_reason": "selected exterior endpoint reached upright and settled",
+  "local_recovery_attempts": 0,
+  "feedback_recovery_history": [],
+  "feedback_recovery_active": null,
+  "furthest_saved_route_progress_m": 17.644687544074383,
+  "final_saved_route_progress_m": 17.644687544074383,
+  "last_hold_failure": "",
+  "climb_failures": null,
+  "climb_failure_classification_available": false,
+  "backslide_m": 0.021824328392406316,
+  "turn_repositions": 0,
+  "route_profile": {
+    "length_m": 17.645162060061796,
+    "ascent_m": 4.0075975671855275,
+    "uphill_over_25deg_m": 2.5691538604405295,
+    "max_uphill_deg": 31.015792771731753,
+    "max_side_slope_deg": 28.632494941011423,
+    "max_ground_slope_deg": 31.66316588213163,
+    "max_footprint_slope_deg": 35.91616442102992
+  },
+  "motion_events": [],
+  "escape_events": [],
+  "failed_climbs": [],
+  "route_purpose": "mission",
+  "retreat_goal": null,
+  "retreat_candidates": [],
+  "preferred_uphill_deg": 20.0,
+  "max_uphill_deg": 25.0,
+  "max_side_slope_deg": 25.0,
+  "learned_no_go_cells": 0,
+  "route_options": [],
+  "route_searches": [],
+  "mission_route_complete": true,
+  "map_update_ms_mean": 95.40960957216079,
+  "validated": false,
+  "goal_mode": "any_exit",
+  "selected_exit": [
+    11.100000000000001,
+    4.100000000000001
+  ],
+  "exit_rim_radius_m": 11.0,
+  "crater_loop": {
+    "stage": "COMPLETE",
+    "goal": [
+      11.100000000000001,
+      4.100000000000001
+    ],
+    "goal_mode": "crater_loop",
+    "completed_destinations": 2,
+    "center_arrival_time": 100.24000000000001,
+    "descent": {
+      "time": 99.60000000000001,
+      "position": [
+        -0.06287509202957153,
+        0.3202776610851288
+      ],
+      "waypoints_reached": 1,
+      "hold_failures": 1,
+      "rolling_checkpoints": 0,
+      "steering_recoveries": 0,
+      "reverse_recoveries": 0,
+      "recovery_events": [
+        {
+          "event": "descent_checkpoint_selected",
+          "time": 1.0,
+          "position": [
+            13.173383712768555,
+            0.06232510134577751
+          ],
+          "checkpoint": [
+            11.300000000000004,
+            0.10000000000000142
+          ],
+          "observation_target": [
+            11.300000000000004,
+            0.10000000000000142
+          ],
+          "measured_data_clearance_m": 1.0,
+          "extra_data_reserve_m": 0.25,
+          "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+        },
+        {
+          "event": "descent_checkpoint_selected",
+          "time": 6.54,
+          "position": [
+            11.74030590057373,
+            0.23452767729759216
+          ],
+          "checkpoint": [
+            10.900000000000006,
+            -0.29999999999999716
+          ],
+          "observation_target": [
+            10.900000000000006,
+            -0.29999999999999716
+          ],
+          "measured_data_clearance_m": 1.0,
+          "extra_data_reserve_m": 0.25,
+          "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+        },
+        {
+          "event": "descent_checkpoint_selected",
+          "time": 10.540000000000001,
+          "position": [
+            11.198765754699707,
+            -0.03728993237018585
+          ],
+          "checkpoint": [
+            9.5,
+            0.8999999999999986
+          ],
+          "observation_target": [
+            9.5,
+            0.8999999999999986
+          ],
+          "measured_data_clearance_m": 1.216552506059644,
+          "extra_data_reserve_m": 0.30203593798739575,
+          "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+        },
+        {
+          "event": "descent_checkpoint_selected",
+          "time": 18.900000000000002,
+          "position": [
+            9.69172477722168,
+            0.5513794422149658
+          ],
+          "checkpoint": [
+            8.300000000000004,
+            1.1000000000000014
+          ],
+          "observation_target": [
+            8.300000000000004,
+            1.1000000000000014
+          ],
+          "measured_data_clearance_m": 1.4560219778561037,
+          "extra_data_reserve_m": 0.43213063504636706,
+          "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+        },
+        {
+          "event": "descent_checkpoint_selected",
+          "time": 22.8,
+          "position": [
+            8.643779754638672,
+            0.9003630876541138
+          ],
+          "checkpoint": [
+            8.100000000000001,
+            1.3000000000000043
+          ],
+          "observation_target": [
+            8.100000000000001,
+            1.3000000000000043
+          ],
+          "measured_data_clearance_m": 1.4000000000000001,
+          "extra_data_reserve_m": 0.5669463841020093,
+          "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+        },
+        {
+          "event": "descent_checkpoint_selected",
+          "time": 27.0,
+          "position": [
+            7.88600492477417,
+            0.9629801511764526
+          ],
+          "checkpoint": [
+            7.5,
+            2.3000000000000043
+          ],
+          "observation_target": [
+            7.5,
+            2.3000000000000043
+          ],
+          "measured_data_clearance_m": 1.0,
+          "extra_data_reserve_m": 0.25,
+          "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+        },
+        {
+          "event": "descent_checkpoint_selected",
+          "time": 30.82,
+          "position": [
+            7.545663356781006,
+            1.9038090705871582
+          ],
+          "checkpoint": [
+            6.5,
+            4.300000000000004
+          ],
+          "observation_target": null,
+          "measured_data_clearance_m": 1.0,
+          "extra_data_reserve_m": 0.25,
+          "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+        },
+        {
+          "event": "descent_checkpoint_selected",
+          "time": 40.74,
+          "position": [
+            6.576777458190918,
+            4.156816005706787
+          ],
+          "checkpoint": [
+            5.300000000000004,
+            5.5
+          ],
+          "observation_target": null,
+          "measured_data_clearance_m": 1.019803902718557,
+          "extra_data_reserve_m": 0.25,
+          "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+        },
+        {
+          "event": "descent_checkpoint_selected",
+          "time": 49.14,
+          "position": [
+            5.455948829650879,
+            5.399084568023682
+          ],
+          "checkpoint": [
+            3.700000000000003,
+            6.300000000000004
+          ],
+          "observation_target": null,
+          "measured_data_clearance_m": 2.60768096208106,
+          "extra_data_reserve_m": 0.25,
+          "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+        },
+        {
+          "event": "descent_checkpoint_selected",
+          "time": 56.82,
+          "position": [
+            3.8304603099823,
+            6.289897918701172
+          ],
+          "checkpoint": [
+            1.8999999999999986,
+            6.900000000000006
+          ],
+          "observation_target": null,
+          "measured_data_clearance_m": 3.0,
+          "extra_data_reserve_m": 0.25,
+          "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+        },
+        {
+          "event": "descent_checkpoint_selected",
+          "time": 65.66,
+          "position": [
+            1.573288917541504,
+            5.837321758270264
+          ],
+          "checkpoint": [
+            -0.5,
+            5.100000000000001
+          ],
+          "observation_target": null,
+          "measured_data_clearance_m": 1.8973665961010278,
+          "extra_data_reserve_m": 0.3329893280059286,
+          "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+        },
+        {
+          "event": "descent_checkpoint_selected",
+          "time": 75.04,
+          "position": [
+            -0.5228846073150635,
+            4.871743202209473
+          ],
+          "checkpoint": [
+            -0.29999999999999716,
+            2.8999999999999986
+          ],
+          "observation_target": null,
+          "measured_data_clearance_m": 3.0,
+          "extra_data_reserve_m": 0.25,
+          "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+        },
+        {
+          "event": "descent_checkpoint_selected",
+          "time": 89.52,
+          "position": [
+            -0.4168013334274292,
+            3.0171239376068115
+          ],
+          "checkpoint": [
+            0.0,
+            0.0
+          ],
+          "observation_target": null,
+          "measured_data_clearance_m": 1.4560219778561037,
+          "extra_data_reserve_m": 0.25,
+          "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+        }
+      ]
+    },
+    "plan": {
+      "map_path": "/home/susan/rexmi_rl/outputs/crater_loop/mission-gDywlWv5/exit-plan-01/request-r36ds1_x.npz",
+      "map_sha256": "7ba92c02beb67a44708a8a4f4d1f7ebbec59288d7cf446f876aaa443ff3c7b8f",
+      "route_name": "validated_west_blue",
+      "parameters": {
+        "easy_angle_deg": 15.0,
+        "exponential_scale_deg": 6.0,
+        "uphill_weight": 1.0,
+        "roughness_interaction": 0.5,
+        "cross_weight": 1.0,
+        "terrain_weight": 1.0
+      },
+      "start": [
+        -0.06788109987974167,
+        0.31509947776794434
+      ],
+      "yaw": -1.6682476025092599,
+      "planned_at_sim_time": 100.24000000000001,
+      "planning_seconds": 0.1382869560038671,
+      "map_source": "live sensors retained during this descent",
+      "known_cells": 16399,
+      "observed_area_m2": 655.9600000000002,
+      "predicted_metrics": {
+        "length_m": 17.645162060061793,
+        "fitted_score": 375.22263494277007
+      },
+      "selected_exit": [
+        11.100000000000001,
+        4.100000000000001
+      ],
+      "routes": {
+        "any_exit": [
+          [
+            -0.06788109987974167,
+            0.31509947776794434
+          ],
+          [
+            0.0260005015879869,
+            -0.0714771524071693
+          ],
+          [
+            0.7000000000000028,
+            -0.5
+          ],
+          [
+            1.8999999999999986,
+            -0.8999999999999986
+          ],
+          [
+            2.1000000000000014,
+            -0.8999999999999986
+          ],
+          [
+            2.700000000000003,
+            -1.0999999999999979
+          ],
+          [
+            3.1000000000000014,
+            -1.2999999999999972
+          ],
+          [
+            4.5,
+            -2.6999999999999993
+          ],
+          [
+            4.700000000000003,
+            -2.6999999999999993
+          ],
+          [
+            5.300000000000004,
+            -2.8999999999999986
+          ],
+          [
+            5.5,
+            -2.8999999999999986
+          ],
+          [
+            5.899999999999999,
+            -3.099999999999998
+          ],
+          [
+            6.100000000000001,
+            -3.299999999999997
+          ],
+          [
+            6.700000000000003,
+            -3.099999999999998
+          ],
+          [
+            6.900000000000006,
+            -2.5
+          ],
+          [
+            7.300000000000004,
+            -2.099999999999998
+          ],
+          [
+            7.300000000000004,
+            -1.8999999999999986
+          ],
+          [
+            7.5,
+            -1.2999999999999972
+          ],
+          [
+            7.700000000000003,
+            -1.0999999999999979
+          ],
+          [
+            7.700000000000003,
+            -0.5
+          ],
+          [
+            7.900000000000006,
+            -0.29999999999999716
+          ],
+          [
+            7.700000000000003,
+            0.30000000000000426
+          ],
+          [
+            7.700000000000003,
+            1.8999999999999986
+          ],
+          [
+            8.300000000000004,
+            2.1000000000000014
+          ],
+          [
+            8.5,
+            2.3000000000000043
+          ],
+          [
+            9.300000000000004,
+            2.700000000000003
+          ],
+          [
+            9.900000000000006,
+            3.3000000000000043
+          ],
+          [
+            11.100000000000001,
+            4.100000000000001
+          ]
+        ]
+      },
+      "rim_radius": 11.0,
+      "nodes": 0,
+      "directed_edges": 0,
+      "route_source": {
+        "name": "validated_west_blue",
+        "task": "RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0",
+        "seed": 42,
+        "crater_origin": [
+          0.0,
+          0.0
+        ],
+        "rim_radius": 11.0,
+        "source_result": "outputs/remote_autonomy/slope-fit-20261024-04/result.json",
+        "source_sha256": "3a56ca3ed18bff83bbe24d6457816fefa37e7e3e1baa52d293dc7802e76281b3",
+        "successful_run": "blue-path-unguarded-20261024-01",
+        "successful_completion_sim_seconds": 102.3,
+        "parameters": {
+          "easy_angle_deg": 15.0,
+          "exponential_scale_deg": 6.0,
+          "uphill_weight": 1.0,
+          "roughness_interaction": 0.5,
+          "cross_weight": 1.0,
+          "terrain_weight": 1.0
+        },
+        "route": [
+          [
+            0.0260005015879869,
+            -0.0714771524071693
+          ],
+          [
+            0.7000000000000028,
+            -0.5
+          ],
+          [
+            1.8999999999999986,
+            -0.8999999999999986
+          ],
+          [
+            2.1000000000000014,
+            -0.8999999999999986
+          ],
+          [
+            2.700000000000003,
+            -1.0999999999999979
+          ],
+          [
+            3.1000000000000014,
+            -1.2999999999999972
+          ],
+          [
+            4.5,
+            -2.6999999999999993
+          ],
+          [
+            4.700000000000003,
+            -2.6999999999999993
+          ],
+          [
+            5.300000000000004,
+            -2.8999999999999986
+          ],
+          [
+            5.5,
+            -2.8999999999999986
+          ],
+          [
+            5.899999999999999,
+            -3.099999999999998
+          ],
+          [
+            6.100000000000001,
+            -3.299999999999997
+          ],
+          [
+            6.700000000000003,
+            -3.099999999999998
+          ],
+          [
+            6.900000000000006,
+            -2.5
+          ],
+          [
+            7.300000000000004,
+            -2.099999999999998
+          ],
+          [
+            7.300000000000004,
+            -1.8999999999999986
+          ],
+          [
+            7.5,
+            -1.2999999999999972
+          ],
+          [
+            7.700000000000003,
+            -1.0999999999999979
+          ],
+          [
+            7.700000000000003,
+            -0.5
+          ],
+          [
+            7.900000000000006,
+            -0.29999999999999716
+          ],
+          [
+            7.700000000000003,
+            0.30000000000000426
+          ],
+          [
+            7.700000000000003,
+            1.8999999999999986
+          ],
+          [
+            8.300000000000004,
+            2.1000000000000014
+          ],
+          [
+            8.5,
+            2.3000000000000043
+          ],
+          [
+            9.300000000000004,
+            2.700000000000003
+          ],
+          [
+            9.900000000000006,
+            3.3000000000000043
+          ],
+          [
+            11.100000000000001,
+            4.100000000000001
+          ]
+        ],
+        "artifact_path": "/home/susan/rexmi_rl/source/rexmi_rl/nav/routes/validated_west_seed42.json",
+        "artifact_sha256": "db681cf1c2f1a1bacc3ff49c3a6cb05f7ad75e3ac9c2fe58baad262e78a2e738"
+      },
+      "selection": "user-selected previously validated corridor",
+      "connector_length_m": 0.3978130793371329,
+      "original_route_preserved": true,
+      "result_path": "/home/susan/rexmi_rl/outputs/crater_loop/mission-gDywlWv5/exit-plan-01/exit_plan.json",
+      "result_sha256": "85201f24a2796f2e2d7173a4c1a8242a13c29d0e9d4203c96917f14fe650541b"
+    },
+    "failure": null,
+    "manual_intervention": false,
+    "events": [
+      {
+        "event": "crater_loop_stage",
+        "stage": "SETTLE_AT_CENTER",
+        "time": 99.60000000000001,
+        "position": [
+          -0.06287509202957153,
+          0.3202776610851288
+        ]
+      },
+      {
+        "event": "crater_loop_stage",
+        "stage": "PLAN_ASCENT",
+        "time": 100.24000000000001,
+        "position": [
+          -0.06788109987974167,
+          0.31509947776794434
+        ],
+        "output": "/home/susan/rexmi_rl/outputs/crater_loop/mission-gDywlWv5/exit-plan-01"
+      },
+      {
+        "event": "crater_loop_stage",
+        "stage": "ASCEND_TO_EXTERIOR",
+        "time": 100.4,
+        "position": [
+          -0.07004190981388092,
+          0.31290051341056824
+        ],
+        "selected_exit": [
+          11.100000000000001,
+          4.100000000000001
+        ],
+        "plan_path": "/home/susan/rexmi_rl/outputs/crater_loop/mission-gDywlWv5/exit-plan-01/exit_plan.json"
+      },
+      {
+        "event": "crater_loop_stage",
+        "stage": "COMPLETE",
+        "time": 185.9,
+        "position": [
+          11.0661039352417,
+          4.149988651275635
+        ]
+      }
+    ],
+    "map_source": "live sensor observations from this mission; no loaded prior"
+  },
+  "mission_stages": [
+    {
+      "event": "mission_stage",
+      "time": 0.0,
+      "position": [
+        13.0,
+        0.0
+      ],
+      "stage": "DESCEND_TO_CENTER",
+      "goal": [
+        0.0,
+        0.0
+      ],
+      "goal_mode": "crater_loop",
+      "completed_destinations": 0
+    },
+    {
+      "event": "mission_stage",
+      "time": 99.60000000000001,
+      "position": [
+        -0.06287509202957153,
+        0.3202776610851288
+      ],
+      "stage": "SETTLE_AT_CENTER",
+      "goal": [
+        0.0,
+        0.0
+      ],
+      "goal_mode": "crater_loop",
+      "completed_destinations": 0
+    },
+    {
+      "event": "mission_stage",
+      "time": 100.24000000000001,
+      "position": [
+        -0.06788109987974167,
+        0.31509947776794434
+      ],
+      "stage": "PLAN_ASCENT",
+      "goal": [
+        0.0,
+        0.0
+      ],
+      "goal_mode": "crater_loop",
+      "completed_destinations": 1
+    },
+    {
+      "event": "mission_stage",
+      "time": 100.4,
+      "position": [
+        -0.07004190981388092,
+        0.31290051341056824
+      ],
+      "stage": "ASCEND_TO_EXTERIOR",
+      "goal": [
+        11.100000000000001,
+        4.100000000000001
+      ],
+      "goal_mode": "crater_loop",
+      "completed_destinations": 1
+    },
+    {
+      "event": "mission_stage",
+      "time": 185.9,
+      "position": [
+        11.0661039352417,
+        4.149988651275635
+      ],
+      "stage": "COMPLETE",
+      "goal": [
+        11.100000000000001,
+        4.100000000000001
+      ],
+      "goal_mode": "crater_loop",
+      "completed_destinations": 2
+    }
+  ],
+  "descent_steering_recoveries": 0,
+  "descent_reverse_recoveries": 0,
+  "reverse_recovery_ceiling_mps": 1.0,
+  "ascent_feedback_recoveries": 0,
+  "mission_deadline_seconds": 900.0,
+  "counts_as_mission": true,
+  "counts_as_qualification": false
+}

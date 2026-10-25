@@ -1,9 +1,11 @@
 # Ascent-first navigation
 
-**Continuous mission:** run `./crater.sh` for exterior → center → newly planned
-exit in one Isaac Sim session. The first live-map loop completed in **158.12 s**;
+**Continuous mission:** run `./crater_auto_nav.sh` for north descent → center →
+validated blue western ascent in one Isaac Sim session. This full loop completed
+in **185.90 simulated seconds**, with no recovery or manual intervention;
 see [launcher and operation](crater_loop.md) and
-[full-loop evidence](validation/crater_loop_2026-10-24.md).
+[current full-loop evidence](validation/crater_west_loop_2026-10-25.md).
+Earlier revisions and their evidence remain documented below.
 The subsequent [descent observation-reserve revision](validation/crater_descent_observation_reserve_2026-10-24.md)
 adds exponential downhill costs, checkpoints inset from missing data and
 progress-triggered reverse commands up to 1.0 m/s. Its validation is separate

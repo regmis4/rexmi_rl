@@ -1,0 +1,21 @@
+{
+  "run": "outputs/crater_loop/mission-gr8OmEoV",
+  "result": "interrupted; no final mission summary",
+  "counts_as_mission": false,
+  "center_arrival_time": 139.52,
+  "final_recorded_stage": "ASCEND_TO_EXTERIOR",
+  "center_confirmation_time": 138.74,
+  "manual_intervention": false,
+  "last_logged_sim_time": 228.78,
+  "minimum_descent_radius_m": 0.3618303127596521,
+  "descent_travel_m": 24.436260782499467,
+  "descent_travel_after_1s_m": 24.199215955848203,
+  "peak_active_descent_speed_mps": 0.6491969379778887,
+  "minimum_active_descent_up_z": 0.6480385959148407,
+  "reverse_attempts": 0,
+  "successful_reverses": 0,
+  "peak_emitted_reverse_request_mps": 0.0,
+  "continuous_timestamps": true,
+  "source_mismatches": [],
+  "raw_csv_sha256": "b09513022b4686b128546bed5bce1c888e022ff90aea9edf6701b975399c193e"
+}

@@ -65,7 +65,7 @@ def test_center_settle_and_handoff_preserve_same_live_map_and_policy_interface(g
         assert c.preference is plan.model
         assert c.selected_exit==tuple(plan.route[-1])
         assert session.center_at is not None
-        assert cmd.vx in (0,.4) and abs(cmd.omega)<=.35
+        assert cmd.vx in (0.,.4) and abs(cmd.omega)<=.35
     finally:session.close()
 
 
@@ -244,7 +244,7 @@ def test_frontier_step_approaches_edge_toward_goal_without_rim_detour(ground):
     assert not route and c.waiting_for_map
 
 
-@pytest.mark.parametrize('degrees,expected',[(0,True),(15,True),(25,False)])
+@pytest.mark.parametrize('degrees,expected',[(0,True),(15,True),(25,True)])
 def test_frontier_requires_gentle_two_way_approach(degrees,expected):
     g=fixture.bt.ground(degrees)
     c=loop.DescentController(g,[Waypoint(4.8,0,.8,'goal')])
@@ -273,3 +273,57 @@ def test_stale_sideways_viewpoint_does_not_override_goalward_step(ground):
     c.observation_target=(3.5,2.)
     route,done=c.choose_route((3.5,0),(4.8,0),0.)
     assert route[-1][0]>4. and abs(route[-1][1])<=.2
+
+
+def test_descent_40_degree_execution_restores_ascent_limits_without_changing_map(tmp_path):
+    g=fixture.bt.ground(32.)
+    c=loop.DescentController(g,[Waypoint(0,0,.8,'center')])
+    g.rebuild(1.)
+    cell=g.world_to_cell(0,0)
+    assert (g.MAX_SLOPE_DEG,g.uphill_limit_deg,g.side_limit_deg)==(35.,40.,40.)
+    assert not g.blocked[cell]
+    assert not g.grade_reason((0,-.4),(0,.4))  # 32-degree cross slope, previously rejected at 25.
+    assert not g.grade_reason((-.4,0),(.4,0))
+    measured=g.height.copy()
+    session=loop.CraterLoop(g,tmp_path,2.,planner=Mock(return_value=None))
+    try:
+        session._start_plan(c,(0,0),0.,2.)
+        session.future.result(timeout=5)
+        frozen=session.planner.call_args.args[0]
+        assert (frozen.MAX_SLOPE_DEG,frozen.uphill_limit_deg,frozen.side_limit_deg)==(35.,25.,25.)
+        assert not frozen.blocked[cell] and not g.blocked[cell]
+        assert frozen.grade_reason((0,-.4),(0,.4)).startswith('side slope')
+        np.testing.assert_array_equal(g.height,measured)
+    finally:session.close()
+
+
+def test_validated_west_preserves_exact_waypoints_and_uses_live_map(tmp_path,monkeypatch):
+    artifact=Path(__file__).resolve().parents[1]/'source/rexmi_rl/nav/routes/validated_west_seed42.json'
+    record=loop.load_validated_route(artifact)
+    ground=fixture.bt.a.AscentTerrainMap(world_size=32.,footprint_radius=.3)
+    x,y=np.meshgrid(np.arange(-14.9,15.,.1),np.arange(-14.9,15.,.1),indexing='ij')
+    ground.ingest(np.c_[x.ravel(),y.ravel(),np.zeros(x.size)],(0,0,3),0.)
+    ground.rebuild(0.)
+    # Selecting the known corridor must not run a new global search or apply
+    # a new terminal slope veto.
+    monkeypatch.setattr(loop.costmap_path,'solve',Mock(side_effect=AssertionError('new corridor search')))
+    monkeypatch.setattr(loop.exit_region,'reason',Mock(side_effect=AssertionError('new exit veto')))
+    pose=(-.06788,.31510)
+    plan=loop.plan_exit(ground,pose,-1.668,100.24,11.,tmp_path/'west',validated_route=record)
+    assert plan.route[0]==pose
+    np.testing.assert_array_equal(plan.route[1:],record['route'])
+    assert plan.metadata['selected_exit']==record['route'][-1]
+    assert plan.metadata['original_route_preserved']
+    assert plan.metadata['connector_length_m']==pytest.approx(math.dist(pose,record['route'][0]))
+    assert plan.metadata['route_source']['artifact_sha256']==record['artifact_sha256']
+    assert plan.model.grid is ground
+    assert plan.metadata['map_source']=='live sensors retained during this descent'
+
+
+def test_validated_route_rejects_wrong_scenario_before_simulation():
+    artifact=Path(__file__).resolve().parents[1]/'source/rexmi_rl/nav/routes/validated_west_seed42.json'
+    args=loop_args();args.crater_ascent_route=str(artifact)
+    args.task='RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0';args.seed=42
+    loop.configure(args,[])
+    args.seed=43
+    with pytest.raises(ValueError,match='scenario mismatch: seed'):loop.configure(args,[])

@@ -1,0 +1,684 @@
+{
+  "original_user_run": {
+    "run": "outputs/crater_loop/mission-pdI7CPgR",
+    "result": "user_closed",
+    "sim_seconds": 84.38,
+    "final": {
+      "sim_time": "84.38",
+      "x": "5.288037300109863",
+      "y": "-0.49380776286125183",
+      "z": "2.1443734169006348",
+      "yaw": "2.955165524174802",
+      "speed": "0.019675903299823917",
+      "up_z": "0.9420191794633865",
+      "state": "HOLD",
+      "reason": "insufficient observed checkpoint clearance after rescanning",
+      "vx_cmd": "-0.020437629890430374",
+      "omega_cmd": "0.007735298432896088",
+      "mission_stage": "DESCEND_TO_CENTER"
+    },
+    "peak_active_speed_mps": 1.3312091218994224,
+    "minimum_active_up_z": 0.4753817915916443,
+    "descent_min_radius_m": 5.309200732055047,
+    "descent_travel_m": 9.971997371731113,
+    "reverse_events": [
+      {
+        "event": "descent_reverse_start",
+        "time": 60.160000000000004,
+        "position": [
+          7.377803325653076,
+          0.7566489577293396
+        ],
+        "reason": "checkpoint progress stalled"
+      },
+      {
+        "event": "descent_reverse_end",
+        "time": 66.18,
+        "position": [
+          7.713772296905518,
+          0.824533998966217
+        ],
+        "success": false,
+        "reverse_displacement_m": 0.3391570326574835,
+        "duration_s": 6.020000000000003,
+        "peak_request_mps": 1.0,
+        "escalations": [
+          {
+            "time": 62.76,
+            "request_mps": 0.7,
+            "reverse_displacement_m": 0.13129910144015158
+          },
+          {
+            "time": 65.26,
+            "request_mps": 1.0,
+            "reverse_displacement_m": 0.22868330793082792
+          }
+        ]
+      }
+    ],
+    "source_mismatches": [
+      "source/rexmi_rl/nav/checkpoint_runner.py",
+      "source/rexmi_rl/nav/checkpoint_control.py",
+      "source/rexmi_rl/nav/descent_planning.py",
+      "source/rexmi_rl/nav/crater_loop.py",
+      "scripts/navigate.py"
+    ],
+    "counts_as_mission": false,
+    "raw_csv_sha256": "e0a888bddfe11a5f273557e98ef041af6151fbdb064ef1ef5ebd1e4fbf514b52"
+  },
+  "initial_response": {
+    "run": "outputs/crater_loop/mission-P4z1d3yh",
+    "result": "hold",
+    "sim_seconds": 79.68,
+    "final": {
+      "sim_time": "79.68",
+      "x": "10.881105422973633",
+      "y": "0.3163644075393677",
+      "z": "4.923504829406738",
+      "yaw": "2.6553917072005193",
+      "speed": "0.0006599891397431718",
+      "up_z": "0.9502120316028595",
+      "state": "HOLD",
+      "reason": "return point not reached and held; recovery unresolved",
+      "vx_cmd": "-0.3012414176973482",
+      "omega_cmd": "0.048597698101352726",
+      "mission_stage": "DESCEND_TO_CENTER"
+    },
+    "peak_active_speed_mps": 0.39187446409466914,
+    "minimum_active_up_z": 0.9454110264778137,
+    "descent_min_radius_m": 10.209607509443153,
+    "descent_travel_m": 6.092833229395931,
+    "reverse_events": [
+      {
+        "event": "descent_reverse_start",
+        "time": 26.560000000000002,
+        "position": [
+          11.265512466430664,
+          0.16385237872600555
+        ],
+        "target": [
+          11.946190284257122,
+          -0.25647809639923447
+        ],
+        "reason": "measured motion difficulty: poor drive progress"
+      },
+      {
+        "event": "descent_reverse_end",
+        "time": 30.740000000000002,
+        "position": [
+          11.869109153747559,
+          -0.25365176796913147
+        ],
+        "success": true,
+        "target": [
+          11.946190284257122,
+          -0.25647809639923447
+        ],
+        "distance_to_target_m": 0.07713292949854304,
+        "reverse_displacement_m": 0.7329307403965851,
+        "duration_s": 4.18,
+        "peak_request_mps": 0.4,
+        "escalations": [],
+        "stable_seconds": 0.8200000000000003
+      },
+      {
+        "event": "descent_reverse_start",
+        "time": 49.68,
+        "position": [
+          10.196331977844238,
+          0.5971606373786926
+        ],
+        "target": [
+          11.071274757385254,
+          0.24624916911125183
+        ],
+        "reason": "measured motion difficulty: poor drive progress"
+      },
+      {
+        "event": "descent_reverse_end",
+        "time": 79.68,
+        "position": [
+          10.881105422973633,
+          0.3163644075393677
+        ],
+        "success": false,
+        "target": [
+          11.071274757385254,
+          0.24624916911125183
+        ],
+        "distance_to_target_m": 0.202683305702247,
+        "reverse_displacement_m": 0.7343289710897015,
+        "duration_s": 30.000000000000007,
+        "peak_request_mps": 1.0,
+        "escalations": [
+          {
+            "time": 54.56,
+            "request_mps": 0.7,
+            "distance_to_target_m": 0.22869512330124114
+          },
+          {
+            "time": 56.660000000000004,
+            "request_mps": 1.0,
+            "distance_to_target_m": 0.21614321974773537
+          },
+          {
+            "time": 58.660000000000004,
+            "request_mps": 1.0,
+            "distance_to_target_m": 0.21065190214118779
+          },
+          {
+            "time": 60.660000000000004,
+            "request_mps": 1.0,
+            "distance_to_target_m": 0.20389270965594464
+          },
+          {
+            "time": 62.660000000000004,
+            "request_mps": 1.0,
+            "distance_to_target_m": 0.20352272958490894
+          },
+          {
+            "time": 64.68,
+            "request_mps": 1.0,
+            "distance_to_target_m": 0.20331243326681106
+          },
+          {
+            "time": 66.68,
+            "request_mps": 1.0,
+            "distance_to_target_m": 0.2028783938762062
+          },
+          {
+            "time": 68.68,
+            "request_mps": 1.0,
+            "distance_to_target_m": 0.20258327046040675
+          },
+          {
+            "time": 70.68,
+            "request_mps": 1.0,
+            "distance_to_target_m": 0.2024971526784965
+          },
+          {
+            "time": 72.68,
+            "request_mps": 1.0,
+            "distance_to_target_m": 0.2026375154331823
+          },
+          {
+            "time": 74.68,
+            "request_mps": 1.0,
+            "distance_to_target_m": 0.202695151072971
+          },
+          {
+            "time": 76.68,
+            "request_mps": 1.0,
+            "distance_to_target_m": 0.20265802110487638
+          },
+          {
+            "time": 78.68,
+            "request_mps": 1.0,
+            "distance_to_target_m": 0.20270888864431058
+          }
+        ],
+        "stable_seconds": 0.0
+      }
+    ],
+    "source_mismatches": [
+      "source/rexmi_rl/nav/checkpoint_control.py",
+      "source/rexmi_rl/nav/descent_planning.py",
+      "source/rexmi_rl/nav/descent_response.py",
+      "source/rexmi_rl/nav/crater_loop.py"
+    ],
+    "counts_as_mission": false,
+    "raw_csv_sha256": "4a1f308b3b88004d05a89452c9b51486048439d25c98fb8f69d6b723f41ac010"
+  },
+  "stronger_reverse": {
+    "run": "outputs/crater_loop/mission-sCi3vpRM",
+    "result": "hold",
+    "sim_seconds": 68.7,
+    "final": {
+      "sim_time": "68.7",
+      "x": "8.152835845947266",
+      "y": "0.7606965899467468",
+      "z": "4.094235897064209",
+      "yaw": "-3.072483705550009",
+      "speed": "0.00815436924955314",
+      "up_z": "0.9434142373502254",
+      "state": "HOLD",
+      "reason": "return point not reached and held; recovery unresolved",
+      "vx_cmd": "-1.0",
+      "omega_cmd": "0.14377673925473822",
+      "mission_stage": "DESCEND_TO_CENTER"
+    },
+    "peak_active_speed_mps": 0.46625635458212183,
+    "minimum_active_up_z": 0.825463742017746,
+    "descent_min_radius_m": 8.109163446711682,
+    "descent_travel_m": 7.099651224375112,
+    "reverse_events": [
+      {
+        "event": "descent_reverse_start",
+        "time": 38.7,
+        "position": [
+          8.089376449584961,
+          1.1199734210968018
+        ],
+        "target": [
+          9.106417655944824,
+          0.9668238759040833
+        ],
+        "reason": "rescan cannot hold position; recover observed ground"
+      },
+      {
+        "event": "descent_reverse_end",
+        "time": 68.7,
+        "position": [
+          8.152835845947266,
+          0.7606965899467468
+        ],
+        "success": false,
+        "target": [
+          9.106417655944824,
+          0.9668238759040833
+        ],
+        "distance_to_target_m": 0.97560582530772,
+        "reverse_displacement_m": 0.08155807692619982,
+        "duration_s": 30.0,
+        "peak_request_mps": 1.0,
+        "escalations": [
+          {
+            "time": 40.7,
+            "request_mps": 0.7,
+            "distance_to_target_m": 1.0874219150717264
+          },
+          {
+            "time": 42.7,
+            "request_mps": 1.0,
+            "distance_to_target_m": 0.9705112708198959
+          },
+          {
+            "time": 45.12,
+            "request_mps": 1.0,
+            "distance_to_target_m": 0.9004964042075659
+          },
+          {
+            "time": 47.12,
+            "request_mps": 1.0,
+            "distance_to_target_m": 0.9021238486998285
+          },
+          {
+            "time": 49.120000000000005,
+            "request_mps": 1.0,
+            "distance_to_target_m": 0.9253340674106273
+          },
+          {
+            "time": 51.120000000000005,
+            "request_mps": 1.0,
+            "distance_to_target_m": 0.9809359190384931
+          },
+          {
+            "time": 53.120000000000005,
+            "request_mps": 1.0,
+            "distance_to_target_m": 0.9830554115353324
+          },
+          {
+            "time": 55.120000000000005,
+            "request_mps": 1.0,
+            "distance_to_target_m": 0.9858735706001904
+          },
+          {
+            "time": 57.120000000000005,
+            "request_mps": 1.0,
+            "distance_to_target_m": 0.9702035033426515
+          },
+          {
+            "time": 59.120000000000005,
+            "request_mps": 1.0,
+            "distance_to_target_m": 0.9826717851716747
+          },
+          {
+            "time": 61.120000000000005,
+            "request_mps": 1.0,
+            "distance_to_target_m": 0.9864953322158923
+          },
+          {
+            "time": 63.120000000000005,
+            "request_mps": 1.0,
+            "distance_to_target_m": 0.9811889616345753
+          },
+          {
+            "time": 65.12,
+            "request_mps": 1.0,
+            "distance_to_target_m": 0.9727672879538048
+          },
+          {
+            "time": 67.12,
+            "request_mps": 1.0,
+            "distance_to_target_m": 0.9728648824414372
+          }
+        ],
+        "stable_seconds": 0.0
+      }
+    ],
+    "source_mismatches": [
+      "source/rexmi_rl/nav/descent_planning.py",
+      "source/rexmi_rl/nav/crater_loop.py"
+    ],
+    "counts_as_mission": false,
+    "raw_csv_sha256": "f710d623b3d9dfe2fdcf0b65c48234b2cc829a59de748e3b7a4199a28847a9b6"
+  },
+  "whole_approach": {
+    "run": "outputs/crater_loop/mission-jNAbxxGX",
+    "result": "hold",
+    "sim_seconds": 35.660000000000004,
+    "final": {
+      "sim_time": "35.660000000000004",
+      "x": "10.714673042297363",
+      "y": "0.25160643458366394",
+      "z": "4.933385372161865",
+      "yaw": "2.8915171071877697",
+      "speed": "0.00011519598322461574",
+      "up_z": "0.9674301072955132",
+      "state": "HOLD",
+      "reason": "insufficient observed checkpoint clearance after rescanning",
+      "vx_cmd": "0.0",
+      "omega_cmd": "0.0",
+      "mission_stage": "DESCEND_TO_CENTER"
+    },
+    "peak_active_speed_mps": 0.4505131585352707,
+    "minimum_active_up_z": 0.94573113322258,
+    "descent_min_radius_m": 10.713602076317143,
+    "descent_travel_m": 2.9852266145313155,
+    "reverse_events": [],
+    "source_mismatches": [
+      "source/rexmi_rl/nav/descent_planning.py",
+      "source/rexmi_rl/nav/crater_loop.py"
+    ],
+    "counts_as_mission": false,
+    "raw_csv_sha256": "06ebcd950920b7bd8f892b01d7ba6e5a37452f6984ea895496df46387fd827a2"
+  },
+  "paused_final": {
+    "run": "outputs/crater_loop/mission-Mp5z5Dwq",
+    "result": "hold",
+    "sim_seconds": 84.68,
+    "final": {
+      "sim_time": "84.68",
+      "x": "10.816615104675293",
+      "y": "-0.4040263891220093",
+      "z": "4.9995808601379395",
+      "yaw": "1.6774265326466167",
+      "speed": "0.06213019593195491",
+      "up_z": "0.9451515898108482",
+      "state": "HOLD",
+      "reason": "return point not reached and held; recovery unresolved",
+      "vx_cmd": "-1.0",
+      "omega_cmd": "0.08663390630625689",
+      "mission_stage": "DESCEND_TO_CENTER"
+    },
+    "peak_active_speed_mps": 0.4609255598855486,
+    "minimum_active_up_z": 0.9441775269806385,
+    "descent_min_radius_m": 10.77822335343837,
+    "descent_travel_m": 8.917581206788883,
+    "reverse_events": [
+      {
+        "event": "descent_reverse_start",
+        "time": 25.66,
+        "position": [
+          10.775293350219727,
+          0.2513003647327423
+        ],
+        "target": [
+          11.630477905273438,
+          0.1981542706489563
+        ],
+        "reason": "new observations make the incomplete approach non-reversible; return to gentle ground"
+      },
+      {
+        "event": "descent_reverse_end",
+        "time": 31.400000000000002,
+        "position": [
+          11.588212966918945,
+          0.17221295833587646
+        ],
+        "success": true,
+        "target": [
+          11.630477905273438,
+          0.1981542706489563
+        ],
+        "distance_to_target_m": 0.049591094952962794,
+        "reverse_displacement_m": 0.7987042677334657,
+        "duration_s": 5.740000000000002,
+        "peak_request_mps": 0.4,
+        "escalations": [],
+        "stable_seconds": 0.8200000000000003
+      },
+      {
+        "event": "descent_reverse_start",
+        "time": 32.42,
+        "position": [
+          11.588128089904785,
+          0.2031901478767395
+        ],
+        "target": [
+          12.457802772521973,
+          0.20331764221191406
+        ],
+        "reason": "newly observed obstacle overlaps current clearance; reverse and replan"
+      },
+      {
+        "event": "descent_reverse_end",
+        "time": 36.980000000000004,
+        "position": [
+          12.32872200012207,
+          0.11218685656785965
+        ],
+        "success": true,
+        "target": [
+          12.457802772521973,
+          0.20331764221191406
+        ],
+        "distance_to_target_m": 0.15800843615281426,
+        "reverse_displacement_m": 0.7445212493389065,
+        "duration_s": 4.560000000000002,
+        "peak_request_mps": 0.4,
+        "escalations": [],
+        "stable_seconds": 0.8200000000000003
+      },
+      {
+        "event": "descent_reverse_start",
+        "time": 54.660000000000004,
+        "position": [
+          10.798117637634277,
+          0.21929068863391876
+        ],
+        "target": [
+          10.937840670620197,
+          -0.568413236742371
+        ],
+        "reason": "measured motion difficulty: repeated command rejection"
+      },
+      {
+        "event": "descent_reverse_end",
+        "time": 84.68,
+        "position": [
+          10.816615104675293,
+          -0.4040263891220093
+        ],
+        "success": false,
+        "target": [
+          10.937840670620197,
+          -0.568413236742371
+        ],
+        "distance_to_target_m": 0.2042514957331337,
+        "reverse_displacement_m": 0.6169672888749379,
+        "duration_s": 30.020000000000003,
+        "peak_request_mps": 1.0,
+        "escalations": [
+          {
+            "time": 59.14,
+            "request_mps": 0.7,
+            "distance_to_target_m": 0.3240289771908464
+          },
+          {
+            "time": 61.52,
+            "request_mps": 1.0,
+            "distance_to_target_m": 0.19990709946831675
+          },
+          {
+            "time": 63.52,
+            "request_mps": 1.0,
+            "distance_to_target_m": 0.20207574074666823
+          },
+          {
+            "time": 65.54,
+            "request_mps": 1.0,
+            "distance_to_target_m": 0.19847149921240198
+          },
+          {
+            "time": 67.54,
+            "request_mps": 1.0,
+            "distance_to_target_m": 0.19910993930511373
+          },
+          {
+            "time": 69.54,
+            "request_mps": 1.0,
+            "distance_to_target_m": 0.20096408399520957
+          },
+          {
+            "time": 71.54,
+            "request_mps": 1.0,
+            "distance_to_target_m": 0.20304447181293347
+          },
+          {
+            "time": 73.54,
+            "request_mps": 1.0,
+            "distance_to_target_m": 0.2024540377268083
+          },
+          {
+            "time": 75.54,
+            "request_mps": 1.0,
+            "distance_to_target_m": 0.2021217386922595
+          },
+          {
+            "time": 77.54,
+            "request_mps": 1.0,
+            "distance_to_target_m": 0.195028885983061
+          },
+          {
+            "time": 79.54,
+            "request_mps": 1.0,
+            "distance_to_target_m": 0.196757321193118
+          },
+          {
+            "time": 81.54,
+            "request_mps": 1.0,
+            "distance_to_target_m": 0.19782529175583108
+          },
+          {
+            "time": 83.54,
+            "request_mps": 1.0,
+            "distance_to_target_m": 0.20154475284229859
+          }
+        ],
+        "stable_seconds": 0.0
+      }
+    ],
+    "source_mismatches": [],
+    "counts_as_mission": false,
+    "raw_csv_sha256": "04ca2b9d4191a4d5908b8856f4fb4ee22b88e3ad39278605c444fbee826a8f4e"
+  },
+  "uninterrupted_final": {
+    "run": "outputs/crater_loop/mission-dC1ymFoH",
+    "result": "hold",
+    "sim_seconds": 75.28,
+    "final": {
+      "sim_time": "75.28",
+      "x": "9.304855346679688",
+      "y": "0.8613530993461609",
+      "z": "4.605108261108398",
+      "yaw": "2.74502290065862",
+      "speed": "0.0076289108207155",
+      "up_z": "0.9612251557409763",
+      "state": "HOLD",
+      "reason": "insufficient observed checkpoint clearance after rescanning",
+      "vx_cmd": "0.0",
+      "omega_cmd": "0.0",
+      "mission_stage": "DESCEND_TO_CENTER"
+    },
+    "peak_active_speed_mps": 0.44418444908663773,
+    "minimum_active_up_z": 0.938766360282898,
+    "descent_min_radius_m": 9.341710626200202,
+    "descent_travel_m": 8.93472721276746,
+    "reverse_events": [
+      {
+        "event": "descent_reverse_start",
+        "time": 14.540000000000001,
+        "position": [
+          10.69556713104248,
+          0.20831048488616943
+        ],
+        "target": [
+          11.548867225646973,
+          0.1381843388080597
+        ],
+        "reason": "new observations make the incomplete approach non-reversible; return to gentle ground"
+      },
+      {
+        "event": "descent_reverse_end",
+        "time": 20.580000000000002,
+        "position": [
+          11.506443977355957,
+          0.118874192237854
+        ],
+        "success": true,
+        "target": [
+          11.548867225646973,
+          0.1381843388080597
+        ],
+        "distance_to_target_m": 0.04661130502489698,
+        "reverse_displacement_m": 0.7758665210536034,
+        "duration_s": 6.040000000000001,
+        "peak_request_mps": 0.4,
+        "escalations": [],
+        "stable_seconds": 0.8000000000000007
+      },
+      {
+        "event": "descent_reverse_start",
+        "time": 39.300000000000004,
+        "position": [
+          10.870145797729492,
+          0.648806095123291
+        ],
+        "target": [
+          11.06001942773178,
+          -0.1283348217185356
+        ],
+        "reason": "newly observed obstacle overlaps current clearance; reverse and replan"
+      },
+      {
+        "event": "descent_reverse_end",
+        "time": 45.92,
+        "position": [
+          10.930303573608398,
+          -0.012830940075218678
+        ],
+        "success": true,
+        "target": [
+          11.06001942773178,
+          -0.1283348217185356
+        ],
+        "distance_to_target_m": 0.17368750526630178,
+        "reverse_displacement_m": 0.657009484287087,
+        "duration_s": 6.619999999999997,
+        "peak_request_mps": 0.7,
+        "escalations": [
+          {
+            "time": 43.300000000000004,
+            "request_mps": 0.7,
+            "distance_to_target_m": 0.40426751251436116
+          }
+        ],
+        "stable_seconds": 0.8200000000000003
+      }
+    ],
+    "source_mismatches": [],
+    "counts_as_mission": false,
+    "raw_csv_sha256": "12766bda4c8527f7b98f9d777a62714ca83044cb1a98b1a480d4797ea5fca3c5"
+  }
+}

@@ -92,6 +92,20 @@ def record_run_failure(log_path, error, sim_seconds=None, source_id=None):
             print(f'[checkpoint] Could not save failure report: {exc}',flush=True)
 
 
+def load_operator_replay(path):
+    if not path:return []
+    events=json.loads(Path(path).read_text())
+    if not isinstance(events,list):raise ValueError('operator replay must be a list')
+    result=[]
+    for event in events:
+        now=float(event['time']);action=event['action']
+        if not math.isfinite(now) or now<0 or action not in ('stop','resume'):
+            raise ValueError('operator replay accepts finite nonnegative stop/resume events only')
+        if result and now<=result[-1][0]:raise ValueError('operator replay times must increase')
+        result.append((now,action))
+    return result
+
+
 def load_checkpoint_replay(path):
     """Replay only accepted target selections, never recorded poses or physics."""
     if not path:return []
@@ -142,6 +156,8 @@ def run(args, app):
         from rexmi_rl.nav.round_trip import DEADLINE_SECONDS, deadline_reached, stage_status
     replay=load_checkpoint_replay(getattr(args,'checkpoint_replay',None))
     replay_index=0
+    operator_replay=load_operator_replay(getattr(args,'operator_replay',None))
+    operator_replay_index=0
     checkpoint = args.ckpt_rocky or args.checkpoint
     if not checkpoint or not Path(checkpoint).is_file():
         raise SystemExit('Checkpoint control needs --checkpoint or --ckpt_rocky with the rocky_slope model.')
@@ -356,14 +372,15 @@ def run(args, app):
         path.parent.mkdir(parents=True,exist_ok=True)
         path.with_suffix('.events.jsonl').write_text('')
         if loop_mode:
-            from .crater_loop import CraterLoop
-            loop_mission=CraterLoop(grid,path.parent,args.r_rim)
+            from .crater_loop import CraterLoop, load_validated_route
+            loop_mission=CraterLoop(grid,path.parent,args.r_rim,validated_route=
+                load_validated_route(args.crater_ascent_route) if getattr(args,'crater_ascent_route',None) else None)
             if args.start_paused: loop_mission.operator_mode='stop'
         source_root=Path(__file__).resolve().parents[3]
         sources=[Path(__file__),Path(__file__).with_name('checkpoint_control.py'),Path(__file__).with_name('observed_map.py')]
         if loop_mode:
             sources += list(Path(__file__).parent.glob('*.py'))
-            sources += [source_root/'scripts/navigate.py',source_root/'crater.sh',Path(__file__).parents[1]/'drive_adapter.py']
+            sources += [source_root/'scripts/navigate.py',source_root/'crater_auto_nav.sh',Path(__file__).parents[1]/'drive_adapter.py']
         if not args.headless:
             sources += [Path(__file__).with_name(name+'.py') for name in
                         ('dashboard','dashboard_telemetry','terrain_display','perception_view')]
@@ -385,7 +402,7 @@ def run(args, app):
             sources += [Path(__file__).with_name('saved_path_control.py')]
         if getattr(args,'ascent_unguarded',False):
             sources += [Path(__file__).with_name(name+'.py') for name in ('experimental_path_control','slope_cost','reverse_recovery')]
-        provenance=dict(controller=args.nav_controller,seed=args.seed,policy_path=str(Path(checkpoint).resolve()),
+        provenance=dict(operator_replay=operator_replay,controller=args.nav_controller,seed=args.seed,policy_path=str(Path(checkpoint).resolve()),
                         policy_sha256=hashlib.sha256(Path(checkpoint).read_bytes()).hexdigest(),
                         sources={str(p.relative_to(source_root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sources},
                         arguments=vars(args))
@@ -672,6 +689,11 @@ def run(args, app):
                 while replay_index<len(replay) and replay[replay_index][0]<=now+1e-8:
                     _,(tx,ty)=replay[replay_index]
                     requests.put(('target',tx,ty));replay_index+=1
+                while operator_replay_index<len(operator_replay) and operator_replay[operator_replay_index][0]<=now+1e-8:
+                    scheduled,action=operator_replay[operator_replay_index]
+                    requests.put((action,0.,0.));operator_replay_index+=1
+                    with path.with_suffix('.events.jsonl').open('a') as events:
+                        events.write(json.dumps(dict(event='operator_replay',time=now,scheduled_time=scheduled,action=action))+'\n')
                 while not requests.empty() and reviewed is None:
                     action,vx,omega=requests.get()
                     event=apply_operator_request(control,side,action,vx,omega,xy,pose.yaw,now,args.no_dashboard,
@@ -922,7 +944,7 @@ def run(args, app):
                     result='departure_diagnostic';break
                 if (control.state=='COMPLETE' and not getattr(control,'manual_checkpoint_mode',False)
                         and (loop_mission is None or loop_mission.phase=='COMPLETE')): result='complete';break
-                if args.headless and control.state=='HOLD' and not (side and side.active) and replay_index>=len(replay):
+                if args.headless and control.state=='HOLD' and not (side and side.active) and replay_index>=len(replay) and operator_replay_index>=len(operator_replay):
                     result='selected_checkpoint_reached' if control.reason.startswith('selected checkpoint reached') else 'hold'
                     break
                 actions=policy_actions(env,policies[active_policy],motion.vx,motion.omega,vy=vy)
@@ -970,6 +992,7 @@ def run(args, app):
                          maximum=max(values) if values else None) for name,values in recovery_control_ms.items()},
                      recovery_admission_timing=recovery_admission_timing,
                      checkpoint_replay=getattr(args,'checkpoint_replay',None),replayed_selections=replay_index,
+                     operator_replay=operator_replay,replayed_operator_events=operator_replay_index,
                      total_waypoints=len(control.waypoints),manual_intervention=control.intervened,
                      max_cross_track_m=max_error,policy=active_policy,policy_switches=side.switches if side else 0,
                      flat_sidesteps=bool(side),switch_events=side.events if side else [],

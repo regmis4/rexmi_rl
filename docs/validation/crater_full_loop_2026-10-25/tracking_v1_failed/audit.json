@@ -1,0 +1,49 @@
+{
+  "run": "outputs/crater_loop/mission-UFW7Klx3",
+  "result": "interrupted; no final mission summary",
+  "counts_as_mission": false,
+  "stage": "ASCEND_TO_EXTERIOR",
+  "center_arrival_time": 100.24000000000001,
+  "manual_intervention": false,
+  "last_sim_time": 269.32,
+  "continuous_20ms_timestamps": true,
+  "source_mismatches": [],
+  "raw_csv_sha256": "79a897343e01091acbbf17f6a8ac31588ba15e7c9ca021fc8b1ab982ebde139f",
+  "phases": {
+    "DESCEND_TO_CENTER": {
+      "first_time": 1.0,
+      "last_time": 99.58,
+      "travel_m": 23.752344178896617,
+      "peak_speed_mps": 0.9127185673987612,
+      "minimum_up_z": 0.626917839050293,
+      "final_position": [
+        -0.06292428821325302,
+        0.32139092683792114
+      ]
+    },
+    "ASCEND_TO_EXTERIOR": {
+      "first_time": 100.4,
+      "last_time": 269.32,
+      "travel_m": 22.69500375689408,
+      "peak_speed_mps": 1.983944873406239,
+      "minimum_up_z": -0.9999516010284424,
+      "final_position": [
+        -0.35843029618263245,
+        3.1193599700927734
+      ]
+    }
+  },
+  "immediate_turn_restarts": 0,
+  "ascent_motion_seconds": {
+    "OBSERVE": 0.02,
+    "TURN": 80.18,
+    "DRIVE": 46.54,
+    "RELEASE": 0.96,
+    "RECOVER": 41.24
+  },
+  "ascent_recovery_starts": {
+    "REVERSE": 7,
+    "TURN": 7,
+    "PUSH": 1
+  }
+}

@@ -1,7 +1,7 @@
 # Crater-loop validation — 24 October 2026
 
 **Completed autonomous exterior → center → exterior mission: 158.12 simulated
-seconds.** Run `./crater.sh` from the repository root to launch the continuous
+seconds.** Run `./crater_auto_nav.sh` from the repository root to launch the continuous
 mission with Isaac Sim, dashboard and overlay. [Operation and outputs](../crater_loop.md).
 
 The default test uses seed 42, the existing rocky-slope checkpoint, exterior
@@ -76,7 +76,7 @@ live-only configuration and descent recovery metadata.
 - Full CPU suite: **1,333 passed**. After the final reporting/display changes,
   the 30 crater-loop/dashboard tests passed again. Shell syntax and `git diff
   --check` passed.
-- GUI smoke: `./crater.sh --max_steps 200`, run
+- GUI smoke: `./crater_auto_nav.sh --max_steps 200`, run
   `outputs/crater_loop/mission-F12eQRSn`. Overlay enabled with 6,586 tiles;
   no dashboard render exception. Stopped at the intentional 3.98 s step limit
   and returned exit 1, correctly reporting an incomplete mission.

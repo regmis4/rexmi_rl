@@ -146,6 +146,9 @@ def _parse_args():
                    choices=["traverse", "survey", "rim_circuit", "velocity_goal", "ascent", "round_trip", "crater_loop"],
                    default="traverse")
 
+    p.add_argument('--crater_ascent_route', default=None,
+                   help='Versioned validated ascent route for crater_loop; live descent map is retained')
+
     # velocity_goal — single flat-terrain waypoint for motion debugging
     p.add_argument("--goal_x",      type=float, default=0.0,
                    help="Target X for --mission velocity_goal (world frame, metres)")
@@ -153,6 +156,9 @@ def _parse_args():
                    help="Target Y for --mission velocity_goal (world frame, metres)")
     p.add_argument("--goal_radius", type=float, default=1.5,
                    help="Arrival radius for velocity_goal waypoint (m). Default 1.5")
+
+    p.add_argument("--operator_replay", default=None,
+                   help="JSON list of timed stop/resume events for repeatable simulation validation")
 
     # Crater geometry — defaults match LunarCraterDemoBowlEnvCfg:
     #   crater centre at tile centre = env_origin = (0, 0)

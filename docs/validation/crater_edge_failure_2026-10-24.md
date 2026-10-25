@@ -1,5 +1,8 @@
 # Latest user-run edge failure — 24 October 2026
 
+Follow-up: [implemented corrections and physical trials](crater_descent_response_2026-10-24.md).
+The correction improves retreat ownership but has not completed descent.
+
 **Confirmed failure in `mission-pdI7CPgR`.** Its runtime source hashes match the
 current code. The prior 136.4 s descent established one successful trajectory;
 this run exposes edge-approach and recovery defects that invalidate any broader

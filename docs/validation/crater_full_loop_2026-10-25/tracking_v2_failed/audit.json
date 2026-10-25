@@ -1,0 +1,49 @@
+{
+  "run": "outputs/crater_loop/mission-obidjVWx",
+  "result": "interrupted; no final mission summary",
+  "counts_as_mission": false,
+  "stage": "ASCEND_TO_EXTERIOR",
+  "center_arrival_time": 100.24000000000001,
+  "manual_intervention": false,
+  "last_sim_time": 399.78000000000003,
+  "continuous_20ms_timestamps": true,
+  "source_mismatches": [],
+  "raw_csv_sha256": "b16cb0765208c3942e27dcaa61d8df0af83daa1d169f11c9a144cfa171925b05",
+  "phases": {
+    "DESCEND_TO_CENTER": {
+      "first_time": 1.0,
+      "last_time": 99.58,
+      "travel_m": 23.752344178896617,
+      "peak_speed_mps": 0.9127185673987612,
+      "minimum_up_z": 0.626917839050293,
+      "final_position": [
+        -0.06292428821325302,
+        0.32139092683792114
+      ]
+    },
+    "ASCEND_TO_EXTERIOR": {
+      "first_time": 100.4,
+      "last_time": 399.78000000000003,
+      "travel_m": 62.322559302563604,
+      "peak_speed_mps": 2.537102657260501,
+      "minimum_up_z": 0.27046751976013184,
+      "final_position": [
+        0.5605906844139099,
+        5.642699241638184
+      ]
+    }
+  },
+  "immediate_turn_restarts": 0,
+  "ascent_motion_seconds": {
+    "OBSERVE": 0.02,
+    "TURN": 35.160000000000004,
+    "DRIVE": 79.48,
+    "RELEASE": 86.84,
+    "RECOVER": 97.9
+  },
+  "ascent_recovery_starts": {
+    "PUSH": 20,
+    "REVERSE": 10,
+    "TURN": 10
+  }
+}

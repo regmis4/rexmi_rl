@@ -47,7 +47,7 @@ this more conservative planner.
 
 Implementation: `nav/descent_planning.py`, `nav/reverse_recovery.py`,
 `nav/crater_loop.py`, the shared slope model and unguarded ascent executor.
-The launcher remains `./crater.sh`.
+The launcher remains `./crater_auto_nav.sh`.
 
 ## Validation
 
@@ -59,7 +59,7 @@ executor test verifies that −1.0 m/s reaches its emitted command unchanged.
 The full suite passed **1,346 tests** in 83.50 s with
 `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -q tests` in `env_isaacsim`.
 The [test output](crater_descent_observation_reserve_2026-10-24/pytest.txt) is retained.
-A GUI smoke test, `./crater.sh --max_steps 200`, reached its expected 3.98 s
+A GUI smoke test, `./crater_auto_nav.sh --max_steps 200`, reached its expected 3.98 s
 step limit with the dashboard and terrain overlay enabled, no dashboard render
 exception, and launcher status 1 for the intentionally incomplete mission.
 See the [GUI summary](crater_descent_observation_reserve_2026-10-24/gui_summary.json).
@@ -68,7 +68,7 @@ Shell syntax and `git diff --check` also passed.
 ## Simulation evidence
 
 Final-source run: `outputs/crater_loop/mission-AHG7trWx`, seed 42, launched with
-`./crater.sh --headless --no_dashboard`.
+`./crater_auto_nav.sh --headless --no_dashboard`.
 
 | Check | Measured result |
 | --- | --- |

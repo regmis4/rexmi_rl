@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# One continuous outside → center → newly planned exit simulation.
+# One continuous outside → center → validated western exit simulation.
 set -euo pipefail
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$repo_root"
 if [[ "${1:-}" == --help ]]; then
-    echo 'Usage: ./crater.sh [--headless] [additional navigate.py options]'
-    echo 'Runs autonomous descent, retains live mapping, plans and executes ascent.'
+    echo 'Usage: ./crater_auto_nav.sh [--headless] [additional navigate.py options]'
+    echo 'Runs autonomous descent, retains live mapping, connects and executes the validated blue ascent route.'
     echo 'GUI dashboard and terrain overlay are enabled by default.'
     exit 0
 fi
@@ -24,6 +24,7 @@ export LD_PRELOAD="/usr/lib/x86_64-linux-gnu/libstdc++.so.6:/usr/lib/x86_64-linu
     --task RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0 \
     --checkpoint "$checkpoint" \
     --mission crater_loop --seed 42 \
+    --crater_ascent_route "$repo_root/source/rexmi_rl/nav/routes/validated_west_seed42.json" \
     --spawn_x 13 --spawn_y 0 --spawn_z 4.5 --spawn_yaw 3.141592653589793 \
     --goal_x 0 --goal_y 0 --goal_radius .8 \
     --map_retention full --cruise_speed .40 --max_steps 45000 \

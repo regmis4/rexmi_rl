@@ -1,0 +1,16 @@
+{
+  "stage": "DESCEND_TO_CENTER",
+  "goal": [
+    0.0,
+    0.0
+  ],
+  "goal_mode": "crater_loop",
+  "completed_destinations": 0,
+  "center_arrival_time": null,
+  "descent": null,
+  "plan": null,
+  "failure": null,
+  "manual_intervention": false,
+  "events": [],
+  "map_source": "live sensor observations from this mission; no loaded prior"
+}

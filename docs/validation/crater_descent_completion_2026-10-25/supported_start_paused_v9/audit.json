@@ -1,0 +1,21 @@
+{
+  "run": "outputs/crater_loop/mission-oNrCnZmJ",
+  "result": "step_limit",
+  "counts_as_mission": false,
+  "center_arrival_time": 152.18,
+  "final_recorded_stage": "ASCEND_TO_EXTERIOR",
+  "center_confirmation_time": 150.52,
+  "manual_intervention": true,
+  "last_logged_sim_time": 199.98000000000002,
+  "minimum_descent_radius_m": 0.3114645529794879,
+  "descent_travel_m": 24.192065360329842,
+  "descent_travel_after_1s_m": 23.955020533678578,
+  "peak_active_descent_speed_mps": 0.7000283715170373,
+  "minimum_active_descent_up_z": 0.5857522487640381,
+  "reverse_attempts": 1,
+  "successful_reverses": 1,
+  "peak_emitted_reverse_request_mps": 0.4,
+  "continuous_timestamps": true,
+  "source_mismatches": [],
+  "raw_csv_sha256": "2b4513388c57588b08d11d9a4983a3c00e439446154fcec8bea6362602a6b19a"
+}

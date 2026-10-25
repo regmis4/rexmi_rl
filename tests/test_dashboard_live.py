@@ -150,3 +150,30 @@ def test_overlay_receives_frozen_colors_and_heights_instead_of_live_old_palette(
     assert tiles.call_args.args[0] is display['surface']
     assert tiles.call_args.args[2] is display['rgb']
     assert tiles.call_args.kwargs['continuous'] is True
+
+
+def test_live_colorbar_reuses_locator_through_long_run_and_layer_switches():
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    model,_=accepted_model()
+    dashboard=Dashboard({},Lock(),model.grid,[])
+    dashboard._create_figure(plt)
+    view=dict(vmin=2.,vmax=20.,label='Live fitted slope cost')
+    dashboard._draw_legend(view)
+    bar=dashboard._colorbar
+    locator=dashboard._ax_colorbar.get_axes_locator()
+    axes_count=len(dashboard._fig.axes)
+    try:
+        for frame in range(1100):
+            view['vmax']=20.+frame
+            dashboard._layer='slope' if frame%11==0 else 'terrain'
+            dashboard._draw_legend(view)
+            assert dashboard._colorbar is bar
+            assert dashboard._ax_colorbar.get_axes_locator() is locator
+            if frame%250==0:dashboard._fig.canvas.draw()
+        dashboard._layer='terrain';dashboard._draw_legend(view)
+        dashboard._fig.canvas.draw()
+        assert len(dashboard._fig.axes)==axes_count
+        assert dashboard._colorbar.norm.vmax==1119.
+    finally:plt.close(dashboard._fig)

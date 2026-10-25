@@ -1,9 +1,10 @@
-"""Outside → observed checkpoints → center → newly planned exterior route.
+"""Outside → observed checkpoints → center → selected exterior route.
 
-One environment, policy and retained live map. No prior map or demonstration
-coordinates are loaded. Ascent reuses the tested fitted objective and executor.
+One environment, policy and retained live map. The launcher selects the validated
+western blue route; its short center connector starts at the measured arrival pose.
 """
 from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from types import SimpleNamespace
@@ -20,9 +21,10 @@ from .checkpoint_control import CheckpointController, Motion
 from .mission import Waypoint
 from .staged_routes import compact_path
 from . import descent_planning
-from .reverse_recovery import ReverseRecovery
+from .descent_response import DescentReverseRecovery
 
 DEADLINE_SECONDS = 900.
+DESCENT_GRADE_LIMIT_DEG = 40.
 
 
 class DescentController(CheckpointController):
@@ -34,11 +36,19 @@ class DescentController(CheckpointController):
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._ascent_grade_limits=(self.grid.uphill_limit_deg,self.grid.side_limit_deg)
+        self.grid.uphill_limit_deg=self.grid.side_limit_deg=DESCENT_GRADE_LIMIT_DEG
+        self._descent_profile_active=True
         self.alignment_response=None
-        self.reverse_recovery=ReverseRecovery()
+        self.reverse_recovery=DescentReverseRecovery()
         self.waiting_for_map=False
         self.needs_backout=False
         self.grid.footprint_costs_enabled=True
+
+    def restore_ascent_grade_limits(self, now):
+        if not self._descent_profile_active:return
+        self.grid.uphill_limit_deg,self.grid.side_limit_deg=self._ascent_grade_limits
+        self._descent_profile_active=False
 
     def choose_route(self, xy, goal, yaw):
         return descent_planning.choose_route(self,xy,goal,yaw)
@@ -49,6 +59,7 @@ class DescentController(CheckpointController):
     def _plan(self, xy, yaw, now):
         self.waiting_for_map=False
         self.needs_backout=False
+        self.wait_pose=(tuple(xy),yaw)
         descent_planning.refresh(self)
         cell=self.grid.world_to_cell(*xy)
         if cell is None or self.observed_distance[cell]<self.grid.footprint_radius+self.grid.clearance:
@@ -93,7 +104,10 @@ class DescentController(CheckpointController):
         if self.waiting_for_map and not terminal:
             self.data_retry_at=now
             self.set_state('DATA_WAIT',reason,now)
-            return Motion()
+            xy,yaw=self.wait_pose
+            self.hold_anchor=np.asarray(xy).copy();self.hold_heading=yaw
+            self.path=[];self.target=None;self.checkpoint=None
+            return self.position_hold(xy,yaw)
         return super().hold(reason,now,terminal)
 
     def _start_backout(self, xy, yaw, now, reason):
@@ -117,23 +131,30 @@ class DescentController(CheckpointController):
         return super().request(action,now,vx,omega)
 
     def _tick(self, xy, yaw, speed, now, upright=1., velocity=None):
+        self.velocity_world=np.asarray(velocity[:2] if velocity is not None else
+                                       (speed*math.cos(yaw),speed*math.sin(yaw)))
         if self.state=='DATA_WAIT':
             started=self.since
+            if self.hold_anchor is not None and math.dist(xy,self.hold_anchor)>.20:
+                return self._start_backout(xy,yaw,now,'drifting during data wait; back off')
             if now-started>=10.:
                 return self.hold('insufficient observed checkpoint clearance after rescanning',now,terminal=True)
-            if now-self.data_retry_at>=2.:
+            if now-self.data_retry_at>=2. and speed<.10:
                 self.data_retry_at=now
                 if self._plan(xy,yaw,now):return Motion()
+                if self.needs_backout:return self.hold(self.planning_failure,now)
                 self.state='DATA_WAIT';self.since=started
                 self.reason=self.planning_failure
-            return Motion()
+            return self.position_hold(xy,yaw)
         if self.state=='BACKOUT':
             command,result=self.reverse_recovery.tick(now,xy)
             if result is not None:
                 self.escape_events.append(dict(event='descent_reverse_end',time=now,position=list(xy),**result))
                 self.pending_arrival=False;self.replan_anchor=None;self.mission_route=[]
                 self.alignment_response=None;self.slip_tracker.reset()
-                self.set_state('SETTLE','reverse attempt finished; rescan and replan',now)
+                self.set_state('SETTLE' if result['success'] else 'HOLD',
+                    'reverse complete; rescan and replan' if result['success'] else
+                    'reverse made insufficient progress; recovery unresolved',now)
                 return Motion()
             self.reason=f'reverse recovery: {abs(command):.1f} m/s requested; escalate only without progress'
             return Motion(command,0.)
@@ -197,6 +218,13 @@ def configure(args, argv):
     if (args.goal_x,args.goal_y)!=(args.crater_x,args.crater_y) or not 0<args.goal_radius<=1.:
         raise ValueError('crater_loop must descend to the crater center within 1 m')
     args.map_retention='full'
+    if getattr(args,'crater_ascent_route',None):
+        validated=load_validated_route(args.crater_ascent_route)
+        identity=dict(task=args.task,seed=args.seed,crater_origin=[args.crater_x,args.crater_y],rim_radius=args.r_rim)
+        for key,value in identity.items():
+            if validated[key]!=value:
+                raise ValueError('Validated ascent route scenario mismatch: '+key)
+
 
 
 @dataclass
@@ -206,8 +234,20 @@ class ExitPlan:
     metadata: dict
 
 
-def plan_exit(grid, xy, yaw, now, rim_radius, directory):
-    """Worker owns its frozen map. Search all observed gentle exterior cells."""
+def load_validated_route(filename):
+    """A versioned route, not a historical map or a replacement sensor stream."""
+    path=Path(filename).resolve()
+    raw=path.read_bytes();record=json.loads(raw)
+    route=np.asarray(record['route'],dtype=float)
+    if (route.ndim!=2 or route.shape[1]!=2 or len(route)<2 or not np.isfinite(route).all()
+            or (np.linalg.norm(np.diff(route,axis=0),axis=1)<1e-8).any()):
+        raise ValueError('Validated route must contain finite distinct XY segments')
+    record.update(artifact_path=str(path),artifact_sha256=hashlib.sha256(raw).hexdigest())
+    return record
+
+
+def plan_exit(grid, xy, yaw, now, rim_radius, directory, *, validated_route=None):
+    """Freeze live costs; connect the validated route or explicitly search a new exit."""
     started=time.monotonic()
     directory=Path(directory);directory.mkdir(parents=True,exist_ok=False)
     parameters=slope_cost.Parameters()  # accepted 15° knee / 6° exponential scale
@@ -218,34 +258,47 @@ def plan_exit(grid, xy, yaw, now, rim_radius, directory):
         plan_generation=0,protocol_version='live-descent-map-exit-v1',goal_mode='any_exit',
         exit_rim_radius=rim_radius,selected_exit=None)
     snapshot=planning_snapshot.save(holder,xy,yaw,now)
-    allowed=grid.known & ~grid.blocked & np.isfinite(grid.gx) & np.isfinite(grid.gy)
-    lower=np.asarray(grid.origin)-grid.world_size/2
-    solution=costmap_path.solve(grid.cost,allowed,xy,lower,grid.cell_size,density=model)
-    rr,cc=np.indices(grid.cost.shape)
-    distance=np.hypot(lower[0]+(rr+.5)*grid.cell_size-grid.origin[0],
-                      lower[1]+(cc+.5)*grid.cell_size-grid.origin[1])
-    terminals=np.argwhere(allowed & np.isfinite(solution['distance']) & (distance>=rim_radius+.8))
-    # Cheapest admissible terminal, identical objective to the accepted fit.
-    order=np.argsort(solution['distance'][tuple(terminals.T)]) if len(terminals) else []
-    selected=None
-    for index in order:
-        cell=tuple(terminals[index]);point=lower+(np.asarray(cell)+.5)*grid.cell_size
-        if not exit_region.reason(grid,point,rim_radius):
-            selected=cell;break
-    if selected is None:
-        raise ValueError('Retained descent map has no connected observed gentle exterior exit')
-    route=compact_path(costmap_path.path_to_cell(solution,selected))
-    score=sum(model.route_components(route).values())
-    if not math.isclose(score,float(solution['distance'][selected]),rel_tol=1e-8):
-        raise RuntimeError('Compacted route changed the solved cost')
+    if validated_route is not None:
+        original=[tuple(p) for p in validated_route['route']]
+        # Center arrival is within 0.8 m. Preserve every original waypoint;
+        # prepend only the measured connection, with no new exit/slope veto.
+        route=([tuple(xy)] if math.dist(xy,original[0])>1e-8 else [])+original
+        score=sum(model.route_components(route).values())
+        solution=dict(nodes=0,directed_edges=0)
+    else:
+        allowed=grid.known & ~grid.blocked & np.isfinite(grid.gx) & np.isfinite(grid.gy)
+        lower=np.asarray(grid.origin)-grid.world_size/2
+        solution=costmap_path.solve(grid.cost,allowed,xy,lower,grid.cell_size,density=model)
+        rr,cc=np.indices(grid.cost.shape)
+        distance=np.hypot(lower[0]+(rr+.5)*grid.cell_size-grid.origin[0],
+                          lower[1]+(cc+.5)*grid.cell_size-grid.origin[1])
+        terminals=np.argwhere(allowed & np.isfinite(solution['distance']) & (distance>=rim_radius+.8))
+        # Cheapest admissible terminal, identical objective to the accepted fit.
+        order=np.argsort(solution['distance'][tuple(terminals.T)]) if len(terminals) else []
+        selected=None
+        for index in order:
+            cell=tuple(terminals[index]);point=lower+(np.asarray(cell)+.5)*grid.cell_size
+            if not exit_region.reason(grid,point,rim_radius):
+                selected=cell;break
+        if selected is None:
+            raise ValueError('Retained descent map has no connected observed gentle exterior exit')
+        route=compact_path(costmap_path.path_to_cell(solution,selected))
+        score=sum(model.route_components(route).values())
+        if not math.isclose(score,float(solution['distance'][selected]),rel_tol=1e-8):
+            raise RuntimeError('Compacted route changed the solved cost')
     metadata=dict(map_path=snapshot['path'],map_sha256=hashlib.sha256(Path(snapshot['path']).read_bytes()).hexdigest(),
-        route_name='live_descent_any_exit',parameters=asdict(parameters),start=list(xy),yaw=yaw,
+        route_name='validated_west_blue' if validated_route is not None else 'live_descent_any_exit',parameters=asdict(parameters),start=list(xy),yaw=yaw,
         planned_at_sim_time=now,planning_seconds=time.monotonic()-started,
         map_source='live sensors retained during this descent',known_cells=int(grid.known.sum()),
         observed_area_m2=float(grid.known.sum()*grid.cell_size**2),
         predicted_metrics=dict(length_m=sum(math.dist(a,b) for a,b in zip(route,route[1:])),fitted_score=score),
         selected_exit=list(route[-1]),routes=dict(any_exit=route),rim_radius=rim_radius,
         nodes=solution['nodes'],directed_edges=solution['directed_edges'])
+    if validated_route is not None:
+        metadata.update(route_source=validated_route,selection='user-selected previously validated corridor',
+            connector_length_m=math.dist(xy,validated_route['route'][0]),
+            original_route_preserved=True)
+        (directory/'validated_route.json').write_text(json.dumps(validated_route,indent=2)+'\n')
     result_path=directory/'exit_plan.json'
     result_path.write_text(json.dumps(metadata,indent=2)+'\n')
     metadata.update(result_path=str(result_path),result_sha256=hashlib.sha256(result_path.read_bytes()).hexdigest())
@@ -254,14 +307,14 @@ def plan_exit(grid, xy, yaw, now, rim_radius, directory):
 
 
 class CraterLoop:
-    def __init__(self, grid, directory, rim_radius=11., *, planner=plan_exit):
+    def __init__(self, grid, directory, rim_radius=11., *, planner=plan_exit, validated_route=None):
         self.grid=grid;self.directory=Path(directory);self.rim_radius=rim_radius
         self.phase='DESCEND_TO_CENTER';self.operator_mode='auto'
         self.events=[];self.plan=None;self.future=None;self.generation=0
         self.center_at=None;self.stable_since=None;self.failure=None
         self.intervened=False;self.descent=None;self.last_yaw=None;self.last_time=None
         self.worker=ThreadPoolExecutor(max_workers=1,thread_name_prefix='crater-exit')
-        self.planner=planner
+        self.planner=partial(planner,validated_route=validated_route) if validated_route is not None else planner
 
     def request(self, action):
         if action in ('stop','manual','resume'):
@@ -278,6 +331,7 @@ class CraterLoop:
                     completed_destinations=2 if self.phase=='COMPLETE' else int(self.center_at is not None))
 
     def _start_plan(self, control, xy, yaw, now):
+        if isinstance(control,DescentController):control.restore_ascent_grade_limits(now)
         frozen=copy.deepcopy(self.grid)
         self.generation+=1
         target=self.directory/f'exit-plan-{self.generation:02d}'

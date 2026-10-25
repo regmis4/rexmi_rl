@@ -1,0 +1,17 @@
+{
+  "run": "outputs/crater_loop/mission-ZsTXtajY",
+  "result": "interrupted; no final mission summary",
+  "counts_as_mission": false,
+  "center_arrival_time": 152.18,
+  "final_recorded_stage": "ASCEND_TO_EXTERIOR",
+  "minimum_descent_radius_m": 0.3114645529794879,
+  "descent_travel_m": 24.192065360329842,
+  "peak_active_descent_speed_mps": 0.7000283715170373,
+  "minimum_active_descent_up_z": 0.5857522487640381,
+  "reverse_attempts": 1,
+  "successful_reverses": 1,
+  "peak_emitted_reverse_request_mps": 0.4,
+  "continuous_timestamps": true,
+  "source_mismatches": [],
+  "raw_csv_sha256": "2c91644465a84b6620e8162f6888b9d19521370171b9ef7945a9869993963575"
+}

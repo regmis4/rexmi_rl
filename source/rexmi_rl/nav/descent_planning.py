@@ -5,7 +5,7 @@ from scipy.ndimage import binary_closing, distance_transform_edt
 from . import costmap_path, slope_cost, footprint_costs
 
 PATH_RESERVE_M=.10
-CHECKPOINT_RESERVE_M=.15
+CHECKPOINT_RESERVE_M=.25
 FRONTIER_MAX_SLOPE_DEG=20.
 FRONTIER_REVERSE_M=.6
 FRONTIER_STEP_M=2.
@@ -29,8 +29,10 @@ def refresh(control):
     # Account for the cell square as well as the robot's circular envelope.
     margin=g.footprint_radius+g.clearance+g.cell_size*math.sqrt(.5)
     control.observed_distance=distance
-    control.descent_allowed=(observed & ~g.blocked & g.planning_support()
-                             & (distance>=margin+PATH_RESERVE_M))
+    control.descent_body_supported=(observed & ~g.blocked & g.planning_support()
+                                    & (distance>=margin))
+    control.descent_route_support=control.descent_body_supported & (distance>=margin+PATH_RESERVE_M)
+    control.descent_allowed=control.descent_route_support.copy()
     # On easy ground approach the sampled edge; increase stand-off smoothly
     # above 15 degrees. Extrapolation still contributes no observed clearance.
     control.checkpoint_reserve=CHECKPOINT_RESERVE_M+.02*np.maximum(0.,control.descent_model.terrain_angle-15.)
@@ -59,20 +61,22 @@ def recoverable_frontier(control, route):
     # Check all touched cells, not only a sampled endpoint.
     _,_,cells=costmap_path.crossings((behind-lower)/g.cell_size,(end-lower)/g.cell_size)
     if (cells<0).any() or (cells>=g.cost.shape).any():return False
+    index=tuple(cells.T)
+    grade=np.degrees(np.arctan(np.abs(control.descent_model.gx[index]*axis[0]
+                                     +control.descent_model.gy[index]*axis[1])))
     return bool(control.descent_allowed[tuple(cells.T)].all() and
-        (control.descent_model.terrain_angle[tuple(cells.T)]<=FRONTIER_MAX_SLOPE_DEG).all())
+        (grade<=FRONTIER_MAX_SLOPE_DEG).all())
 
 
 def local_step(control, solution, xy, goal, yaw):
     """Rank short goalward steps; no reward for unknown area or rim touring."""
     g=control.grid;lower=solution['lower']
-    cells=np.argwhere(control.checkpoint_supported & np.isfinite(solution['distance']) &
-                     (control.descent_model.terrain_angle<=FRONTIER_MAX_SLOPE_DEG))
+    cells=np.argwhere(control.checkpoint_supported & np.isfinite(solution['distance']))
     points=lower+(cells+.5)*g.cell_size
     delta=points-xy;travel=np.linalg.norm(delta,axis=1)
     advance=math.dist(xy,goal)-np.linalg.norm(points-goal,axis=1)
     # Only genuinely goalward local motion; no backwards/lateral-only fallback.
-    valid=(travel>=.55) & (travel<=FRONTIER_STEP_M) & (advance>=.25) & (advance>=.5*travel)
+    valid=(travel>=.55) & (travel<=FRONTIER_STEP_M) & (advance>=.05)
     headings=np.arctan2(delta[:,1],delta[:,0])
     turns=np.abs(np.arctan2(np.sin(headings-yaw),np.cos(headings-yaw)))
     cost=solution['distance'][tuple(cells.T)]
@@ -88,14 +92,18 @@ def local_step(control, solution, xy, goal, yaw):
         if route_score(control,direct)<=1.1*cost[index]:route=direct
         length=sum(math.dist(a,b) for a,b in zip(route,route[1:]))
         if length>1.5*travel[index] or length>2.5 or not recoverable_frontier(control,route):continue
-        radii=[math.dist(p,goal) for p in route]
-        if max(radii)>radii[0]+.1:continue
         choices.append((scores[index]-.25*(length-travel[index]),route))
     return max(choices,key=lambda item:item[0])[1] if choices else []
 
 
 def choose_route(control, xy, goal, yaw=0.):
     refresh(control);g=control.grid;control.waiting_for_map=False
+    # The occupied cell needs measured body clearance, but cannot retroactively
+    # acquire the extra route reserve. All future cells keep that reserve.
+    control.descent_allowed=control.descent_route_support.copy()
+    start=g.world_to_cell(*xy)
+    if start is not None and control.descent_body_supported[start]:
+        control.descent_allowed[start]=True
     control.route_options=[];control.route_searches=[]
     control.observation_target=None
     lower=np.asarray(g.origin)-g.world_size/2

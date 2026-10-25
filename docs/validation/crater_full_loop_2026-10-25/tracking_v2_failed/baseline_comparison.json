@@ -1,0 +1,9 @@
+{
+  "baseline": "outputs/crater_loop/mission-0o3iYyeJ",
+  "tracking_run": "outputs/crater_loop/mission-obidjVWx",
+  "same_descent_trace": true,
+  "descent_rows": 4980,
+  "same_frozen_map_hash": true,
+  "same_selected_route": true,
+  "same_predicted_metrics": true
+}

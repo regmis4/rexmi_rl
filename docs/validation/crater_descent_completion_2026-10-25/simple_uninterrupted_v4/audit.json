@@ -1,0 +1,19 @@
+{
+  "run": "outputs/crater_loop/mission-593688cK",
+  "result": "hold",
+  "counts_as_mission": false,
+  "center_arrival_time": null,
+  "final_recorded_stage": "DESCEND_TO_CENTER",
+  "minimum_descent_radius_m": 7.73477951937854,
+  "descent_travel_m": 7.396746016871097,
+  "peak_active_descent_speed_mps": 0.46787700695242207,
+  "minimum_active_descent_up_z": 0.8629386276006699,
+  "reverse_attempts": 0,
+  "successful_reverses": 0,
+  "peak_emitted_reverse_request_mps": 0.0,
+  "continuous_timestamps": true,
+  "source_mismatches": [
+    "source/rexmi_rl/nav/descent_planning.py"
+  ],
+  "raw_csv_sha256": "0d23aece9e6dddc54a74cbdb754a2323d164a994eedda3cb88c2675b3e569d33"
+}

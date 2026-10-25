@@ -39,7 +39,7 @@ objective and shared reverse recovery while replacing that exploration policy.
   Connected center routes still use the full exponential-cost planner.
 
 The dashboard, logarithmic magma colors, ascent objective and launcher remain
-unchanged. Run `./crater.sh` from the repository root.
+unchanged. Run `./crater_auto_nav.sh` from the repository root.
 
 ## Validation
 
@@ -50,7 +50,7 @@ passed **1,351 tests in 83.68 s** with
 `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -q tests` in `env_isaacsim`.
 
 Seed-42 run: `outputs/crater_loop/mission-gob3FAYa`, launched using
-`./crater.sh --headless --no_dashboard --max_steps 15000`. The preceding
+`./crater_auto_nav.sh --headless --no_dashboard --max_steps 15000`. The preceding
 observation-reserve run, `mission-AHG7trWx`, supplies the comparison. Both use
 the same spawn, terrain seed and trained policy; this is one trial per revision.
 

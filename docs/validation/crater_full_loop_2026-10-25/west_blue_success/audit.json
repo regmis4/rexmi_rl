@@ -1,0 +1,49 @@
+{
+  "run": "outputs/crater_loop/mission-gDywlWv5",
+  "result": "complete",
+  "counts_as_mission": true,
+  "stage": "COMPLETE",
+  "center_arrival_time": 100.24000000000001,
+  "manual_intervention": false,
+  "last_sim_time": 185.9,
+  "continuous_20ms_timestamps": true,
+  "source_mismatches": [],
+  "raw_csv_sha256": "d9750bc71d6a33cd3dc75c35e24d88f1469b247721fde148f11453f6bc90b3a2",
+  "phases": {
+    "DESCEND_TO_CENTER": {
+      "first_time": 1.0,
+      "last_time": 99.58,
+      "travel_m": 23.752344178896617,
+      "peak_speed_mps": 0.9127185673987612,
+      "minimum_up_z": 0.626917839050293,
+      "final_position": [
+        -0.06292428821325302,
+        0.32139092683792114
+      ]
+    },
+    "ASCEND_TO_EXTERIOR": {
+      "first_time": 100.4,
+      "last_time": 185.88,
+      "travel_m": 20.65578915436267,
+      "peak_speed_mps": 0.6805268343963558,
+      "minimum_up_z": 0.6631289422512054,
+      "final_position": [
+        11.063905715942383,
+        4.1494221687316895
+      ]
+    }
+  },
+  "immediate_turn_restarts": 16,
+  "ascent_motion_seconds": {
+    "OBSERVE": 0.02,
+    "TURN": 37.1,
+    "DRIVE": 45.52,
+    "SETTLE": 2.86
+  },
+  "ascent_recovery_starts": {},
+  "original_blue_waypoints_preserved": true,
+  "descent_trace_identical_to_northern_baseline": true,
+  "connector_length_m": 0.3978130793371329,
+  "original_route_sha256": "46f724f6e5a77ad4db6605b330d11bf2aa199187b84007544996051812dcc74c",
+  "terrain_prior_loaded": null
+}

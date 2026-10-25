@@ -1,6 +1,25 @@
+**Latest successful result, 25 October:** the user selected the previously validated blue western
+ascent corridor. `./crater_auto_nav.sh` now loads its versioned route coordinates and
+connects the measured center arrival, retaining the live descent map. Original
+v2 turn/drive tracking is restored; northern-route tracking trials are retired.
+The complete loop finished in **185.90 simulated seconds**, with zero recoveries,
+manual interventions or policy switches; descent reached the center at **99.60 s**.
+All 1,363 CPU tests pass. See [evidence](crater_west_loop_2026-10-25.md) and
+[operation](../crater_loop.md).
+
+**Earlier 25 October result:** [40° descent execution, dashboard fix and full-loop trial](crater_full_loop_2026-10-25.md). Descent reached the center at **99.60 s**, then planned a fresh ascent from the retained map. The unchanged ascent executor stalled in repeated turns/recovery and exhausted the **900 s** budget, including a brief rollover. **Full-loop completion failed.** All 1,361 tests pass; the dashboard passed 1,100 actual Tk redraws without callback errors. Subsequent northern-route tracking experiments were retired after the user requested restoration of the validated blue route.
+
+**Earlier 25 October follow-up:** [simplified descent correction and validation](crater_descent_completion_2026-10-25.md). The complex experimental descent rewrite was retired at the user’s direction; that revision reached the center in 138.74 s unattended and 150.52 s with STOP/RESUME (seed 42). Those trials validated ascent handoff only.
+
 # Rexmi crater navigation — handoff, 23 October 2026
 
-**Subsequent full-loop result:** `./crater.sh` now runs autonomous exterior →
+**Latest status, 24 October:** [descent response corrections](crater_descent_response_2026-10-24.md)
+pass 1,365 CPU tests; both final physical trials end in HOLD before the center.
+Four retreats reached and held their return points, but recovery arrival
+oscillation and frontier selection remain unresolved. Earlier successes below
+belong to their recorded revisions.
+
+**Subsequent full-loop result:** `./crater_auto_nav.sh` now runs autonomous exterior →
 center → exterior navigation, retaining live descent observations and planning
 a fresh exit at the center. Seed 42 completed in **158.12 simulated seconds**,
 with one descent steering recovery and no intervention, reset or policy switch.

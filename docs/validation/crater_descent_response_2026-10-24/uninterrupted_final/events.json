@@ -1,0 +1,566 @@
+[
+  {
+    "event": "mission_stage",
+    "time": 0.0,
+    "position": [
+      13.0,
+      0.0
+    ],
+    "stage": "DESCEND_TO_CENTER",
+    "goal": [
+      0.0,
+      0.0
+    ],
+    "goal_mode": "crater_loop",
+    "completed_destinations": 0
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 1.0,
+    "position": [
+      13.173383712768555,
+      0.06232510134577751
+    ],
+    "checkpoint": [
+      11.300000000000004,
+      0.10000000000000142
+    ],
+    "observation_target": [
+      11.300000000000004,
+      0.10000000000000142
+    ],
+    "measured_data_clearance_m": 1.0,
+    "extra_data_reserve_m": 0.15,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "route_comparison",
+    "time": 1.0,
+    "position": [
+      13.173383712768555,
+      0.06232510134577751
+    ],
+    "decision": "surveying reachable observed frontier",
+    "candidates": [
+      {
+        "profile": "exponential slope / incremental observed approach",
+        "selected": true,
+        "complete": false,
+        "score": 15.264521329911672,
+        "checkpoint_data_reserve_m": 0.15,
+        "path_data_reserve_m": 0.1,
+        "length_m": 1.873762507164418,
+        "ascent_m": 0.2803151909878079,
+        "uphill_over_25deg_m": 0.0,
+        "max_uphill_deg": 11.883574436861934,
+        "max_side_slope_deg": 5.724740681034556,
+        "max_ground_slope_deg": 12.32365165625556,
+        "max_footprint_slope_deg": 13.305862069993589
+      }
+    ],
+    "searches": [
+      {
+        "profile": "exponential slope",
+        "connected": false,
+        "has_route": true,
+        "uphill_limit": null
+      }
+    ]
+  },
+  {
+    "event": "descent_edge_brake",
+    "time": 3.7,
+    "position": [
+      12.194075584411621,
+      0.20491358637809753
+    ],
+    "actual_forward_mps": 0.4186537221187298,
+    "speed_budget_mps": 0.34538378151517557,
+    "observed_spare_m": 0.5363784039403766
+  },
+  {
+    "event": "descent_edge_brake",
+    "time": 3.98,
+    "position": [
+      12.091962814331055,
+      0.21280692517757416
+    ],
+    "actual_forward_mps": 0.39803496592482696,
+    "speed_budget_mps": 0.34538378151517557,
+    "observed_spare_m": 0.5363784039403766
+  },
+  {
+    "event": "descent_edge_brake",
+    "time": 4.2,
+    "position": [
+      12.011504173278809,
+      0.22008724510669708
+    ],
+    "actual_forward_mps": 0.4010736375960831,
+    "speed_budget_mps": 0.34538378151517557,
+    "observed_spare_m": 0.5363784039403766
+  },
+  {
+    "event": "descent_edge_brake",
+    "time": 4.24,
+    "position": [
+      11.997068405151367,
+      0.22111891210079193
+    ],
+    "actual_forward_mps": 0.33988032939045026,
+    "speed_budget_mps": 0.28766502984258213,
+    "observed_spare_m": 0.421943935422867
+  },
+  {
+    "event": "descent_edge_brake",
+    "time": 4.92,
+    "position": [
+      11.796178817749023,
+      0.23411650955677032
+    ],
+    "actual_forward_mps": 0.29217203171128486,
+    "speed_budget_mps": 0.23545935895497383,
+    "observed_spare_m": 0.33278651788070757
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 6.9,
+    "position": [
+      11.708148002624512,
+      0.23446516692638397
+    ],
+    "checkpoint": [
+      10.900000000000006,
+      0.10000000000000142
+    ],
+    "observation_target": [
+      10.900000000000006,
+      0.10000000000000142
+    ],
+    "measured_data_clearance_m": 1.0,
+    "extra_data_reserve_m": 0.19132232108778005,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "route_comparison",
+    "time": 6.9,
+    "position": [
+      11.708148002624512,
+      0.23446516692638397
+    ],
+    "decision": "surveying reachable observed frontier",
+    "candidates": [
+      {
+        "profile": "exponential slope / incremental observed approach",
+        "selected": true,
+        "complete": false,
+        "score": 7.371985697437193,
+        "checkpoint_data_reserve_m": 0.19132232108778005,
+        "path_data_reserve_m": 0.1,
+        "length_m": 0.8478032931845556,
+        "ascent_m": 0.032733215377140454,
+        "uphill_over_25deg_m": 0.0,
+        "max_uphill_deg": 7.758627767929482,
+        "max_side_slope_deg": 5.458660177330667,
+        "max_ground_slope_deg": 7.90238914963725,
+        "max_footprint_slope_deg": 11.861283539644809
+      }
+    ],
+    "searches": [
+      {
+        "profile": "exponential slope",
+        "connected": false,
+        "has_route": true,
+        "uphill_limit": null
+      }
+    ]
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 9.64,
+    "position": [
+      11.29804515838623,
+      0.11992118507623672
+    ],
+    "checkpoint": [
+      9.5,
+      0.7000000000000028
+    ],
+    "observation_target": [
+      9.5,
+      0.7000000000000028
+    ],
+    "measured_data_clearance_m": 1.0,
+    "extra_data_reserve_m": 0.21946353715146982,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "route_comparison",
+    "time": 9.64,
+    "position": [
+      11.29804515838623,
+      0.11992118507623672
+    ],
+    "decision": "surveying reachable observed frontier",
+    "candidates": [
+      {
+        "profile": "exponential slope / incremental observed approach",
+        "selected": true,
+        "complete": false,
+        "score": 21.55656756927859,
+        "checkpoint_data_reserve_m": 0.21946353715146982,
+        "path_data_reserve_m": 0.1,
+        "length_m": 1.9473447975983147,
+        "ascent_m": 0.0,
+        "uphill_over_25deg_m": 0.0,
+        "max_uphill_deg": 0.0,
+        "max_side_slope_deg": 7.144050261667752,
+        "max_ground_slope_deg": 17.201801556902264,
+        "max_footprint_slope_deg": 20.244100848035572
+      }
+    ],
+    "searches": [
+      {
+        "profile": "exponential slope",
+        "connected": false,
+        "has_route": true,
+        "uphill_limit": null
+      }
+    ]
+  },
+  {
+    "event": "descent_reverse_start",
+    "time": 14.540000000000001,
+    "position": [
+      10.69556713104248,
+      0.20831048488616943
+    ],
+    "target": [
+      11.548867225646973,
+      0.1381843388080597
+    ],
+    "reason": "new observations make the incomplete approach non-reversible; return to gentle ground"
+  },
+  {
+    "event": "descent_reverse_end",
+    "time": 20.580000000000002,
+    "position": [
+      11.506443977355957,
+      0.118874192237854
+    ],
+    "success": true,
+    "target": [
+      11.548867225646973,
+      0.1381843388080597
+    ],
+    "distance_to_target_m": 0.04661130502489698,
+    "reverse_displacement_m": 0.7758665210536034,
+    "duration_s": 6.040000000000001,
+    "peak_request_mps": 0.4,
+    "escalations": [],
+    "stable_seconds": 0.8000000000000007
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 21.580000000000002,
+    "position": [
+      11.52356243133545,
+      0.16548874974250793
+    ],
+    "checkpoint": [
+      9.700000000000003,
+      0.5
+    ],
+    "observation_target": [
+      9.700000000000003,
+      0.5
+    ],
+    "measured_data_clearance_m": 1.2806248474865698,
+    "extra_data_reserve_m": 0.2476751887110787,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "route_comparison",
+    "time": 21.580000000000002,
+    "position": [
+      11.52356243133545,
+      0.16548874974250793
+    ],
+    "decision": "surveying reachable observed frontier",
+    "candidates": [
+      {
+        "profile": "exponential slope / incremental observed approach",
+        "selected": true,
+        "complete": false,
+        "score": 16.25284754102438,
+        "checkpoint_data_reserve_m": 0.2476751887110787,
+        "path_data_reserve_m": 0.1,
+        "length_m": 1.9540671975681239,
+        "ascent_m": 0.010832246560584381,
+        "uphill_over_25deg_m": 0.0,
+        "max_uphill_deg": 4.139380381670703,
+        "max_side_slope_deg": 4.999241891749725,
+        "max_ground_slope_deg": 17.031929232998145,
+        "max_footprint_slope_deg": 21.068415157119993
+      }
+    ],
+    "searches": [
+      {
+        "profile": "exponential slope",
+        "connected": false,
+        "has_route": true,
+        "uphill_limit": null
+      }
+    ]
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 29.2,
+    "position": [
+      10.933616638183594,
+      0.247602641582489
+    ],
+    "checkpoint": [
+      9.100000000000001,
+      0.8999999999999986
+    ],
+    "observation_target": [
+      9.100000000000001,
+      0.8999999999999986
+    ],
+    "measured_data_clearance_m": 1.4422205101855958,
+    "extra_data_reserve_m": 0.22647224274966113,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "route_comparison",
+    "time": 29.2,
+    "position": [
+      10.933616638183594,
+      0.247602641582489
+    ],
+    "decision": "surveying reachable observed frontier",
+    "candidates": [
+      {
+        "profile": "exponential slope / incremental observed approach",
+        "selected": true,
+        "complete": false,
+        "score": 18.76921671300005,
+        "checkpoint_data_reserve_m": 0.22647224274966113,
+        "path_data_reserve_m": 0.1,
+        "length_m": 2.1195372702970046,
+        "ascent_m": 0.0,
+        "uphill_over_25deg_m": 0.0,
+        "max_uphill_deg": 0.0,
+        "max_side_slope_deg": 11.090197933907143,
+        "max_ground_slope_deg": 19.567428012217192,
+        "max_footprint_slope_deg": 24.045781544226163
+      }
+    ],
+    "searches": [
+      {
+        "profile": "exponential slope",
+        "connected": false,
+        "has_route": true,
+        "uphill_limit": null
+      }
+    ]
+  },
+  {
+    "event": "descent_reverse_start",
+    "time": 39.300000000000004,
+    "position": [
+      10.870145797729492,
+      0.648806095123291
+    ],
+    "target": [
+      11.06001942773178,
+      -0.1283348217185356
+    ],
+    "reason": "newly observed obstacle overlaps current clearance; reverse and replan"
+  },
+  {
+    "event": "descent_reverse_end",
+    "time": 45.92,
+    "position": [
+      10.930303573608398,
+      -0.012830940075218678
+    ],
+    "success": true,
+    "target": [
+      11.06001942773178,
+      -0.1283348217185356
+    ],
+    "distance_to_target_m": 0.17368750526630178,
+    "reverse_displacement_m": 0.657009484287087,
+    "duration_s": 6.619999999999997,
+    "peak_request_mps": 0.7,
+    "escalations": [
+      {
+        "time": 43.300000000000004,
+        "request_mps": 0.7,
+        "distance_to_target_m": 0.40426751251436116
+      }
+    ],
+    "stable_seconds": 0.8200000000000003
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 46.92,
+    "position": [
+      10.954156875610352,
+      -0.023923538625240326
+    ],
+    "checkpoint": [
+      9.300000000000004,
+      0.8999999999999986
+    ],
+    "observation_target": [
+      9.300000000000004,
+      0.8999999999999986
+    ],
+    "measured_data_clearance_m": 1.5620499351813308,
+    "extra_data_reserve_m": 0.1939476040947269,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "route_comparison",
+    "time": 46.92,
+    "position": [
+      10.954156875610352,
+      -0.023923538625240326
+    ],
+    "decision": "surveying reachable observed frontier",
+    "candidates": [
+      {
+        "profile": "exponential slope / incremental observed approach",
+        "selected": true,
+        "complete": false,
+        "score": 17.990580721926953,
+        "checkpoint_data_reserve_m": 0.1939476040947269,
+        "path_data_reserve_m": 0.1,
+        "length_m": 2.1916262067217747,
+        "ascent_m": 0.0,
+        "uphill_over_25deg_m": 0.0,
+        "max_uphill_deg": 0.0,
+        "max_side_slope_deg": 11.115267415501231,
+        "max_ground_slope_deg": 18.484347813909086,
+        "max_footprint_slope_deg": 23.364995098174855
+      }
+    ],
+    "searches": [
+      {
+        "profile": "exponential slope",
+        "connected": false,
+        "has_route": true,
+        "uphill_limit": null
+      }
+    ]
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 53.36,
+    "position": [
+      10.798608779907227,
+      0.670100748538971
+    ],
+    "checkpoint": [
+      9.100000000000001,
+      0.8999999999999986
+    ],
+    "observation_target": [
+      9.100000000000001,
+      0.8999999999999986
+    ],
+    "measured_data_clearance_m": 1.4422205101855958,
+    "extra_data_reserve_m": 0.22520978247159634,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "route_comparison",
+    "time": 53.36,
+    "position": [
+      10.798608779907227,
+      0.670100748538971
+    ],
+    "decision": "surveying reachable observed frontier",
+    "candidates": [
+      {
+        "profile": "exponential slope / incremental observed approach",
+        "selected": true,
+        "complete": false,
+        "score": 15.279488390582921,
+        "checkpoint_data_reserve_m": 0.22520978247159634,
+        "path_data_reserve_m": 0.1,
+        "length_m": 1.7140961037818894,
+        "ascent_m": 0.0,
+        "uphill_over_25deg_m": 0.0,
+        "max_uphill_deg": 0.0,
+        "max_side_slope_deg": 12.797862082860577,
+        "max_ground_slope_deg": 19.595119914343602,
+        "max_footprint_slope_deg": 24.055845423849156
+      }
+    ],
+    "searches": [
+      {
+        "profile": "exponential slope",
+        "connected": false,
+        "has_route": true,
+        "uphill_limit": null
+      }
+    ]
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 61.480000000000004,
+    "position": [
+      9.614222526550293,
+      0.9101171493530273
+    ],
+    "checkpoint": [
+      9.100000000000001,
+      1.3000000000000043
+    ],
+    "observation_target": [
+      9.100000000000001,
+      1.3000000000000043
+    ],
+    "measured_data_clearance_m": 2.3409399821439254,
+    "extra_data_reserve_m": 0.2170954216157031,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "route_comparison",
+    "time": 61.480000000000004,
+    "position": [
+      9.614222526550293,
+      0.9101171493530273
+    ],
+    "decision": "surveying reachable observed frontier",
+    "candidates": [
+      {
+        "profile": "exponential slope / incremental observed approach",
+        "selected": true,
+        "complete": false,
+        "score": 5.582517914418675,
+        "checkpoint_data_reserve_m": 0.2170954216157031,
+        "path_data_reserve_m": 0.1,
+        "length_m": 0.6453165456118247,
+        "ascent_m": 0.0,
+        "uphill_over_25deg_m": 0.0,
+        "max_uphill_deg": 0.0,
+        "max_side_slope_deg": 18.416822286781212,
+        "max_ground_slope_deg": 19.33346627659795,
+        "max_footprint_slope_deg": 23.367195395749604
+      }
+    ],
+    "searches": [
+      {
+        "profile": "exponential slope",
+        "connected": false,
+        "has_route": true,
+        "uphill_limit": null
+      }
+    ]
+  }
+]

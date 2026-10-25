@@ -197,10 +197,15 @@ class Dashboard:
                   labelcolor=MUTED, fontsize=8, labelspacing=.8, borderaxespad=0)
         key = None if view is None or self._layer != 'terrain' else (view['vmin'], view['vmax'], view['label'])
         if key != getattr(self, '_colorbar_key', None):
-            self._ax_colorbar.clear()
             if key is not None:
-                self._colorbar = self._fig.colorbar(ScalarMappable(norm=LogNorm(*key[:2]), cmap='magma'),
-                                                  cax=self._ax_colorbar, orientation='horizontal')
+                mappable = ScalarMappable(norm=LogNorm(*key[:2]), cmap='magma')
+                if self._colorbar is None:
+                    self._colorbar = self._fig.colorbar(mappable, cax=self._ax_colorbar,
+                                                       orientation='horizontal')
+                else:
+                    # Recreating on the same axes nests Colorbar locators on
+                    # every live scale change, eventually causing recursion.
+                    self._colorbar.update_normal(mappable)
                 self._colorbar.set_label(key[2]+'  /  logarithmic scale', color=MUTED, fontsize=8)
                 self._colorbar.ax.tick_params(colors=MUTED, labelsize=7)
             self._colorbar_key = key

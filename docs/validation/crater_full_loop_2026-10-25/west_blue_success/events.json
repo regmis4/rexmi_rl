@@ -1,0 +1,1994 @@
+[
+  {
+    "event": "mission_stage",
+    "time": 0.0,
+    "position": [
+      13.0,
+      0.0
+    ],
+    "stage": "DESCEND_TO_CENTER",
+    "goal": [
+      0.0,
+      0.0
+    ],
+    "goal_mode": "crater_loop",
+    "completed_destinations": 0
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 1.0,
+    "position": [
+      13.173383712768555,
+      0.06232510134577751
+    ],
+    "checkpoint": [
+      11.300000000000004,
+      0.10000000000000142
+    ],
+    "observation_target": [
+      11.300000000000004,
+      0.10000000000000142
+    ],
+    "measured_data_clearance_m": 1.0,
+    "extra_data_reserve_m": 0.25,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "route_comparison",
+    "time": 1.0,
+    "position": [
+      13.173383712768555,
+      0.06232510134577751
+    ],
+    "decision": "surveying reachable observed frontier",
+    "candidates": [
+      {
+        "profile": "exponential slope / incremental observed approach",
+        "selected": true,
+        "complete": false,
+        "score": 15.264521329911672,
+        "checkpoint_data_reserve_m": 0.25,
+        "path_data_reserve_m": 0.1,
+        "length_m": 1.873762507164418,
+        "ascent_m": 0.2803151909878079,
+        "uphill_over_25deg_m": 0.0,
+        "max_uphill_deg": 11.883574436861934,
+        "max_side_slope_deg": 5.724740681034556,
+        "max_ground_slope_deg": 12.32365165625556,
+        "max_footprint_slope_deg": 13.305862069993589
+      }
+    ],
+    "searches": [
+      {
+        "profile": "exponential slope",
+        "connected": false,
+        "has_route": true,
+        "uphill_limit": null
+      }
+    ]
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 6.54,
+    "position": [
+      11.74030590057373,
+      0.23452767729759216
+    ],
+    "checkpoint": [
+      10.900000000000006,
+      -0.29999999999999716
+    ],
+    "observation_target": [
+      10.900000000000006,
+      -0.29999999999999716
+    ],
+    "measured_data_clearance_m": 1.0,
+    "extra_data_reserve_m": 0.25,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "route_comparison",
+    "time": 6.54,
+    "position": [
+      11.74030590057373,
+      0.23452767729759216
+    ],
+    "decision": "surveying reachable observed frontier",
+    "candidates": [
+      {
+        "profile": "exponential slope / incremental observed approach",
+        "selected": true,
+        "complete": false,
+        "score": 9.489885818734129,
+        "checkpoint_data_reserve_m": 0.25,
+        "path_data_reserve_m": 0.1,
+        "length_m": 0.9959085521955189,
+        "ascent_m": 0.05379421654811162,
+        "uphill_over_25deg_m": 0.0,
+        "max_uphill_deg": 5.812814391756988,
+        "max_side_slope_deg": 6.672665847705614,
+        "max_ground_slope_deg": 6.729063651415775,
+        "max_footprint_slope_deg": 13.369867602390993
+      }
+    ],
+    "searches": [
+      {
+        "profile": "exponential slope",
+        "connected": false,
+        "has_route": true,
+        "uphill_limit": null
+      }
+    ]
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 10.540000000000001,
+    "position": [
+      11.198765754699707,
+      -0.03728993237018585
+    ],
+    "checkpoint": [
+      9.5,
+      0.8999999999999986
+    ],
+    "observation_target": [
+      9.5,
+      0.8999999999999986
+    ],
+    "measured_data_clearance_m": 1.216552506059644,
+    "extra_data_reserve_m": 0.30203593798739575,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "route_comparison",
+    "time": 10.540000000000001,
+    "position": [
+      11.198765754699707,
+      -0.03728993237018585
+    ],
+    "decision": "surveying reachable observed frontier",
+    "candidates": [
+      {
+        "profile": "exponential slope / incremental observed approach",
+        "selected": true,
+        "complete": false,
+        "score": 21.396027279840574,
+        "checkpoint_data_reserve_m": 0.30203593798739575,
+        "path_data_reserve_m": 0.1,
+        "length_m": 1.940184915584844,
+        "ascent_m": 0.0,
+        "uphill_over_25deg_m": 0.0,
+        "max_uphill_deg": 0.0,
+        "max_side_slope_deg": 14.263447924612349,
+        "max_ground_slope_deg": 16.858268940355956,
+        "max_footprint_slope_deg": 20.0341455189063
+      }
+    ],
+    "searches": [
+      {
+        "profile": "exponential slope",
+        "connected": false,
+        "has_route": true,
+        "uphill_limit": null
+      }
+    ]
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 18.900000000000002,
+    "position": [
+      9.69172477722168,
+      0.5513794422149658
+    ],
+    "checkpoint": [
+      8.300000000000004,
+      1.1000000000000014
+    ],
+    "observation_target": [
+      8.300000000000004,
+      1.1000000000000014
+    ],
+    "measured_data_clearance_m": 1.4560219778561037,
+    "extra_data_reserve_m": 0.43213063504636706,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "route_comparison",
+    "time": 18.900000000000002,
+    "position": [
+      9.69172477722168,
+      0.5513794422149658
+    ],
+    "decision": "surveying reachable observed frontier",
+    "candidates": [
+      {
+        "profile": "exponential slope / incremental observed approach",
+        "selected": true,
+        "complete": false,
+        "score": 23.101627577962166,
+        "checkpoint_data_reserve_m": 0.43213063504636706,
+        "path_data_reserve_m": 0.1,
+        "length_m": 1.495955337554262,
+        "ascent_m": 0.0,
+        "uphill_over_25deg_m": 0.0,
+        "max_uphill_deg": 0.0,
+        "max_side_slope_deg": 19.665382469658137,
+        "max_ground_slope_deg": 23.242032885618425,
+        "max_footprint_slope_deg": 26.07880755143015
+      }
+    ],
+    "searches": [
+      {
+        "profile": "exponential slope",
+        "connected": false,
+        "has_route": true,
+        "uphill_limit": null
+      }
+    ]
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 22.8,
+    "position": [
+      8.643779754638672,
+      0.9003630876541138
+    ],
+    "checkpoint": [
+      8.100000000000001,
+      1.3000000000000043
+    ],
+    "observation_target": [
+      8.100000000000001,
+      1.3000000000000043
+    ],
+    "measured_data_clearance_m": 1.4000000000000001,
+    "extra_data_reserve_m": 0.5669463841020093,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "route_comparison",
+    "time": 22.8,
+    "position": [
+      8.643779754638672,
+      0.9003630876541138
+    ],
+    "decision": "surveying reachable observed frontier",
+    "candidates": [
+      {
+        "profile": "exponential slope / incremental observed approach",
+        "selected": true,
+        "complete": false,
+        "score": 14.587666481374242,
+        "checkpoint_data_reserve_m": 0.5669463841020093,
+        "path_data_reserve_m": 0.1,
+        "length_m": 0.674837819971769,
+        "ascent_m": 0.0,
+        "uphill_over_25deg_m": 0.0,
+        "max_uphill_deg": 0.0,
+        "max_side_slope_deg": 22.36449265068139,
+        "max_ground_slope_deg": 23.62471284398139,
+        "max_footprint_slope_deg": 27.48677900979859
+      }
+    ],
+    "searches": [
+      {
+        "profile": "exponential slope",
+        "connected": false,
+        "has_route": true,
+        "uphill_limit": null
+      }
+    ]
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 27.0,
+    "position": [
+      7.88600492477417,
+      0.9629801511764526
+    ],
+    "checkpoint": [
+      7.5,
+      2.3000000000000043
+    ],
+    "observation_target": [
+      7.5,
+      2.3000000000000043
+    ],
+    "measured_data_clearance_m": 1.0,
+    "extra_data_reserve_m": 0.25,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "route_comparison",
+    "time": 27.0,
+    "position": [
+      7.88600492477417,
+      0.9629801511764526
+    ],
+    "decision": "surveying reachable observed frontier",
+    "candidates": [
+      {
+        "profile": "exponential slope / incremental observed approach",
+        "selected": true,
+        "complete": false,
+        "score": 19.033122209967953,
+        "checkpoint_data_reserve_m": 0.25,
+        "path_data_reserve_m": 0.1,
+        "length_m": 1.4782379903414409,
+        "ascent_m": 0.14485047528350978,
+        "uphill_over_25deg_m": 0.0,
+        "max_uphill_deg": 12.572297882335002,
+        "max_side_slope_deg": 20.84796616359952,
+        "max_ground_slope_deg": 21.335266695178564,
+        "max_footprint_slope_deg": 26.21692091835353
+      }
+    ],
+    "searches": [
+      {
+        "profile": "exponential slope",
+        "connected": false,
+        "has_route": true,
+        "uphill_limit": null
+      }
+    ]
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 30.82,
+    "position": [
+      7.545663356781006,
+      1.9038090705871582
+    ],
+    "checkpoint": [
+      6.5,
+      4.300000000000004
+    ],
+    "observation_target": null,
+    "measured_data_clearance_m": 1.0,
+    "extra_data_reserve_m": 0.25,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "route_comparison",
+    "time": 30.82,
+    "position": [
+      7.545663356781006,
+      1.9038090705871582
+    ],
+    "decision": "selected best observed route",
+    "candidates": [
+      {
+        "profile": "exponential slope / incremental observed approach",
+        "selected": true,
+        "complete": true,
+        "score": 322.09024923169494,
+        "checkpoint_data_reserve_m": 0.3309761568932872,
+        "path_data_reserve_m": 0.1,
+        "length_m": 16.626224121752255,
+        "ascent_m": 0.07049618313992709,
+        "uphill_over_25deg_m": 0.0,
+        "max_uphill_deg": 5.618738139092126,
+        "max_side_slope_deg": 27.634955641509347,
+        "max_ground_slope_deg": 31.40210293781896,
+        "max_footprint_slope_deg": 32.687399418538845
+      }
+    ],
+    "searches": [
+      {
+        "profile": "exponential slope",
+        "connected": true,
+        "has_route": true,
+        "uphill_limit": null
+      }
+    ]
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 40.74,
+    "position": [
+      6.576777458190918,
+      4.156816005706787
+    ],
+    "checkpoint": [
+      5.300000000000004,
+      5.5
+    ],
+    "observation_target": null,
+    "measured_data_clearance_m": 1.019803902718557,
+    "extra_data_reserve_m": 0.25,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "route_comparison",
+    "time": 40.74,
+    "position": [
+      6.576777458190918,
+      4.156816005706787
+    ],
+    "decision": "selected best observed route",
+    "candidates": [
+      {
+        "profile": "exponential slope / incremental observed approach",
+        "selected": true,
+        "complete": true,
+        "score": 299.94133259146923,
+        "checkpoint_data_reserve_m": 0.324199444643763,
+        "path_data_reserve_m": 0.1,
+        "length_m": 13.260466336602331,
+        "ascent_m": 0.011774479446772894,
+        "uphill_over_25deg_m": 0.0,
+        "max_uphill_deg": 2.8364278245581103,
+        "max_side_slope_deg": 31.095530890744087,
+        "max_ground_slope_deg": 31.40120624213915,
+        "max_footprint_slope_deg": 32.79074756581311
+      }
+    ],
+    "searches": [
+      {
+        "profile": "exponential slope",
+        "connected": true,
+        "has_route": true,
+        "uphill_limit": null
+      }
+    ]
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 49.14,
+    "position": [
+      5.455948829650879,
+      5.399084568023682
+    ],
+    "checkpoint": [
+      3.700000000000003,
+      6.300000000000004
+    ],
+    "observation_target": null,
+    "measured_data_clearance_m": 2.60768096208106,
+    "extra_data_reserve_m": 0.25,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "route_comparison",
+    "time": 49.14,
+    "position": [
+      5.455948829650879,
+      5.399084568023682
+    ],
+    "decision": "selected best observed route",
+    "candidates": [
+      {
+        "profile": "exponential slope / incremental observed approach",
+        "selected": true,
+        "complete": true,
+        "score": 284.37615161083045,
+        "checkpoint_data_reserve_m": 0.324817271799863,
+        "path_data_reserve_m": 0.1,
+        "length_m": 12.644853299348334,
+        "ascent_m": 0.00200595764078133,
+        "uphill_over_25deg_m": 0.0,
+        "max_uphill_deg": 0.6781886821314809,
+        "max_side_slope_deg": 27.498591543516554,
+        "max_ground_slope_deg": 31.200555314804443,
+        "max_footprint_slope_deg": 32.44331352426338
+      }
+    ],
+    "searches": [
+      {
+        "profile": "exponential slope",
+        "connected": true,
+        "has_route": true,
+        "uphill_limit": null
+      }
+    ]
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 56.82,
+    "position": [
+      3.8304603099823,
+      6.289897918701172
+    ],
+    "checkpoint": [
+      1.8999999999999986,
+      6.900000000000006
+    ],
+    "observation_target": null,
+    "measured_data_clearance_m": 3.0,
+    "extra_data_reserve_m": 0.25,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "route_comparison",
+    "time": 56.82,
+    "position": [
+      3.8304603099823,
+      6.289897918701172
+    ],
+    "decision": "selected best observed route",
+    "candidates": [
+      {
+        "profile": "exponential slope / incremental observed approach",
+        "selected": true,
+        "complete": true,
+        "score": 288.3717761182008,
+        "checkpoint_data_reserve_m": 0.25,
+        "path_data_reserve_m": 0.1,
+        "length_m": 11.647199645390527,
+        "ascent_m": 0.0,
+        "uphill_over_25deg_m": 0.0,
+        "max_uphill_deg": 0.0,
+        "max_side_slope_deg": 31.297230946735485,
+        "max_ground_slope_deg": 31.74887167005251,
+        "max_footprint_slope_deg": 32.86531778692405
+      }
+    ],
+    "searches": [
+      {
+        "profile": "exponential slope",
+        "connected": true,
+        "has_route": true,
+        "uphill_limit": null
+      }
+    ]
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 65.66,
+    "position": [
+      1.573288917541504,
+      5.837321758270264
+    ],
+    "checkpoint": [
+      -0.5,
+      5.100000000000001
+    ],
+    "observation_target": null,
+    "measured_data_clearance_m": 1.8973665961010278,
+    "extra_data_reserve_m": 0.3329893280059286,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "route_comparison",
+    "time": 65.66,
+    "position": [
+      1.573288917541504,
+      5.837321758270264
+    ],
+    "decision": "selected best observed route",
+    "candidates": [
+      {
+        "profile": "exponential slope / incremental observed approach",
+        "selected": true,
+        "complete": true,
+        "score": 163.13517857126664,
+        "checkpoint_data_reserve_m": 0.25,
+        "path_data_reserve_m": 0.1,
+        "length_m": 8.260013065338947,
+        "ascent_m": 0.021338377457050188,
+        "uphill_over_25deg_m": 0.0,
+        "max_uphill_deg": 2.7343083479144394,
+        "max_side_slope_deg": 31.99486616949186,
+        "max_ground_slope_deg": 32.06992470951146,
+        "max_footprint_slope_deg": 33.35316034190378
+      }
+    ],
+    "searches": [
+      {
+        "profile": "exponential slope",
+        "connected": true,
+        "has_route": true,
+        "uphill_limit": null
+      }
+    ]
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 75.04,
+    "position": [
+      -0.5228846073150635,
+      4.871743202209473
+    ],
+    "checkpoint": [
+      -0.29999999999999716,
+      2.8999999999999986
+    ],
+    "observation_target": null,
+    "measured_data_clearance_m": 3.0,
+    "extra_data_reserve_m": 0.25,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "route_comparison",
+    "time": 75.04,
+    "position": [
+      -0.5228846073150635,
+      4.871743202209473
+    ],
+    "decision": "selected best observed route",
+    "candidates": [
+      {
+        "profile": "exponential slope / incremental observed approach",
+        "selected": true,
+        "complete": true,
+        "score": 39.292263631632416,
+        "checkpoint_data_reserve_m": 0.25,
+        "path_data_reserve_m": 0.1,
+        "length_m": 5.1812392104757174,
+        "ascent_m": 0.00045229495556578644,
+        "uphill_over_25deg_m": 0.0,
+        "max_uphill_deg": 0.163897823969396,
+        "max_side_slope_deg": 11.261139660789299,
+        "max_ground_slope_deg": 19.79746107767534,
+        "max_footprint_slope_deg": 27.543202673965734
+      }
+    ],
+    "searches": [
+      {
+        "profile": "exponential slope",
+        "connected": true,
+        "has_route": true,
+        "uphill_limit": null
+      }
+    ]
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 89.52,
+    "position": [
+      -0.4168013334274292,
+      3.0171239376068115
+    ],
+    "checkpoint": [
+      0.0,
+      0.0
+    ],
+    "observation_target": null,
+    "measured_data_clearance_m": 1.4560219778561037,
+    "extra_data_reserve_m": 0.25,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "route_comparison",
+    "time": 89.52,
+    "position": [
+      -0.4168013334274292,
+      3.0171239376068115
+    ],
+    "decision": "selected best observed route",
+    "candidates": [
+      {
+        "profile": "exponential slope / incremental observed approach",
+        "selected": true,
+        "complete": true,
+        "score": 24.454176621482535,
+        "checkpoint_data_reserve_m": 0.25,
+        "path_data_reserve_m": 0.1,
+        "length_m": 3.119730679421704,
+        "ascent_m": 0.003755155171804048,
+        "uphill_over_25deg_m": 0.0,
+        "max_uphill_deg": 0.9151766080528966,
+        "max_side_slope_deg": 3.1841231022589938,
+        "max_ground_slope_deg": 7.140797083851577,
+        "max_footprint_slope_deg": 10.586400729313379
+      }
+    ],
+    "searches": [
+      {
+        "profile": "exponential slope",
+        "connected": true,
+        "has_route": true,
+        "uphill_limit": null
+      }
+    ]
+  },
+  {
+    "event": "mission_stage",
+    "time": 99.60000000000001,
+    "position": [
+      -0.06287509202957153,
+      0.3202776610851288
+    ],
+    "stage": "SETTLE_AT_CENTER",
+    "goal": [
+      0.0,
+      0.0
+    ],
+    "goal_mode": "crater_loop",
+    "completed_destinations": 0
+  },
+  {
+    "event": "mission_stage",
+    "time": 100.24000000000001,
+    "position": [
+      -0.06788109987974167,
+      0.31509947776794434
+    ],
+    "stage": "PLAN_ASCENT",
+    "goal": [
+      0.0,
+      0.0
+    ],
+    "goal_mode": "crater_loop",
+    "completed_destinations": 1
+  },
+  {
+    "event": "mission_stage",
+    "time": 100.4,
+    "position": [
+      -0.07004190981388092,
+      0.31290051341056824
+    ],
+    "stage": "ASCEND_TO_EXTERIOR",
+    "goal": [
+      11.100000000000001,
+      4.100000000000001
+    ],
+    "goal_mode": "crater_loop",
+    "completed_destinations": 1
+  },
+  {
+    "event": "saved_path_start",
+    "time": 100.4,
+    "route": [
+      [
+        -0.06788109987974167,
+        0.31509947776794434
+      ],
+      [
+        0.0260005015879869,
+        -0.0714771524071693
+      ],
+      [
+        0.7000000000000028,
+        -0.5
+      ],
+      [
+        1.8999999999999986,
+        -0.8999999999999986
+      ],
+      [
+        2.1000000000000014,
+        -0.8999999999999986
+      ],
+      [
+        2.700000000000003,
+        -1.0999999999999979
+      ],
+      [
+        3.1000000000000014,
+        -1.2999999999999972
+      ],
+      [
+        4.5,
+        -2.6999999999999993
+      ],
+      [
+        4.700000000000003,
+        -2.6999999999999993
+      ],
+      [
+        5.300000000000004,
+        -2.8999999999999986
+      ],
+      [
+        5.5,
+        -2.8999999999999986
+      ],
+      [
+        5.899999999999999,
+        -3.099999999999998
+      ],
+      [
+        6.100000000000001,
+        -3.299999999999997
+      ],
+      [
+        6.700000000000003,
+        -3.099999999999998
+      ],
+      [
+        6.900000000000006,
+        -2.5
+      ],
+      [
+        7.300000000000004,
+        -2.099999999999998
+      ],
+      [
+        7.300000000000004,
+        -1.8999999999999986
+      ],
+      [
+        7.5,
+        -1.2999999999999972
+      ],
+      [
+        7.700000000000003,
+        -1.0999999999999979
+      ],
+      [
+        7.700000000000003,
+        -0.5
+      ],
+      [
+        7.900000000000006,
+        -0.29999999999999716
+      ],
+      [
+        7.700000000000003,
+        0.30000000000000426
+      ],
+      [
+        7.700000000000003,
+        1.8999999999999986
+      ],
+      [
+        8.300000000000004,
+        2.1000000000000014
+      ],
+      [
+        8.5,
+        2.3000000000000043
+      ],
+      [
+        9.300000000000004,
+        2.700000000000003
+      ],
+      [
+        9.900000000000006,
+        3.3000000000000043
+      ],
+      [
+        11.100000000000001,
+        4.100000000000001
+      ]
+    ],
+    "metadata": {
+      "map_path": "/home/susan/rexmi_rl/outputs/crater_loop/mission-gDywlWv5/exit-plan-01/request-r36ds1_x.npz",
+      "map_sha256": "7ba92c02beb67a44708a8a4f4d1f7ebbec59288d7cf446f876aaa443ff3c7b8f",
+      "route_name": "validated_west_blue",
+      "parameters": {
+        "easy_angle_deg": 15.0,
+        "exponential_scale_deg": 6.0,
+        "uphill_weight": 1.0,
+        "roughness_interaction": 0.5,
+        "cross_weight": 1.0,
+        "terrain_weight": 1.0
+      },
+      "start": [
+        -0.06788109987974167,
+        0.31509947776794434
+      ],
+      "yaw": -1.6682476025092599,
+      "planned_at_sim_time": 100.24000000000001,
+      "planning_seconds": 0.1382869560038671,
+      "map_source": "live sensors retained during this descent",
+      "known_cells": 16399,
+      "observed_area_m2": 655.9600000000002,
+      "predicted_metrics": {
+        "length_m": 17.645162060061793,
+        "fitted_score": 375.22263494277007
+      },
+      "selected_exit": [
+        11.100000000000001,
+        4.100000000000001
+      ],
+      "routes": {
+        "any_exit": [
+          [
+            -0.06788109987974167,
+            0.31509947776794434
+          ],
+          [
+            0.0260005015879869,
+            -0.0714771524071693
+          ],
+          [
+            0.7000000000000028,
+            -0.5
+          ],
+          [
+            1.8999999999999986,
+            -0.8999999999999986
+          ],
+          [
+            2.1000000000000014,
+            -0.8999999999999986
+          ],
+          [
+            2.700000000000003,
+            -1.0999999999999979
+          ],
+          [
+            3.1000000000000014,
+            -1.2999999999999972
+          ],
+          [
+            4.5,
+            -2.6999999999999993
+          ],
+          [
+            4.700000000000003,
+            -2.6999999999999993
+          ],
+          [
+            5.300000000000004,
+            -2.8999999999999986
+          ],
+          [
+            5.5,
+            -2.8999999999999986
+          ],
+          [
+            5.899999999999999,
+            -3.099999999999998
+          ],
+          [
+            6.100000000000001,
+            -3.299999999999997
+          ],
+          [
+            6.700000000000003,
+            -3.099999999999998
+          ],
+          [
+            6.900000000000006,
+            -2.5
+          ],
+          [
+            7.300000000000004,
+            -2.099999999999998
+          ],
+          [
+            7.300000000000004,
+            -1.8999999999999986
+          ],
+          [
+            7.5,
+            -1.2999999999999972
+          ],
+          [
+            7.700000000000003,
+            -1.0999999999999979
+          ],
+          [
+            7.700000000000003,
+            -0.5
+          ],
+          [
+            7.900000000000006,
+            -0.29999999999999716
+          ],
+          [
+            7.700000000000003,
+            0.30000000000000426
+          ],
+          [
+            7.700000000000003,
+            1.8999999999999986
+          ],
+          [
+            8.300000000000004,
+            2.1000000000000014
+          ],
+          [
+            8.5,
+            2.3000000000000043
+          ],
+          [
+            9.300000000000004,
+            2.700000000000003
+          ],
+          [
+            9.900000000000006,
+            3.3000000000000043
+          ],
+          [
+            11.100000000000001,
+            4.100000000000001
+          ]
+        ]
+      },
+      "rim_radius": 11.0,
+      "nodes": 0,
+      "directed_edges": 0,
+      "route_source": {
+        "name": "validated_west_blue",
+        "task": "RexmiRl-Go2w-Crater-Bowl-RockySlope-Play-v0",
+        "seed": 42,
+        "crater_origin": [
+          0.0,
+          0.0
+        ],
+        "rim_radius": 11.0,
+        "source_result": "outputs/remote_autonomy/slope-fit-20261024-04/result.json",
+        "source_sha256": "3a56ca3ed18bff83bbe24d6457816fefa37e7e3e1baa52d293dc7802e76281b3",
+        "successful_run": "blue-path-unguarded-20261024-01",
+        "successful_completion_sim_seconds": 102.3,
+        "parameters": {
+          "easy_angle_deg": 15.0,
+          "exponential_scale_deg": 6.0,
+          "uphill_weight": 1.0,
+          "roughness_interaction": 0.5,
+          "cross_weight": 1.0,
+          "terrain_weight": 1.0
+        },
+        "route": [
+          [
+            0.0260005015879869,
+            -0.0714771524071693
+          ],
+          [
+            0.7000000000000028,
+            -0.5
+          ],
+          [
+            1.8999999999999986,
+            -0.8999999999999986
+          ],
+          [
+            2.1000000000000014,
+            -0.8999999999999986
+          ],
+          [
+            2.700000000000003,
+            -1.0999999999999979
+          ],
+          [
+            3.1000000000000014,
+            -1.2999999999999972
+          ],
+          [
+            4.5,
+            -2.6999999999999993
+          ],
+          [
+            4.700000000000003,
+            -2.6999999999999993
+          ],
+          [
+            5.300000000000004,
+            -2.8999999999999986
+          ],
+          [
+            5.5,
+            -2.8999999999999986
+          ],
+          [
+            5.899999999999999,
+            -3.099999999999998
+          ],
+          [
+            6.100000000000001,
+            -3.299999999999997
+          ],
+          [
+            6.700000000000003,
+            -3.099999999999998
+          ],
+          [
+            6.900000000000006,
+            -2.5
+          ],
+          [
+            7.300000000000004,
+            -2.099999999999998
+          ],
+          [
+            7.300000000000004,
+            -1.8999999999999986
+          ],
+          [
+            7.5,
+            -1.2999999999999972
+          ],
+          [
+            7.700000000000003,
+            -1.0999999999999979
+          ],
+          [
+            7.700000000000003,
+            -0.5
+          ],
+          [
+            7.900000000000006,
+            -0.29999999999999716
+          ],
+          [
+            7.700000000000003,
+            0.30000000000000426
+          ],
+          [
+            7.700000000000003,
+            1.8999999999999986
+          ],
+          [
+            8.300000000000004,
+            2.1000000000000014
+          ],
+          [
+            8.5,
+            2.3000000000000043
+          ],
+          [
+            9.300000000000004,
+            2.700000000000003
+          ],
+          [
+            9.900000000000006,
+            3.3000000000000043
+          ],
+          [
+            11.100000000000001,
+            4.100000000000001
+          ]
+        ],
+        "artifact_path": "/home/susan/rexmi_rl/source/rexmi_rl/nav/routes/validated_west_seed42.json",
+        "artifact_sha256": "db681cf1c2f1a1bacc3ff49c3a6cb05f7ad75e3ac9c2fe58baad262e78a2e738"
+      },
+      "selection": "user-selected previously validated corridor",
+      "connector_length_m": 0.3978130793371329,
+      "original_route_preserved": true,
+      "result_path": "/home/susan/rexmi_rl/outputs/crater_loop/mission-gDywlWv5/exit-plan-01/exit_plan.json",
+      "result_sha256": "85201f24a2796f2e2d7173a4c1a8242a13c29d0e9d4203c96917f14fe650541b"
+    },
+    "snapshot": null,
+    "unguarded": true
+  },
+  {
+    "event": "remote_transition",
+    "time": 100.4,
+    "previous": "OBSERVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 101.64,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 101.8,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 102.2,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 102.2,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 102.74000000000001,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 102.86,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 103.28,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 103.5,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 104.04,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 104.18,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 104.72,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 105.92,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 106.32000000000001,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 106.32000000000001,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 106.9,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 107.7,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 108.22,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 110.74000000000001,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 111.46000000000001,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 112.46000000000001,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 113.04,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 115.28,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 115.66,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 115.9,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 116.2,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 116.36,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 116.72,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 121.98,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 122.38,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 122.88,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 123.36,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 123.60000000000001,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 123.98,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 124.92,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 125.3,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 127.52,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 127.9,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 127.9,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 128.46,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 129.2,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 129.58,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 129.6,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 130.22,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 130.22,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 130.6,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 130.64000000000001,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 131.46,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 132.04,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 132.86,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 132.86,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 133.7,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 133.7,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 133.88,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 134.22,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 135.02,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 135.02,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 136.44,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 137.46,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 138.20000000000002,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 138.20000000000002,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 139.26,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 139.56,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 140.62,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 141.12,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 142.3,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 142.5,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 144.0,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 144.78,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 145.36,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 145.36,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 145.72,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 145.96,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 146.38,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 146.62,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 147.06,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 147.3,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 147.72,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 149.06,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 149.72,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 150.9,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 151.28,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 154.32,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 154.6,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 154.6,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 154.82,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 156.94,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 157.38,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 157.38,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 157.94,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 157.94,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 158.46,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 160.76,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 161.20000000000002,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 164.74,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 165.26,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 165.26,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 165.98,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 165.98,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 167.26,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 167.34,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 167.98,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 167.98,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 169.64000000000001,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 169.64000000000001,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 171.52,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 171.94,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 172.32,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 172.34,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 172.78,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 175.56,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 176.18,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 176.5,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 177.02,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 177.96,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 178.42000000000002,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 181.98,
+    "previous": "DRIVE",
+    "state": "TURN",
+    "reason": "hold yaw button until measured heading"
+  },
+  {
+    "event": "remote_transition",
+    "time": 182.34,
+    "previous": "TURN",
+    "state": "DRIVE",
+    "reason": "measured turn complete"
+  },
+  {
+    "event": "remote_transition",
+    "time": 183.02,
+    "previous": "DRIVE",
+    "state": "SETTLE",
+    "reason": "selected endpoint reached; observe actual settling"
+  },
+  {
+    "event": "mission_stage",
+    "time": 185.9,
+    "position": [
+      11.0661039352417,
+      4.149988651275635
+    ],
+    "stage": "COMPLETE",
+    "goal": [
+      11.100000000000001,
+      4.100000000000001
+    ],
+    "goal_mode": "crater_loop",
+    "completed_destinations": 2
+  },
+  {
+    "event": "remote_transition",
+    "time": 185.9,
+    "previous": "SETTLE",
+    "state": "COMPLETE",
+    "reason": "selected exterior endpoint reached upright and settled"
+  }
+]

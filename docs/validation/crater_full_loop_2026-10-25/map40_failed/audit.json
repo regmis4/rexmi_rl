@@ -1,0 +1,30 @@
+{
+  "run": "outputs/crater_loop/mission-xcsSdt4p",
+  "result": "hold",
+  "counts_as_mission": false,
+  "stage": "DESCEND_TO_CENTER",
+  "center_arrival_time": null,
+  "manual_intervention": false,
+  "last_sim_time": 37.0,
+  "continuous_20ms_timestamps": true,
+  "source_mismatches": [
+    "source/rexmi_rl/nav/crater_loop.py"
+  ],
+  "raw_csv_sha256": "f39914e4aa93e2b47a65cc8b11e675e669209029eedd1c1e060bff88c52c5793",
+  "phases": {
+    "DESCEND_TO_CENTER": {
+      "first_time": 1.0,
+      "last_time": 37.0,
+      "travel_m": 6.260485446136949,
+      "peak_speed_mps": 0.46787700695242207,
+      "minimum_up_z": 0.8629386276006699,
+      "final_position": [
+        7.72819185256958,
+        1.1769320964813232
+      ]
+    }
+  },
+  "immediate_turn_restarts": 0,
+  "ascent_motion_seconds": {},
+  "ascent_recovery_starts": {}
+}

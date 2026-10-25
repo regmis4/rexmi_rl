@@ -1,0 +1,452 @@
+{
+  "stage": "ASCEND_TO_EXTERIOR",
+  "goal": [
+    10.5,
+    5.700000000000003
+  ],
+  "goal_mode": "crater_loop",
+  "completed_destinations": 1,
+  "center_arrival_time": 100.24000000000001,
+  "descent": {
+    "time": 99.60000000000001,
+    "position": [
+      -0.06287509202957153,
+      0.3202776610851288
+    ],
+    "waypoints_reached": 1,
+    "hold_failures": 1,
+    "rolling_checkpoints": 0,
+    "steering_recoveries": 0,
+    "reverse_recoveries": 0,
+    "recovery_events": [
+      {
+        "event": "descent_checkpoint_selected",
+        "time": 1.0,
+        "position": [
+          13.173383712768555,
+          0.06232510134577751
+        ],
+        "checkpoint": [
+          11.300000000000004,
+          0.10000000000000142
+        ],
+        "observation_target": [
+          11.300000000000004,
+          0.10000000000000142
+        ],
+        "measured_data_clearance_m": 1.0,
+        "extra_data_reserve_m": 0.25,
+        "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+      },
+      {
+        "event": "descent_checkpoint_selected",
+        "time": 6.54,
+        "position": [
+          11.74030590057373,
+          0.23452767729759216
+        ],
+        "checkpoint": [
+          10.900000000000006,
+          -0.29999999999999716
+        ],
+        "observation_target": [
+          10.900000000000006,
+          -0.29999999999999716
+        ],
+        "measured_data_clearance_m": 1.0,
+        "extra_data_reserve_m": 0.25,
+        "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+      },
+      {
+        "event": "descent_checkpoint_selected",
+        "time": 10.540000000000001,
+        "position": [
+          11.198765754699707,
+          -0.03728993237018585
+        ],
+        "checkpoint": [
+          9.5,
+          0.8999999999999986
+        ],
+        "observation_target": [
+          9.5,
+          0.8999999999999986
+        ],
+        "measured_data_clearance_m": 1.216552506059644,
+        "extra_data_reserve_m": 0.30203593798739575,
+        "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+      },
+      {
+        "event": "descent_checkpoint_selected",
+        "time": 18.900000000000002,
+        "position": [
+          9.69172477722168,
+          0.5513794422149658
+        ],
+        "checkpoint": [
+          8.300000000000004,
+          1.1000000000000014
+        ],
+        "observation_target": [
+          8.300000000000004,
+          1.1000000000000014
+        ],
+        "measured_data_clearance_m": 1.4560219778561037,
+        "extra_data_reserve_m": 0.43213063504636706,
+        "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+      },
+      {
+        "event": "descent_checkpoint_selected",
+        "time": 22.8,
+        "position": [
+          8.643779754638672,
+          0.9003630876541138
+        ],
+        "checkpoint": [
+          8.100000000000001,
+          1.3000000000000043
+        ],
+        "observation_target": [
+          8.100000000000001,
+          1.3000000000000043
+        ],
+        "measured_data_clearance_m": 1.4000000000000001,
+        "extra_data_reserve_m": 0.5669463841020093,
+        "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+      },
+      {
+        "event": "descent_checkpoint_selected",
+        "time": 27.0,
+        "position": [
+          7.88600492477417,
+          0.9629801511764526
+        ],
+        "checkpoint": [
+          7.5,
+          2.3000000000000043
+        ],
+        "observation_target": [
+          7.5,
+          2.3000000000000043
+        ],
+        "measured_data_clearance_m": 1.0,
+        "extra_data_reserve_m": 0.25,
+        "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+      },
+      {
+        "event": "descent_checkpoint_selected",
+        "time": 30.82,
+        "position": [
+          7.545663356781006,
+          1.9038090705871582
+        ],
+        "checkpoint": [
+          6.5,
+          4.300000000000004
+        ],
+        "observation_target": null,
+        "measured_data_clearance_m": 1.0,
+        "extra_data_reserve_m": 0.25,
+        "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+      },
+      {
+        "event": "descent_checkpoint_selected",
+        "time": 40.74,
+        "position": [
+          6.576777458190918,
+          4.156816005706787
+        ],
+        "checkpoint": [
+          5.300000000000004,
+          5.5
+        ],
+        "observation_target": null,
+        "measured_data_clearance_m": 1.019803902718557,
+        "extra_data_reserve_m": 0.25,
+        "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+      },
+      {
+        "event": "descent_checkpoint_selected",
+        "time": 49.14,
+        "position": [
+          5.455948829650879,
+          5.399084568023682
+        ],
+        "checkpoint": [
+          3.700000000000003,
+          6.300000000000004
+        ],
+        "observation_target": null,
+        "measured_data_clearance_m": 2.60768096208106,
+        "extra_data_reserve_m": 0.25,
+        "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+      },
+      {
+        "event": "descent_checkpoint_selected",
+        "time": 56.82,
+        "position": [
+          3.8304603099823,
+          6.289897918701172
+        ],
+        "checkpoint": [
+          1.8999999999999986,
+          6.900000000000006
+        ],
+        "observation_target": null,
+        "measured_data_clearance_m": 3.0,
+        "extra_data_reserve_m": 0.25,
+        "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+      },
+      {
+        "event": "descent_checkpoint_selected",
+        "time": 65.66,
+        "position": [
+          1.573288917541504,
+          5.837321758270264
+        ],
+        "checkpoint": [
+          -0.5,
+          5.100000000000001
+        ],
+        "observation_target": null,
+        "measured_data_clearance_m": 1.8973665961010278,
+        "extra_data_reserve_m": 0.3329893280059286,
+        "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+      },
+      {
+        "event": "descent_checkpoint_selected",
+        "time": 75.04,
+        "position": [
+          -0.5228846073150635,
+          4.871743202209473
+        ],
+        "checkpoint": [
+          -0.29999999999999716,
+          2.8999999999999986
+        ],
+        "observation_target": null,
+        "measured_data_clearance_m": 3.0,
+        "extra_data_reserve_m": 0.25,
+        "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+      },
+      {
+        "event": "descent_checkpoint_selected",
+        "time": 89.52,
+        "position": [
+          -0.4168013334274292,
+          3.0171239376068115
+        ],
+        "checkpoint": [
+          0.0,
+          0.0
+        ],
+        "observation_target": null,
+        "measured_data_clearance_m": 1.4560219778561037,
+        "extra_data_reserve_m": 0.25,
+        "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+      }
+    ]
+  },
+  "plan": {
+    "map_path": "/home/susan/rexmi_rl/outputs/crater_loop/mission-0o3iYyeJ/exit-plan-01/request-2gut0tgl.npz",
+    "map_sha256": "7ba92c02beb67a44708a8a4f4d1f7ebbec59288d7cf446f876aaa443ff3c7b8f",
+    "route_name": "live_descent_any_exit",
+    "parameters": {
+      "easy_angle_deg": 15.0,
+      "exponential_scale_deg": 6.0,
+      "uphill_weight": 1.0,
+      "roughness_interaction": 0.5,
+      "cross_weight": 1.0,
+      "terrain_weight": 1.0
+    },
+    "start": [
+      -0.06788109987974167,
+      0.31509947776794434
+    ],
+    "yaw": -1.6682476025092599,
+    "planned_at_sim_time": 100.24000000000001,
+    "planning_seconds": 0.23054949298966676,
+    "map_source": "live sensors retained during this descent",
+    "known_cells": 16399,
+    "observed_area_m2": 655.9600000000002,
+    "predicted_metrics": {
+      "length_m": 20.15795431904541,
+      "fitted_score": 327.2222728142642
+    },
+    "selected_exit": [
+      10.5,
+      5.700000000000003
+    ],
+    "routes": {
+      "any_exit": [
+        [
+          -0.06788109987974167,
+          0.31509947776794434
+        ],
+        [
+          -0.09999999999999787,
+          0.8999999999999986
+        ],
+        [
+          -0.09999999999999787,
+          1.1000000000000014
+        ],
+        [
+          -0.6999999999999993,
+          2.8999999999999986
+        ],
+        [
+          -0.6999999999999993,
+          3.8999999999999986
+        ],
+        [
+          -0.8999999999999986,
+          4.5
+        ],
+        [
+          -0.5,
+          4.899999999999999
+        ],
+        [
+          -0.5,
+          5.100000000000001
+        ],
+        [
+          0.10000000000000142,
+          5.300000000000004
+        ],
+        [
+          0.5,
+          5.300000000000004
+        ],
+        [
+          0.5,
+          5.700000000000003
+        ],
+        [
+          0.30000000000000426,
+          6.300000000000004
+        ],
+        [
+          0.5,
+          6.300000000000004
+        ],
+        [
+          0.7000000000000028,
+          6.5
+        ],
+        [
+          0.5,
+          7.100000000000001
+        ],
+        [
+          0.7000000000000028,
+          7.300000000000004
+        ],
+        [
+          0.8999999999999986,
+          7.300000000000004
+        ],
+        [
+          1.5,
+          7.5
+        ],
+        [
+          1.8999999999999986,
+          7.5
+        ],
+        [
+          3.1000000000000014,
+          7.100000000000001
+        ],
+        [
+          3.8999999999999986,
+          6.700000000000003
+        ],
+        [
+          5.100000000000001,
+          5.899999999999999
+        ],
+        [
+          5.899999999999999,
+          5.100000000000001
+        ],
+        [
+          6.300000000000004,
+          4.5
+        ],
+        [
+          6.900000000000006,
+          3.8999999999999986
+        ],
+        [
+          7.5,
+          4.100000000000001
+        ],
+        [
+          7.700000000000003,
+          4.300000000000004
+        ],
+        [
+          8.900000000000006,
+          4.700000000000003
+        ],
+        [
+          9.700000000000003,
+          5.100000000000001
+        ],
+        [
+          10.300000000000004,
+          5.5
+        ],
+        [
+          10.5,
+          5.700000000000003
+        ]
+      ]
+    },
+    "rim_radius": 11.0,
+    "nodes": 12071,
+    "directed_edges": 319911,
+    "result_path": "/home/susan/rexmi_rl/outputs/crater_loop/mission-0o3iYyeJ/exit-plan-01/exit_plan.json",
+    "result_sha256": "97b420aff1f8d542f0f413f511f647b625f5a6ddd64a373ac12bdd603829d41e"
+  },
+  "failure": null,
+  "manual_intervention": false,
+  "events": [
+    {
+      "event": "crater_loop_stage",
+      "stage": "SETTLE_AT_CENTER",
+      "time": 99.60000000000001,
+      "position": [
+        -0.06287509202957153,
+        0.3202776610851288
+      ]
+    },
+    {
+      "event": "crater_loop_stage",
+      "stage": "PLAN_ASCENT",
+      "time": 100.24000000000001,
+      "position": [
+        -0.06788109987974167,
+        0.31509947776794434
+      ],
+      "output": "/home/susan/rexmi_rl/outputs/crater_loop/mission-0o3iYyeJ/exit-plan-01"
+    },
+    {
+      "event": "crater_loop_stage",
+      "stage": "ASCEND_TO_EXTERIOR",
+      "time": 100.4,
+      "position": [
+        -0.07004190981388092,
+        0.31290051341056824
+      ],
+      "selected_exit": [
+        10.5,
+        5.700000000000003
+      ],
+      "plan_path": "/home/susan/rexmi_rl/outputs/crater_loop/mission-0o3iYyeJ/exit-plan-01/exit_plan.json"
+    }
+  ],
+  "map_source": "live sensor observations from this mission; no loaded prior"
+}

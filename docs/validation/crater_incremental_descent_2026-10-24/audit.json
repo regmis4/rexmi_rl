@@ -1,0 +1,27 @@
+{
+  "runtime_sources_match_current": false,
+  "post_trial_source_changes": [
+    "source/rexmi_rl/nav/experimental_path_control.py"
+  ],
+  "descent_sources_match_current": true,
+  "planning_map_hash_matches": true,
+  "uniform_20ms_clock": true,
+  "contiguous_steps": true,
+  "all_checkpoint_data_reserves_satisfied": true,
+  "artifacts": {
+    "comparison.json": "0f0fc4f592bcb1b99bfd15f1a4dfb07a22d314b58ac24693dfb0b137a2b4f174",
+    "descent_comparison.png": "62cc9e0b0b4d7d1e77fbcd11140e3051ee9226be4be3bc8c3a2f9f0cc73aa711",
+    "descent_dashboard.png": "51a2f344fa2cd0a8f4c673b41efd597a7b720e1c9a58a39e8caa3ed06198674d",
+    "descent_display_map.npz": "23b4ba6e4eb458bef7cff69edb265c40d42ec5c671c09fa18ad5f8a5852dcefc",
+    "events.json": "a215e788232dcf26cac03c492004e08539ae4322ce684c65391ec73a451123de",
+    "exit_plan.json": "e0d359a836741bd5dc7d60a84a5f3caf6de3ff73d6299cb92920bbca1b9c2ea5",
+    "loop.json": "0f731daf7676e537aef60288c36454c20e7eaeef415201bfd7064491f1f54a92",
+    "planning_map.npz": "7f92e28fa51e5ae6b3eeab1d7c808bd3540cfb49a562978d5a653551734d86d8",
+    "post_trial_logging_fix.patch": "4908e6313191de0e906224239cf4dfaab8b110bc0299c03294f643e3571ba9e3",
+    "provenance.json": "b06b86852ed290068b9453f0b73e6043515586cf78203fb9323166733e624aab",
+    "pytest.txt": "ada9b94b8ea48bfae8540d6cb12e1b768ecac63714cfe592bab15049a97d5e94",
+    "recovery_pytest.txt": "3dc6715b4961a11e2a16c10b0fa3ed8a1282502d293ee74c40bf9e368d8cc1dd",
+    "run_status.json": "cb260e6df93f3bd04f665d78c0fe9a10eaf7081d648a3c664a6db98b843dcd8e",
+    "trace_10hz.csv": "855165ab9314f9e308f397dcd0b094888ee2c51ade1792bde1c8eefa9e01b2fe"
+  }
+}

@@ -1,6 +1,16 @@
 # Ascent-first navigation
 
-**Latest result (24 October 2026):** the fitted blue path completed an autonomous
+**Continuous mission:** run `./crater.sh` for exterior → center → newly planned
+exit in one Isaac Sim session. The first live-map loop completed in **158.12 s**;
+see [launcher and operation](crater_loop.md) and
+[full-loop evidence](validation/crater_loop_2026-10-24.md).
+The subsequent [descent observation-reserve revision](validation/crater_descent_observation_reserve_2026-10-24.md)
+adds exponential downhill costs, checkpoints inset from missing data and
+progress-triggered reverse commands up to 1.0 m/s. Its validation is separate
+from the first loop result. The latest [incremental descent revision](validation/crater_incremental_descent_2026-10-24.md)
+replaces viewpoint detours with short recoverable steps toward the goal.
+
+**Standalone ascent result (24 October 2026):** the fitted blue path completed an autonomous
 seed-42 simulation ascent in 102.30 s with motion vetoes disabled as requested.
 See [completion evidence](#successful-autonomous-blue-path-ascent--24-october-2026)
 and [current execution/plot contract](#user-override-unguarded-simulation-and-measured-recovery).

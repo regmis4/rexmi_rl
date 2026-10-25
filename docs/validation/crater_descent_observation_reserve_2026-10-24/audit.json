@@ -1,0 +1,92 @@
+{
+  "run": "outputs/crater_loop/mission-AHG7trWx",
+  "raw_samples": 17090,
+  "raw_first_step": 0,
+  "raw_last_step": 17089,
+  "contiguous_steps": true,
+  "uniform_20ms_clock": true,
+  "runtime_sources_match_current": true,
+  "policy_hash_matches": true,
+  "last_sim_time": 341.78000000000003,
+  "last_stage": "ASCEND_TO_EXTERIOR",
+  "final_xyz": [
+    0.17636950314044952,
+    5.557083606719971,
+    1.8987202644348145
+  ],
+  "checkpoints": 40,
+  "required_checkpoint_data_clearance_m": 1.494246443546193,
+  "minimum_checkpoint_data_clearance_m": 1.5231546211727818,
+  "all_checkpoint_reserves_satisfied": true,
+  "descent_reverse_responses": [
+    {
+      "event": "descent_reverse_end",
+      "time": 75.42,
+      "position": [
+        12.442693710327148,
+        0.6687307953834534
+      ],
+      "success": true,
+      "reverse_displacement_m": 0.501286869858579,
+      "duration_s": 4.319999999999993,
+      "peak_request_mps": 0.4,
+      "escalations": []
+    },
+    {
+      "event": "descent_reverse_end",
+      "time": 90.32000000000001,
+      "position": [
+        12.564425468444824,
+        1.5068364143371582
+      ],
+      "success": true,
+      "reverse_displacement_m": 0.5069377932364408,
+      "duration_s": 4.920000000000002,
+      "peak_request_mps": 0.7,
+      "escalations": [
+        {
+          "time": 87.4,
+          "request_mps": 0.7,
+          "reverse_displacement_m": -0.15724574386167314
+        }
+      ]
+    }
+  ],
+  "ascent_reverse_responses": [
+    {
+      "event": "reverse_response",
+      "time": 340.28000000000003,
+      "success": true,
+      "reverse_displacement_m": 0.5052651515941097,
+      "duration_s": 3.5600000000000023,
+      "peak_request_mps": 0.7,
+      "escalations": [
+        {
+          "time": 339.40000000000003,
+          "request_mps": 0.7,
+          "reverse_displacement_m": 0.3092370329841172
+        }
+      ]
+    }
+  ],
+  "strongest_reverse_command_mps": -0.7,
+  "first_ascent_exterior_crossing_s": null,
+  "ascent_max_cross_track_m": 0.5768166387464482,
+  "raw_csv_sha256": "a325c95d716cb7f069ad63902323f971ad36fdb311c3dbc8abcbd5cc2ff778bc",
+  "planning_map_hash_matches": true,
+  "artifacts": {
+    "dashboard.png": "a0b219a8a24b60c74095e70791aa1f230587c29e20825b689e8ea4f2d99fff44",
+    "descent_dashboard.png": "57f00271a182abe70778731df53584dde57d4636f5a6774caf92e558b5abba7e",
+    "descent_display_map.npz": "a8a4e0c915dfcb29fa96010a08b0f46801db6b96b1ecfd0dbf8132366d488487",
+    "events.json": "929779fbcac07c29f5c7b029d7b676e4c00d47201595da1db4e3b4c1d118d875",
+    "exit_plan.json": "340ddd772acb97bf932b8599375131bd19192d00d1fad9a50d5136a4135df8aa",
+    "exit_route.csv": "3ca97186585ee67d5d22c63a515e5219c552736d3f3cd3a62bf58efb7bfa8bc3",
+    "gui_summary.json": "9812836924c935e80933b34efeae9bdda145f7ca3f0d0713cb714da41402e312",
+    "loop.json": "9d7d6180daf46272ed807bbcc84a5f01363c5478f9e716e566e572bf9438714d",
+    "planning_map.npz": "48a601e874afd742ff125d41e116d6e07f5b253e790ebebe352c0c414677534f",
+    "provenance.json": "75f7d3347ec8e04912aa822fb3a18b2202154cd8f45b63e9a36537c7fe5054bc",
+    "pytest.txt": "4e2e94ea19e037511a60a05b2ab9c279f25d441ecdfaf58dc2b47d9da8bd4754",
+    "run_status.json": "968a4ff6502eb371ac75b36329b6c00161c6a9e5afff8805cd9acf8e30737c44",
+    "trace_10hz.csv": "6d19a2e316dc3b2fe8d17c3c89b4d23c46d7d99f4239da8bef0dcf540cccd7e0"
+  }
+}

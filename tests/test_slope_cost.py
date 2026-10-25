@@ -30,6 +30,14 @@ def test_steep_ground_remains_expensive_when_moving_sideways():
     assert m((2,2),0.,1.)>sc.Model(grid(10.),p)((2,2),0.,1.)
 
 
+def test_descent_uses_same_exponential_penalty_for_both_grade_signs():
+    p=sc.Parameters();g=grid(30.)
+    ascent=sc.Model(g,p);descent=sc.Model(g,p,bidirectional=True)
+    assert descent((2,2),-1.,0.)==pytest.approx(ascent((2,2),1.,0.))
+    assert descent((2,2),-1.,0.)>ascent((2,2),-1.,0.)
+    assert descent((2,2),1.,0.)==pytest.approx(descent((2,2),-1.,0.))
+
+
 def test_wheelbase_gradient_reveals_face_hidden_by_display_plane():
     g=grid(10.);g.cell_size=.2;g.world_size=1.2
     g.surface[:]=0.;g.surface[3:]=.4

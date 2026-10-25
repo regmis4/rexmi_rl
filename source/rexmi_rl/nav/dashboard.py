@@ -171,7 +171,8 @@ class Dashboard:
         self._draw_drive(state)
         self._draw_status(state)
         seconds = state.get('sim_time')
-        self._headline.set_text(f"{state.get('mission', 'navigation').upper()}   /   "
+        stage = (state.get('mission_stage') or {}).get('stage') if state.get('mission')=='crater_loop' else None
+        self._headline.set_text(f"{(stage or state.get('mission', 'navigation')).replace('_', ' ').upper()}   /   "
                                 +(f'{seconds:.1f} s' if seconds is not None else 'LIVE'))
         self._fig.canvas.draw_idle()
 
@@ -208,7 +209,8 @@ class Dashboard:
     def _draw_profile(self, state):
         ax, slope = self._ax_profile, self._ax_slope
         ax.clear(); slope.clear(); self._style(ax); self._style(slope)
-        ax.set_title('CLIMB PROFILE', loc='left', color=INK, fontsize=11, pad=24)
+        ax.set_title('MISSION PROFILE' if state.get('mission')=='crater_loop' else 'CLIMB PROFILE',
+                     loc='left', color=INK, fontsize=11, pad=24)
         rows = np.asarray(state.get('travel_profile', []), dtype=float).reshape(-1, 3)
         if len(rows):
             d, z, grade = rows.T

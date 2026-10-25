@@ -31,8 +31,9 @@ def uphill_penalty(angle,parameters):
 
 
 class Model:
-    def __init__(self,grid,parameters):
+    def __init__(self,grid,parameters,*,bidirectional=False):
         self.grid=grid;self.parameters=parameters
+        self.bidirectional=bidirectional
         # The displayed plane uses a 2.2 m neighborhood, which hides short
         # climbing faces. Price slope at the nominal 0.451 m wheelbase instead.
         from scipy.ndimage import map_coordinates
@@ -60,6 +61,7 @@ class Model:
             return dict(base=np.asarray(g.cost[cells],float),uphill=np.zeros_like(g.cost[cells]),
                         terrain=np.zeros_like(g.cost[cells]),rough_slope=np.zeros_like(g.cost[cells]),cross=np.zeros_like(g.cost[cells]))
         grade=np.degrees(np.arctan((self.gx[cells]*dx+self.gy[cells]*dy)/length))
+        if self.bidirectional:grade=np.abs(grade)
         cross=np.degrees(np.arctan(np.abs(-self.gx[cells]*dy+self.gy[cells]*dx)/length))
         uphill=uphill_penalty(grade,p)
         terrain=p.terrain_weight*uphill_penalty(self.terrain_angle[cells],p)

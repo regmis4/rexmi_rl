@@ -45,11 +45,30 @@ def load_route_result(filename, grid):
 
 
 class SavedPathController(RemoteAscentController):
-    def __init__(self, *args, saved_path_result, **kwargs):
+    def __init__(self, *args, saved_path_result=None, planned_route=None, planning_metadata=None, **kwargs):
+        live_goal = kwargs.get('goal_mode') if planned_route is not None else None
+        if planned_route is not None:
+            if live_goal != 'any_exit':
+                raise ValueError('Live exit plans require any-exit execution')
+            # The inherited *planner* requires a simulator prior for any-exit.
+            # A supplied live plan has already selected its terminal; that planner
+            # is never invoked by this executor. Do not fabricate prior metadata.
+            kwargs['goal_mode'] = 'fixed'
         super().__init__(*args, **kwargs)
+        if planned_route is not None: self.goal_mode = live_goal
         if self.goal_mode != 'any_exit':
             raise ValueError('Saved path execution requires any-exit characterization')
-        self.saved_route, self.saved_path_metadata = load_route_result(saved_path_result, self.grid)
+        if planned_route is None:
+            self.saved_route, self.saved_path_metadata = load_route_result(saved_path_result, self.grid)
+        else:
+            if saved_path_result is not None or not planning_metadata:
+                raise ValueError('A live plan requires metadata and cannot also name a saved result')
+            self.saved_route = np.asarray(planned_route, dtype=float).copy()
+            if (self.saved_route.ndim != 2 or self.saved_route.shape[1] != 2 or len(self.saved_route)<2
+                    or not np.isfinite(self.saved_route).all()
+                    or (np.linalg.norm(np.diff(self.saved_route,axis=0),axis=1)<1e-8).any()):
+                raise ValueError('Live plan must contain finite, distinct XY segments')
+            self.saved_path_metadata = dict(planning_metadata)
         self.route_distance = np.r_[0., np.cumsum(np.linalg.norm(np.diff(self.saved_route, axis=0), axis=1))]
         self.protocol_version = 'saved-slope-path-v1-unrestricted-turn-staging'
         self.path = self.saved_route.tolist()

@@ -136,7 +136,9 @@ def apply_operator_request(control, side, action, vx, omega, xy, yaw, now, no_da
 
 def run(args, app):
     round_trip = args.mission == 'round_trip'
-    if round_trip:
+    loop_mode = args.mission == 'crater_loop'
+    loop_mission = None
+    if round_trip or loop_mode:
         from rexmi_rl.nav.round_trip import DEADLINE_SECONDS, deadline_reached, stage_status
     replay=load_checkpoint_replay(getattr(args,'checkpoint_replay',None))
     replay_index=0
@@ -163,7 +165,7 @@ def run(args, app):
         from rexmi_rl.nav.observed_map import ObservedTerrainMap
         from rexmi_rl.nav.checkpoint_control import CheckpointController
         ascent = args.nav_controller == 'ascent'
-        if ascent:
+        if ascent or loop_mode:
             from rexmi_rl.nav.ascent_map import AscentTerrainMap
             from rexmi_rl.nav.ascent_control import AscentController
             if getattr(args, 'ascent_architecture', 'behavior_tree') == 'behavior_tree':
@@ -225,12 +227,12 @@ def run(args, app):
         base=robot.data.root_pos_w[0,:2].detach().cpu().numpy()
         radius=max(.45,float(np.max(np.linalg.norm(positions[:,:2]-base,axis=1)))+.10)
         shape={}
-        if ascent:
+        if ascent or loop_mode:
             heading=localizer.get_pose().yaw
             relative=positions[:,:2]-base
             shape=dict(half_length=float(np.max(np.abs(relative[:,0]*math.cos(heading)+relative[:,1]*math.sin(heading))))+.10,
                        half_width=float(np.max(np.abs(-relative[:,0]*math.sin(heading)+relative[:,1]*math.cos(heading))))+.10)
-        grid=(AscentTerrainMap if ascent else ObservedTerrainMap)(origin=(args.crater_x,args.crater_y),footprint_radius=radius,**shape)
+        grid=(AscentTerrainMap if ascent or loop_mode else ObservedTerrainMap)(origin=(args.crater_x,args.crater_y),footprint_radius=radius,**shape)
         grid.STEP_THRESH=args.step_thresh
         terrain_prior=None
         initial_survey=None
@@ -245,7 +247,7 @@ def run(args, app):
                 terrain_prior=load_prior(grid,args.terrain_prior,task=args.task,seed=args.seed,required_radius=survey_radius)
             initial_survey=prior_snapshot(grid)
             print('[survey] '+json.dumps(terrain_prior),flush=True)
-        mission=Mission.VELOCITY_GOAL if args.mission=='ascent' else Mission(args.mission)
+        mission=Mission.VELOCITY_GOAL if args.mission=='ascent' or loop_mode else Mission(args.mission)
         planner=MissionPlanner(crater_centre=grid.origin,r_floor=args.r_floor,r_rim=args.r_rim,
                                spawn_x=args.spawn_x,entry_azimuth_deg=args.entry_azimuth_deg)
         waypoints=planner.get_waypoints(mission,goal_x=args.goal_x,goal_y=args.goal_y,goal_radius=args.goal_radius)
@@ -258,7 +260,9 @@ def run(args, app):
             extra['exit_rim_radius']=planner.r_rim
             if getattr(args, 'ascent_path_result', None):
                 extra['saved_path_result']=args.ascent_path_result
-        control=(AscentController if ascent else CheckpointController)(grid,waypoints,cruise_speed=args.cruise_speed,
+        if loop_mode:
+            from .crater_loop import DescentController
+        control=(DescentController if loop_mode else AscentController if ascent else CheckpointController)(grid,waypoints,cruise_speed=args.cruise_speed,
                                      preferred_uphill=args.preferred_uphill_deg,
                                      uphill_limit=args.max_uphill_deg,side_limit=args.max_side_slope_deg, **extra)
         if getattr(args, 'ascent_path_result', None):
@@ -351,8 +355,15 @@ def run(args, app):
         path=Path(args.log_file or time.strftime('logs/nav/checkpoint_%Y-%m-%d_%H-%M-%S.csv'))
         path.parent.mkdir(parents=True,exist_ok=True)
         path.with_suffix('.events.jsonl').write_text('')
+        if loop_mode:
+            from .crater_loop import CraterLoop
+            loop_mission=CraterLoop(grid,path.parent,args.r_rim)
+            if args.start_paused: loop_mission.operator_mode='stop'
         source_root=Path(__file__).resolve().parents[3]
         sources=[Path(__file__),Path(__file__).with_name('checkpoint_control.py'),Path(__file__).with_name('observed_map.py')]
+        if loop_mode:
+            sources += list(Path(__file__).parent.glob('*.py'))
+            sources += [source_root/'scripts/navigate.py',source_root/'crater.sh',Path(__file__).parents[1]/'drive_adapter.py']
         if not args.headless:
             sources += [Path(__file__).with_name(name+'.py') for name in
                         ('dashboard','dashboard_telemetry','terrain_display','perception_view')]
@@ -373,7 +384,7 @@ def run(args, app):
         if getattr(args,'ascent_path_result',None):
             sources += [Path(__file__).with_name('saved_path_control.py')]
         if getattr(args,'ascent_unguarded',False):
-            sources += [Path(__file__).with_name(name+'.py') for name in ('experimental_path_control','slope_cost')]
+            sources += [Path(__file__).with_name(name+'.py') for name in ('experimental_path_control','slope_cost','reverse_recovery')]
         provenance=dict(controller=args.nav_controller,seed=args.seed,policy_path=str(Path(checkpoint).resolve()),
                         policy_sha256=hashlib.sha256(Path(checkpoint).read_bytes()).hexdigest(),
                         sources={str(p.relative_to(source_root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sources},
@@ -463,6 +474,7 @@ def run(args, app):
                     recovery_stage_contract='recovery only after actual drive and >=0.4 m displacement; fresh unobstructed and exclusion-free circular footprint <=12 degrees, body <=20 degrees, checked stopping; brake only; contiguous 0.6 s stable dwell; censored reposition for mission replanning, no goal or success credit; original request and recovery deadlines retained')
             if getattr(args,'ascent_unguarded',False):
                 provenance['capability_profile'].update(motion_vetoes=False,
+                    reverse_recovery_ceiling_mps=1.,
                     hard_tip_up_z=None,emergency_speed_mps=None,terminal_actual_speed_mps=None,
                     stopping_forecast_deceleration_mps2=None,
                     execution='User-authorized unguarded simulation; measured-progress reverse/turn/push recovery')
@@ -484,13 +496,13 @@ def run(args, app):
         if initial_survey is not None:
             np.savez_compressed(path.with_suffix('.prior.npz'),**initial_survey)
             initial_survey=None
-        if ascent:
+        if ascent or loop_mode:
             for source in sources:
                 destination=path.with_suffix('.sources')/source.relative_to(source_root)
                 destination.parent.mkdir(parents=True,exist_ok=True)
                 destination.write_bytes(source.read_bytes())
         dt=env.unwrapped.step_dt
-        if round_trip:
+        if round_trip or loop_mode:
             args.max_steps=min(args.max_steps,math.ceil(DEADLINE_SECONDS/dt)+1)
         mission_events=[]
         previous_stage=None
@@ -615,7 +627,7 @@ def run(args, app):
                 q=robot.data.root_quat_w[0]
                 body_quaternion=tuple(q.detach().cpu().tolist())
                 up=1.-2.*float(q[1]**2+q[2]**2)
-                if round_trip and deadline_reached(now,dt):
+                if (round_trip or loop_mode) and deadline_reached(now,dt):
                     result='mission_deadline';break
                 if step%max(1,round(.2/dt))==0:
                     scan_record={'time':now}
@@ -639,12 +651,17 @@ def run(args, app):
                     live_display=None
                     if not args.headless and display_reference is None:
                         live_display=cost_view(grid.cost,grid.known,grid.blocked)
+                        if loop_mode:
+                            from .descent_planning import refresh as refresh_descent_costs, measured_coverage
+                            refresh_descent_costs(control)
+                            display_model=control.descent_model
+                            live_display=from_model(display_model,observed_mask=measured_coverage(grid))
                     with lock:
                         if live_display is not None: shared['terrain_display']=live_display
                         shared.update(cost_grid=grid.get_cost_grid(),observed_mask=grid.known.copy(),clearance_mask=grid.clearance_mask)
                         shared['survey_layers']={k:getattr(grid,k).copy() for k in
                                                  ('slope','roughness','failures','successes','no_go','approach_blocked')}
-                        if ascent:
+                        if ascent or loop_mode:
                             shared['survey_layers']['shelf_mask']=grid.shelf_mask.copy()
                             from .footprint_costs import FIELDS
                             shared['survey_layers'].update({k:getattr(grid,k).copy() for k in FIELDS})
@@ -658,14 +675,31 @@ def run(args, app):
                 while not requests.empty() and reviewed is None:
                     action,vx,omega=requests.get()
                     event=apply_operator_request(control,side,action,vx,omega,xy,pose.yaw,now,args.no_dashboard,
-                                                 locked_mission=round_trip or getattr(control,'goal_mode','fixed')=='any_exit')
+                                                 locked_mission=round_trip or loop_mode or getattr(control,'goal_mode','fixed')=='any_exit')
+                    if loop_mission is not None: loop_mission.request(action)
                     if event is not None:
                         with path.with_suffix('.events.jsonl').open('a') as events:
                             events.write(json.dumps(event)+'\n')
                         print(f'[checkpoint click {now:.2f}s] {control.selection_status}',flush=True)
                     with lock: shared['manual_checkpoint_mode']=getattr(control,'manual_checkpoint_mode',False)
                     if dashboard and getattr(control,'goal_mode','fixed')!='any_exit':dashboard._waypoints=control.waypoints
-                if reviewed is not None:
+                if loop_mission is not None:
+                    previous_control=control
+                    control_start=time.perf_counter()
+                    control,motion=loop_mission.tick(control,xy,pose.yaw,speed,now,up,velocity)
+                    control_ms.append((time.perf_counter()-control_start)*1000)
+                    if control is not previous_control:
+                        ascent=True
+                        exported_attempts=exported_failures=exported_motion_events=exported_escape_events=0
+                        args.goal_x,args.goal_y=control.selected_exit
+                        waypoints.append(control.waypoints[0])
+                        display_model=loop_mission.plan.model
+                        if not args.headless:
+                            display_reference=from_model(display_model)
+                            with lock: shared['terrain_display']=display_reference
+                        if dashboard: dashboard._waypoints=control.waypoints
+                        path.with_suffix('.loop.json').write_text(json.dumps(loop_mission.report(),indent=2)+'\n')
+                elif reviewed is not None:
                     motion = reviewed.next_motion(now, (pose.x,pose.y,pose.z), pose.yaw,
                                                    velocity, up, app.is_running, requests)
                     control.state = 'REVIEWED_BUTTONS'
@@ -709,10 +743,10 @@ def run(args, app):
                         motion=side.tick(control,xy,pose.yaw,velocity[:2],float(angular[2]),float(np.linalg.norm(angular)),now,up,vertical_speed=float(velocity[2]))
                 if event_snapshots is not None:
                     event_snapshots.complete_tick(motion,pose,velocity)
-                mission_status=stage_status(waypoints,control.wp_idx) if round_trip else None
+                mission_status=loop_mission.status() if loop_mission is not None else stage_status(waypoints,control.wp_idx) if round_trip else None
                 if getattr(control,'goal_mode','fixed')=='any_exit':
                     from rexmi_rl.nav.exit_region import mission_status as exterior_status
-                    mission_status=exterior_status(control)
+                    if not loop_mode: mission_status=exterior_status(control)
                     if dashboard:
                         dashboard._waypoints=([Waypoint(*control.selected_exit,.4,'Selected safe exit')]
                                              if control.selected_exit else [])
@@ -886,7 +920,8 @@ def run(args, app):
                                  *(mission_status['goal'] if mission_status and mission_status['goal'] else (None,None))])
                 if departure is not None and departure.attempted:
                     result='departure_diagnostic';break
-                if control.state=='COMPLETE' and not getattr(control,'manual_checkpoint_mode',False): result='complete';break
+                if (control.state=='COMPLETE' and not getattr(control,'manual_checkpoint_mode',False)
+                        and (loop_mission is None or loop_mission.phase=='COMPLETE')): result='complete';break
                 if args.headless and control.state=='HOLD' and not (side and side.active) and replay_index>=len(replay):
                     result='selected_checkpoint_reached' if control.reason.startswith('selected checkpoint reached') else 'hold'
                     break
@@ -942,7 +977,7 @@ def run(args, app):
                      body_envelope=shape,
                      hold_failures=control.hold_failures,rolling_checkpoints=control.rolling_checkpoints,
                      final_state=control.state,final_reason=control.reason,
-                     local_recovery_attempts=(control.recovery_count if getattr(args,'ascent_unguarded',False) else sum(e['event']=='maneuver_start' for e in control.escape_events)
+                     local_recovery_attempts=(getattr(control,'recovery_count',0) if getattr(args,'ascent_unguarded',False) else sum(e['event']=='maneuver_start' for e in control.escape_events)
                                               if ascent else len(control.recovery_attempts)),
                      feedback_recovery_history=getattr(control,'recovery_history',None),
                      feedback_recovery_active=getattr(control,'recovery',None),
@@ -972,6 +1007,22 @@ def run(args, app):
                            destinations=[dict(x=wp.x,y=wp.y,radius=wp.arrival_radius,label=wp.label) for wp in waypoints],
                            counts_as_qualification=False,
                            counts_as_mission=result=='complete' and not control.intervened)
+        if loop_mission is not None:
+            report=loop_mission.report()
+            descent_recoveries=(report['descent'] or {}).get('steering_recoveries',
+                sum(e['event']=='descent_turn_stall' for e in control.escape_events))
+            descent_reverse=(report['descent'] or {}).get('reverse_recoveries',
+                sum(e['event']=='descent_reverse_start' for e in control.escape_events))
+            summary.update(crater_loop=report,mission_stages=mission_events,
+                waypoints_reached=report['completed_destinations'],total_waypoints=2,
+                descent_steering_recoveries=descent_recoveries,
+                descent_reverse_recoveries=descent_reverse,reverse_recovery_ceiling_mps=1.,
+                ascent_feedback_recoveries=getattr(control,'recovery_count',0),
+                local_recovery_attempts=descent_reverse+getattr(control,'recovery_count',0),
+                mission_deadline_seconds=DEADLINE_SECONDS,
+                counts_as_mission=result=='complete' and not (control.intervened or loop_mission.intervened),
+                counts_as_qualification=False)
+            path.with_suffix('.loop.json').write_text(json.dumps(report,indent=2)+'\n')
         if reviewed is not None:
             summary.update(reviewed_buttons=reviewed.report(), counts_as_mission=False,
                            counts_as_qualification=False, manual_intervention=True)
@@ -1002,6 +1053,7 @@ def run(args, app):
                 event_snapshots.flush(exporter,reason='run ended or raised before completed physics step')
                 path.with_suffix('.snapshots.json').write_text(json.dumps(event_snapshots.report(),indent=2))
             except Exception as exc:print(f'[event snapshots] final export failed: {exc}')
+        if loop_mission is not None:loop_mission.close()
         if 'control' in locals() and hasattr(control,'close'):control.close()
         if grid is not None and path is not None and export_survey is not None:
             try: export_survey(final=True)

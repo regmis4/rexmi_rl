@@ -4,6 +4,14 @@ Reinforcement learning project for **REXMI** — a wheeled hybrid quadruped robo
 
 **📖 Full developer reference: [`docs/rl_setup.md`](docs/rl_setup.md)**
 
+Run the autonomous descent → center → ascent mission in Isaac Sim:
+
+```bash
+./crater.sh
+```
+
+See [crater-loop setup and outputs](docs/crater_loop.md).
+
 ---
 
 ## Project Structure

@@ -1,0 +1,15 @@
+--- recorded/source/rexmi_rl/nav/experimental_path_control.py
++++ current/source/rexmi_rl/nav/experimental_path_control.py
+@@ -111,9 +111,9 @@
+             cell = self.preference.grid.world_to_cell(*endpoint)
+             terrain = 100. if cell is None else float(self.preference(cell, *axis))
+             if not math.isfinite(terrain):terrain=100.
+-            failed = sum(e['action']=='PUSH' and not e['censored'] and e['route_score_gain_m']<.1
+-                and math.dist(e['start_xy'],o.xy)<1.5 and abs(wrap_angle(e['heading']-heading))<.3
+-                for e in self.recovery_history)
++            failed = sum(1 for e in self.recovery_history
++                if e['action']=='PUSH' and not e['censored'] and e['route_score_gain_m']<.1
++                and math.dist(e['start_xy'],o.xy)<1.5 and abs(wrap_angle(e['heading']-heading))<.3)
+             score = 4.*math.dist(endpoint,target)+.05*terrain+2.*failed
+             options.append(dict(heading=heading, score=score, terrain_cost=terrain, failed_pushes=failed))
+         chosen = min(options,key=lambda item:item['score'])

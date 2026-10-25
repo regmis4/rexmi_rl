@@ -1,0 +1,6 @@
+{
+  "scenario": "OBSERVE enters FOLLOW then immediately rejects route in the same tick",
+  "rejected_plans": 3,
+  "recorded_rejections": 0,
+  "recovery_calls": 0
+}

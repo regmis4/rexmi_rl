@@ -1,0 +1,75 @@
+{
+  "run": "outputs/crater_loop/mission-pdI7CPgR",
+  "source_hashes_match": true,
+  "raw_csv_sha256": "e0a888bddfe11a5f273557e98ef041af6151fbdb064ef1ef5ebd1e4fbf514b52",
+  "map_snapshot_sim_time": 60.0,
+  "checkpoint_event": {
+    "event": "descent_checkpoint_selected",
+    "time": 31.48,
+    "position": [
+      9.334566116333008,
+      0.5783321857452393
+    ],
+    "checkpoint": [
+      7.700000000000003,
+      1.1000000000000014
+    ],
+    "observation_target": [
+      7.700000000000003,
+      1.1000000000000014
+    ],
+    "measured_data_clearance_m": 1.0,
+    "extra_data_reserve_m": 0.15,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  "reverse_events": [
+    {
+      "event": "descent_reverse_start",
+      "time": 60.160000000000004,
+      "position": [
+        7.377803325653076,
+        0.7566489577293396
+      ],
+      "reason": "checkpoint progress stalled"
+    },
+    {
+      "event": "descent_reverse_end",
+      "time": 66.18,
+      "position": [
+        7.713772296905518,
+        0.824533998966217
+      ],
+      "success": false,
+      "reverse_displacement_m": 0.3391570326574835,
+      "duration_s": 6.020000000000003,
+      "peak_request_mps": 1.0,
+      "escalations": [
+        {
+          "time": 62.76,
+          "request_mps": 0.7,
+          "reverse_displacement_m": 0.13129910144015158
+        },
+        {
+          "time": 65.26,
+          "request_mps": 1.0,
+          "reverse_displacement_m": 0.22868330793082792
+        }
+      ]
+    }
+  ],
+  "first_rejected_route_sim_s": 36.52,
+  "backout_start_sim_s": 60.16,
+  "rejection_to_reverse_delay_s": 23.639999999999993,
+  "approach_peak_speed_mps": 0.7861169179585432,
+  "post_reverse_height_loss_m": 1.7638130187988281,
+  "post_reverse_horizontal_displacement_m": 2.570508755380158,
+  "max_xy_displacement_per_20ms_m": 0.026598555488261368,
+  "final_row": {
+    "sim_time": "84.38",
+    "x": "5.288037300109863",
+    "y": "-0.49380776286125183",
+    "z": "2.1443734169006348",
+    "state": "HOLD",
+    "reason": "insufficient observed checkpoint clearance after rescanning"
+  }
+}

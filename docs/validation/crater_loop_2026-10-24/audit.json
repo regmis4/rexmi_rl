@@ -1,0 +1,28 @@
+{
+  "run": "outputs/crater_loop/mission-jQyHzrxu",
+  "raw_samples": 7907,
+  "raw_first_step": 0,
+  "raw_last_step": 7906,
+  "contiguous_steps": true,
+  "uniform_20ms_clock": true,
+  "first_ascent_exterior_crossing_s": 153.5,
+  "ascent_max_cross_track_m": 0.45782668272962734,
+  "final_xyz": [
+    11.587024688720703,
+    2.086732864379883,
+    4.700381755828857
+  ],
+  "descent_steering_recoveries": 1,
+  "ascent_feedback_recoveries": 0,
+  "raw_csv_sha256": "c23a52f912122bc7731658c30cf22a8e01acb5eb4cb2e3c4b2345ef4fe03ff27",
+  "artifacts": {
+    "dashboard.png": "db47702ec766b8824c4961a08041c6e70dc14820d5cdbc6a3c9c0b8c5ef0560a",
+    "events.json": "8c5d3a2a77fbcba301eab722972031e8c9c70615a5631706e12b61c9ca8eef58",
+    "exit_plan.json": "e2ae6cd3b78c8d4ba12a0801c1ab6fda16e35f988b7818d069ba0c70637f9fd6",
+    "exit_route.csv": "4df94d85b85adb003bba98fdf622bec3358fc37f8a66aec81bda0a09e5cee2f9",
+    "planning_map.npz": "8afbdb610ef736231926ef2125b61a3b9e9832c9e4cf70a2ef5f8916ea236756",
+    "provenance.json": "846a497d52ff596f9a839b0021612236e006bed2588598b0db7b2f2de753190b",
+    "summary.json": "f4292e4c12dc7b3ee03efb04570ef97d56d423d1b3c09ea3c001a345cf38b59d",
+    "trace_10hz.csv": "5c0b26b2dbc09dd708b161f5aeb204674a7602a841533069484869deca667bcf"
+  }
+}

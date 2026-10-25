@@ -629,7 +629,7 @@ class CheckpointController:
             self.route_decision='retained route: alternative is not 15% cheaper'
         else:
             self.route_decision='selected best observed route' if complete else 'surveying reachable observed frontier'
-            if len(self.route_options)>1:
+            if len(route)>1 and len(self.route_options)>1:
                 choice=next(item for item in self.route_options if item.get('selected'))
                 self.route_decision=f"selected {choice['profile']} from {len(self.route_options)} uphill routes"
                 if not complete:self.route_decision+=' to observed frontier'
@@ -1479,7 +1479,7 @@ class CheckpointController:
             return Motion()
         if remaining<self.best_remaining-.15:
             self.best_remaining,self.progress_at=remaining,now
-        arrival = .12 if self.escape_clearance is not None else .40
+        arrival = .12 if self.escape_clearance is not None else getattr(self,'checkpoint_arrival_radius',.40)
         if math.dist(xy,self.checkpoint)<=arrival and remaining<.8:
             # A frontier endpoint may already lie within the mission arrival
             # boundary even if the exact goal cell is blocked/unobserved. Count

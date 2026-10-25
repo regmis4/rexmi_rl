@@ -1,5 +1,6 @@
 """Explicit unguarded simulation contract and response-based recovery."""
 import copy
+import json
 import math
 from unittest.mock import patch
 
@@ -26,6 +27,30 @@ def test_no_terrain_motion_posture_speed_or_cross_track_veto(ground):
         assert c.tick((0.,0.),0.,1.5,3.,upright=.2)==e.Motion(.4,0.)
         c.tick((0.,1.5),0.,1.5,3.02,upright=.2)
     assert c.state!='HOLD' and not c.emergency and c.tracking_error>1.
+
+
+def test_ineffective_ascent_reverse_emits_one_metre_per_second_and_stop_wins(ground):
+    c=control(ground)
+    c.tick((0,0),0.,0.,3.)
+    c._start_action('REVERSE','test repeated stall')
+    assert c.tick((0,0),0.,0.,3.02).vx==-.4
+    assert c.tick((0,0),0.,0.,5.02).vx==-.7
+    assert c.tick((0,0),0.,0.,7.04).vx==-1.
+    c.request('stop',7.05)
+    assert c.tick((0,0),0.,0.,7.06)==e.Motion()
+
+
+def test_heading_corrections_do_not_hide_a_stationary_route_stall(ground):
+    c=control(ground)
+    c._projection=lambda xy:(0.,0.,0.,(1.,.4 if int(c.obs.time)%2 else -.4))
+    yaw=0.;command=e.Motion()
+    for now in np.arange(3.,26.,.02):
+        yaw+=command.omega*.02  # Steering responds, but translation stays stuck.
+        command=c.tick((0,0),yaw,0.,float(now))
+        if c.recovery is not None and c.recovery['action']=='REVERSE':break
+    assert c.recovery is not None and c.recovery['action']=='REVERSE'
+    assert 'no route advance' in c.recovery['reason']
+    assert command.vx<0
 
 
 def test_turn_continues_with_productive_angular_response(ground):
@@ -76,6 +101,9 @@ def test_push_progress_returns_to_path_and_failed_heading_memory_is_finite(groun
     heading=c._recovery_heading()
     assert math.isfinite(heading)
     assert any(o['failed_pushes'] for o in c.attempt_events[-1]['candidates'])
+    # Successful NumPy-valued progress also enters the failed-push count.
+    # The real runner serializes every recovery event after issuing commands.
+    json.dumps(c.attempt_events)
 
 
 def test_stop_manual_invalid_data_budget_and_observed_completion(ground):

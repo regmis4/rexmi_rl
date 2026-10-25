@@ -1,0 +1,11 @@
+{
+  "launcher_exit_code": 1,
+  "full_loop_completed": false,
+  "descent_completed": true,
+  "last_logged_sim_time": 231.64,
+  "error_sim_time": 231.66,
+  "error": "TypeError: Object of type int64 is not JSON serializable",
+  "mission_summary_produced": false,
+  "post_trial_fix": "Count failed pushes with Python integers; reproducing serialization regression now passes",
+  "post_trial_focused_tests": 44
+}

@@ -22,13 +22,15 @@ def cost_view(density, known, blocked, *, vmax=None, label='Terrain cost'):
                 legend=f'{label}: magma, log scale 2–{vmax:.0f} | grey: planning mask | dark grey: unknown')
 
 
-def from_model(model):
+def from_model(model, *, observed_mask=None):
     g, p = model.grid, model.parameters
+    known=g.known if observed_mask is None else g.known & observed_mask
     penalty = p.uphill_weight * np.expm1(
         np.maximum(model.terrain_angle-p.easy_angle_deg, 0.) / p.exponential_scale_deg)
     density = g.cost + (1+p.terrain_weight)*penalty*(1+p.roughness_interaction*model.roughness)
-    view = cost_view(density, g.known, g.blocked, label='Frozen fitted uphill cost')
-    view.update(surface=g.surface.copy(), known=g.known.copy(), origin=g.origin,
+    label='Live fitted slope cost' if getattr(model,'bidirectional',False) else 'Frozen fitted uphill cost'
+    view = cost_view(density, known, g.blocked, label=label)
+    view.update(surface=g.surface.copy(), known=known.copy(), origin=g.origin,
                 world_size=g.world_size, cell_size=g.cell_size)
     return view
 

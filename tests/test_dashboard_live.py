@@ -92,6 +92,17 @@ def test_heading_grade_uses_terrain_not_body_pitch():
     assert terrain_display.heading_grade(grid, (0, 0), math.pi/2) == pytest.approx(0)
 
 
+def test_descent_display_does_not_color_extrapolated_coverage_as_observed():
+    model,_=accepted_model()
+    observed=model.grid.known.copy()
+    cell=tuple(np.argwhere(observed & ~model.grid.blocked)[0])
+    observed[cell]=False
+    view=terrain_display.from_model(model,observed_mask=observed)
+    assert not view['known'][cell]
+    np.testing.assert_array_equal(view['rgb'][cell],terrain_display.UNKNOWN)
+    assert model.grid.known[cell]
+
+
 def test_dashboard_redraw_and_only_map_can_issue_target(tmp_path):
     import matplotlib
     matplotlib.use('Agg')

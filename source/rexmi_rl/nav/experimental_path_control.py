@@ -13,14 +13,17 @@ from .checkpoint_control import Motion, wrap_angle
 from .movement import MotionObservation
 from .saved_path_control import SavedPathController
 from . import planning_snapshot, slope_cost
+from .reverse_recovery import ReverseRecovery
 
 
 class ExperimentalPathController(SavedPathController):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, preference_model=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.protocol_version = 'saved-slope-path-v2-unguarded-feedback-recovery'
-        frozen, _ = planning_snapshot.load(self.saved_path_metadata['map_path'])
-        self.preference = slope_cost.Model(frozen, slope_cost.Parameters(**self.saved_path_metadata['parameters']))
+        if preference_model is None:
+            frozen, _ = planning_snapshot.load(self.saved_path_metadata['map_path'])
+            preference_model = slope_cost.Model(frozen, slope_cost.Parameters(**self.saved_path_metadata['parameters']))
+        self.preference = preference_model
         self.response_at = None
         self.response_score = 0.
         self.recovery = None
@@ -28,12 +31,22 @@ class ExperimentalPathController(SavedPathController):
         self.recovery_count = 0
         self.turn_after = 'DRIVE'
         self.actual_route_distance = 0.
+        self.reverse_recovery = ReverseRecovery()
+        self.translation_at=None
+        self.translation_credit=0.
+        self.translation_turns=0
+        self.translation_exposure=0.
 
     def request(self, action, now, vx=0., omega=0.):
         super().request(action, now, vx, omega)
         self.recovery = None
+        self.reverse_recovery.active = False
         self.response_at = now
         self.response_score = self.actual_route_distance-self.tracking_error
+        self.translation_at=now
+        self.translation_credit=self.response_score
+        self.translation_turns=0
+        self.translation_exposure=self.drive_exposure
 
     def finish_attempt(self, outcome, reason, xy, yaw, now, physical=False, **kwargs):
         if getattr(self,'recovery',None) is not None:
@@ -54,6 +67,9 @@ class ExperimentalPathController(SavedPathController):
         self.recovery = dict(action=action, started=o.time, start_xy=o.xy,
             start_score=self.actual_route_distance-self.tracking_error,
             heading=o.yaw if heading is None else heading, reason=reason)
+        if action == 'REVERSE':
+            self.reverse_recovery.start(o.time,o.xy,o.yaw)
+            self.translation_at=o.time
         self.attempt_events.append(dict(event='feedback_recovery_start', time=o.time,
             action=action, reason=reason, **self._evidence()))
         if action == 'TURN':
@@ -95,9 +111,9 @@ class ExperimentalPathController(SavedPathController):
             cell = self.preference.grid.world_to_cell(*endpoint)
             terrain = 100. if cell is None else float(self.preference(cell, *axis))
             if not math.isfinite(terrain):terrain=100.
-            failed = sum(e['action']=='PUSH' and not e['censored'] and e['route_score_gain_m']<.1
-                and math.dist(e['start_xy'],o.xy)<1.5 and abs(wrap_angle(e['heading']-heading))<.3
-                for e in self.recovery_history)
+            failed = sum(1 for e in self.recovery_history
+                if e['action']=='PUSH' and not e['censored'] and e['route_score_gain_m']<.1
+                and math.dist(e['start_xy'],o.xy)<1.5 and abs(wrap_angle(e['heading']-heading))<.3)
             score = 4.*math.dist(endpoint,target)+.05*terrain+2.*failed
             options.append(dict(heading=heading, score=score, terrain_cost=terrain, failed_pushes=failed))
         chosen = min(options,key=lambda item:item['score'])
@@ -109,14 +125,14 @@ class ExperimentalPathController(SavedPathController):
         o, a = self.obs, self.recovery
         elapsed = o.time-a['started']
         if a['action'] == 'REVERSE':
-            axis = (math.cos(a['heading']),math.sin(a['heading']))
-            retreat = -float(np.dot(np.subtract(o.xy,a['start_xy']),axis))
-            if retreat >= .5 or elapsed >= 4.:
-                self._finish_action('reverse displacement reached' if retreat>=.5 else 'reverse response window elapsed')
+            command,result=self.reverse_recovery.tick(o.time,o.xy)
+            if result is not None:
+                self.attempt_events.append(dict(event='reverse_response',time=o.time,**result))
+                self._finish_action('reverse displacement reached' if result['success'] else 'reverse response window elapsed')
                 heading = self._recovery_heading()
                 self._start_action('TURN','repositioned; try a terrain-ranked approach',heading)
                 return self._action_tick()
-            return Motion(-self.cruise_speed,0.)
+            return Motion(command,0.)
         if a['action'] == 'TURN':
             residual = wrap_angle(a['heading']-o.yaw)
             if abs(residual)<self.turn_best-.03:
@@ -128,7 +144,7 @@ class ExperimentalPathController(SavedPathController):
             if elapsed>=12. or o.time-self.turn_progress_at>=5.:
                 self._finish_action('yaw response stalled')
                 self._start_action('REVERSE','turn did not respond; make room')
-                return Motion(-self.cruise_speed,0.)
+                return self._action_tick()
             return Motion(0.,math.copysign(.35,residual))
         if a['action'] == 'PUSH':
             gain=self.actual_route_distance-self.tracking_error-a['start_score']
@@ -138,10 +154,13 @@ class ExperimentalPathController(SavedPathController):
                     self.response_at=o.time
                     self.response_score=self.actual_route_distance-self.tracking_error
                     self.saved_drive_since=o.time
+                    self.translation_at=o.time
+                    self.translation_credit=self.actual_route_distance-self.tracking_error
+                    self.translation_turns=0;self.translation_exposure=self.drive_exposure
                     self._button('DRIVE',o.time,'recovery advanced; resume path')
                     return Motion(self.cruise_speed,0.)
                 self._start_action('REVERSE','forward effort did not advance; change approach')
-                return Motion(-self.cruise_speed,0.)
+                return self._action_tick()
             return Motion(self.cruise_speed,0.)
         raise RuntimeError('Unknown recovery action')
 
@@ -151,6 +170,8 @@ class ExperimentalPathController(SavedPathController):
         if not self.saved_started:
             self.saved_started=True
             self.saved_progress_at=self.response_at=self.saved_drive_since=o.time
+            self.translation_at=o.time
+            self.translation_exposure=self.drive_exposure
             self.set_state('FOLLOW','unguarded simulation path execution',o.time)
             record=planning_snapshot.save(self,o.xy,o.yaw,o.time)
             planning_snapshot.finish(record,self,True)
@@ -161,6 +182,9 @@ class ExperimentalPathController(SavedPathController):
         self.path_index,self.tracking_error,self.target=index,cross,target
         self.saved_progress=max(self.saved_progress,distance)
         score=distance-cross
+        if score-self.translation_credit>=.1:
+            self.translation_credit,self.translation_at=score,o.time
+            self.translation_turns=0;self.translation_exposure=self.drive_exposure
         if score-self.response_score>=.1:
             self.response_score,self.response_at=score,o.time
         self.metrics.update(route_progress_m=distance,cross_track_m=cross)
@@ -178,6 +202,10 @@ class ExperimentalPathController(SavedPathController):
         error=wrap_angle(math.atan2(target[1]-o.xy[1],target[0]-o.xy[0])-o.yaw)
         self.heading_error=error
         if self.recovery:return self._action_tick()
+        if (o.time-self.translation_at>=20. and
+                (self.translation_turns>=2 or self.drive_exposure-self.translation_exposure>=5.)):
+            self._start_action('REVERSE','no route advance despite repeated steering or forward effort')
+            return self._action_tick()
         if self.button_state=='TURN':
             residual=wrap_angle(self.turn_target-o.yaw)
             if abs(residual)<self.turn_best-.03:
@@ -199,6 +227,7 @@ class ExperimentalPathController(SavedPathController):
                 self._start_action('TURN','forward motion stalled; test a different approach',self._recovery_heading())
             return self._action_tick()
         if abs(error)>.22:
+            self.translation_turns+=1
             self._start_turn(wrap_angle(o.yaw+error))
             return Motion(0.,math.copysign(.35,error))
         if self.button_state=='RELEASE':return Motion()

@@ -1,0 +1,168 @@
+[
+  {
+    "event": "mission_stage",
+    "time": 0.0,
+    "position": [
+      13.0,
+      0.0
+    ],
+    "stage": "DESCEND_TO_CENTER",
+    "goal": [
+      0.0,
+      0.0
+    ],
+    "goal_mode": "crater_loop",
+    "completed_destinations": 0
+  },
+  {
+    "event": "descent_turn_stall",
+    "time": 40.56,
+    "position": [
+      7.459893226623535,
+      0.7189131379127502
+    ],
+    "heading_error": 1.944222217706481,
+    "chosen": {
+      "vx": 0.2,
+      "omega": -0.35
+    },
+    "candidates": [
+      {
+        "vx": 0.2,
+        "omega": 0.0,
+        "accepted": true,
+        "score": 1.3130299443582365,
+        "endpoint": [
+          7.20130435295681,
+          0.41373811531788857
+        ]
+      },
+      {
+        "vx": 0.2,
+        "omega": 0.35,
+        "accepted": true,
+        "score": 0.6044889645787581,
+        "endpoint": [
+          7.324431461866159,
+          0.3511869362230262
+        ]
+      },
+      {
+        "vx": 0.2,
+        "omega": -0.35,
+        "accepted": true,
+        "score": 1.875770893539669,
+        "endpoint": [
+          7.119390630983832,
+          0.5249274902916974
+        ]
+      },
+      {
+        "vx": -0.2,
+        "omega": 0.0,
+        "accepted": true,
+        "score": -0.3957304525804916,
+        "endpoint": [
+          7.71848210029026,
+          1.024088160507612
+        ]
+      },
+      {
+        "vx": -0.2,
+        "omega": 0.35,
+        "accepted": true,
+        "score": -0.4115505649880122,
+        "endpoint": [
+          7.595354991380911,
+          1.0866393396024743
+        ]
+      },
+      {
+        "vx": -0.2,
+        "omega": -0.35,
+        "accepted": true,
+        "score": -0.24264711736625033,
+        "endpoint": [
+          7.800395822263238,
+          0.9128987855338031
+        ]
+      },
+      {
+        "vx": 0.0,
+        "omega": 0.35,
+        "accepted": false,
+        "reason": "same motion already ineffective at this pose"
+      },
+      {
+        "vx": 0.0,
+        "omega": -0.35,
+        "accepted": true,
+        "score": 0.5761151245213567,
+        "endpoint": [
+          7.459893226623535,
+          0.7189131379127502
+        ]
+      }
+    ]
+  },
+  {
+    "event": "mission_stage",
+    "time": 68.84,
+    "position": [
+      0.33987003564834595,
+      -0.22079730033874512
+    ],
+    "stage": "SETTLE_AT_CENTER",
+    "goal": [
+      0.0,
+      0.0
+    ],
+    "goal_mode": "crater_loop",
+    "completed_destinations": 0
+  },
+  {
+    "event": "mission_stage",
+    "time": 69.46000000000001,
+    "position": [
+      0.3510117530822754,
+      -0.22546564042568207
+    ],
+    "stage": "PLAN_ASCENT",
+    "goal": [
+      0.0,
+      0.0
+    ],
+    "goal_mode": "crater_loop",
+    "completed_destinations": 1
+  },
+  {
+    "event": "mission_stage",
+    "time": 69.8,
+    "position": [
+      0.35817140340805054,
+      -0.2265404313802719
+    ],
+    "stage": "ASCEND_TO_EXTERIOR",
+    "goal": [
+      11.700000000000003,
+      2.1000000000000014
+    ],
+    "goal_mode": "crater_loop",
+    "completed_destinations": 1
+  },
+  {
+    "event": "mission_stage",
+    "time": 158.12,
+    "position": [
+      11.587024688720703,
+      2.086732864379883
+    ],
+    "stage": "COMPLETE",
+    "goal": [
+      11.700000000000003,
+      2.1000000000000014
+    ],
+    "goal_mode": "crater_loop",
+    "completed_destinations": 2
+  }
+]

@@ -1,5 +1,20 @@
 # Rexmi crater navigation — handoff, 23 October 2026
 
+**Subsequent full-loop result:** `./crater.sh` now runs autonomous exterior →
+center → exterior navigation, retaining live descent observations and planning
+a fresh exit at the center. Seed 42 completed in **158.12 simulated seconds**,
+with one descent steering recovery and no intervention, reset or policy switch.
+See [operation](../crater_loop.md) and [validation](crater_loop_2026-10-24.md).
+The standalone-ascent and historical handoff below describe earlier milestones.
+
+**Current follow-up:** [conservative descent and stronger reverse recovery](crater_descent_observation_reserve_2026-10-24.md).
+Descent now prices steep downhill travel exponentially, reserves measured space
+around checkpoints and escalates stalled reverse attempts to 1.0 m/s.
+The 158.12 s result above belongs to the preceding revision.
+The subsequent [incremental descent update](crater_incremental_descent_2026-10-24.md)
+removes unknown-area viewpoint rewards and reduces easy-ground stand-off,
+using short goalward steps with observed reverse corridors.
+
 Updated 24 October 2026 with the successful **autonomous blue-path simulation
 ascent**, the earlier human-driven baseline, fitted slope costs and execution evidence.
 

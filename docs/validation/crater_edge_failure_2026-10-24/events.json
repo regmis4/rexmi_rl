@@ -1,0 +1,443 @@
+[
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 1.0,
+    "position": [
+      13.173383712768555,
+      0.06232510134577751
+    ],
+    "checkpoint": [
+      11.300000000000004,
+      0.10000000000000142
+    ],
+    "observation_target": [
+      11.300000000000004,
+      0.10000000000000142
+    ],
+    "measured_data_clearance_m": 1.0,
+    "extra_data_reserve_m": 0.15,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 11.66,
+    "position": [
+      13.059569358825684,
+      0.09776108711957932
+    ],
+    "checkpoint": [
+      11.100000000000001,
+      0.10000000000000142
+    ],
+    "observation_target": [
+      11.100000000000001,
+      0.10000000000000142
+    ],
+    "measured_data_clearance_m": 1.019803902718557,
+    "extra_data_reserve_m": 0.15,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 13.18,
+    "position": [
+      13.023097038269043,
+      0.1099671944975853
+    ],
+    "checkpoint": [
+      11.100000000000001,
+      0.10000000000000142
+    ],
+    "observation_target": [
+      11.100000000000001,
+      0.10000000000000142
+    ],
+    "measured_data_clearance_m": 1.019803902718557,
+    "extra_data_reserve_m": 0.15,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 18.0,
+    "position": [
+      11.762161254882812,
+      0.26895448565483093
+    ],
+    "checkpoint": [
+      10.900000000000006,
+      0.30000000000000426
+    ],
+    "observation_target": [
+      10.900000000000006,
+      0.30000000000000426
+    ],
+    "measured_data_clearance_m": 1.0,
+    "extra_data_reserve_m": 0.18113306338897386,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 20.86,
+    "position": [
+      11.68014907836914,
+      0.19996897876262665
+    ],
+    "checkpoint": [
+      10.900000000000006,
+      0.10000000000000142
+    ],
+    "observation_target": [
+      10.900000000000006,
+      0.10000000000000142
+    ],
+    "measured_data_clearance_m": 1.0,
+    "extra_data_reserve_m": 0.2453343796263892,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 22.64,
+    "position": [
+      11.294053077697754,
+      0.1453503966331482
+    ],
+    "checkpoint": [
+      9.5,
+      0.7000000000000028
+    ],
+    "observation_target": [
+      9.5,
+      0.7000000000000028
+    ],
+    "measured_data_clearance_m": 1.0,
+    "extra_data_reserve_m": 0.2460657689426226,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 29.5,
+    "position": [
+      9.816856384277344,
+      0.4581913650035858
+    ],
+    "checkpoint": [
+      9.100000000000001,
+      0.8999999999999986
+    ],
+    "observation_target": [
+      9.100000000000001,
+      0.8999999999999986
+    ],
+    "measured_data_clearance_m": 1.8867962264113207,
+    "extra_data_reserve_m": 0.22539490114617663,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 31.48,
+    "position": [
+      9.334566116333008,
+      0.5783321857452393
+    ],
+    "checkpoint": [
+      7.700000000000003,
+      1.1000000000000014
+    ],
+    "observation_target": [
+      7.700000000000003,
+      1.1000000000000014
+    ],
+    "measured_data_clearance_m": 1.0,
+    "extra_data_reserve_m": 0.15,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 36.5,
+    "position": [
+      7.598453521728516,
+      0.7684049010276794
+    ],
+    "checkpoint": [
+      7.5,
+      -1.2999999999999972
+    ],
+    "observation_target": null,
+    "measured_data_clearance_m": 3.111269837220809,
+    "extra_data_reserve_m": 0.359083553197394,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 38.04,
+    "position": [
+      7.547472953796387,
+      0.7510115504264832
+    ],
+    "checkpoint": [
+      7.300000000000004,
+      -1.5
+    ],
+    "observation_target": null,
+    "measured_data_clearance_m": 3.5383612025908264,
+    "extra_data_reserve_m": 0.4527420621349644,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 39.56,
+    "position": [
+      7.4754767417907715,
+      0.7367210388183594
+    ],
+    "checkpoint": [
+      7.5,
+      -1.2999999999999972
+    ],
+    "observation_target": null,
+    "measured_data_clearance_m": 4.664761515876241,
+    "extra_data_reserve_m": 0.36193232608162673,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 41.38,
+    "position": [
+      7.412782192230225,
+      0.7245393991470337
+    ],
+    "checkpoint": [
+      7.5,
+      -1.0999999999999979
+    ],
+    "observation_target": null,
+    "measured_data_clearance_m": 4.494441010848846,
+    "extra_data_reserve_m": 0.45197496911473356,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 43.44,
+    "position": [
+      7.378631114959717,
+      0.7592384219169617
+    ],
+    "checkpoint": [
+      7.5,
+      -1.0999999999999979
+    ],
+    "observation_target": null,
+    "measured_data_clearance_m": 4.919349550499538,
+    "extra_data_reserve_m": 0.45738864711964367,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 44.96,
+    "position": [
+      7.377751350402832,
+      0.7601211071014404
+    ],
+    "checkpoint": [
+      7.5,
+      -1.0999999999999979
+    ],
+    "observation_target": null,
+    "measured_data_clearance_m": 4.919349550499538,
+    "extra_data_reserve_m": 0.45975903639422366,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 46.480000000000004,
+    "position": [
+      7.377862930297852,
+      0.7603018879890442
+    ],
+    "checkpoint": [
+      7.5,
+      -1.0999999999999979
+    ],
+    "observation_target": null,
+    "measured_data_clearance_m": 4.919349550499538,
+    "extra_data_reserve_m": 0.45975903639422366,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 48.0,
+    "position": [
+      7.377958297729492,
+      0.7603498697280884
+    ],
+    "checkpoint": [
+      7.5,
+      -1.0999999999999979
+    ],
+    "observation_target": null,
+    "measured_data_clearance_m": 4.919349550499538,
+    "extra_data_reserve_m": 0.45975903639422366,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 49.52,
+    "position": [
+      7.378178596496582,
+      0.760722815990448
+    ],
+    "checkpoint": [
+      7.5,
+      -1.0999999999999979
+    ],
+    "observation_target": null,
+    "measured_data_clearance_m": 4.919349550499538,
+    "extra_data_reserve_m": 0.45975903639422366,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 51.04,
+    "position": [
+      7.3783745765686035,
+      0.7606167197227478
+    ],
+    "checkpoint": [
+      7.5,
+      -1.0999999999999979
+    ],
+    "observation_target": null,
+    "measured_data_clearance_m": 4.919349550499538,
+    "extra_data_reserve_m": 0.45975903639422366,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 52.56,
+    "position": [
+      7.378718852996826,
+      0.7609111666679382
+    ],
+    "checkpoint": [
+      7.5,
+      -1.0999999999999979
+    ],
+    "observation_target": null,
+    "measured_data_clearance_m": 4.919349550499538,
+    "extra_data_reserve_m": 0.45975903639422366,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 54.08,
+    "position": [
+      7.378993511199951,
+      0.7611181735992432
+    ],
+    "checkpoint": [
+      7.5,
+      -1.0999999999999979
+    ],
+    "observation_target": null,
+    "measured_data_clearance_m": 4.919349550499538,
+    "extra_data_reserve_m": 0.45975903639422366,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 55.6,
+    "position": [
+      7.378830909729004,
+      0.7612107396125793
+    ],
+    "checkpoint": [
+      7.5,
+      -1.0999999999999979
+    ],
+    "observation_target": null,
+    "measured_data_clearance_m": 4.919349550499538,
+    "extra_data_reserve_m": 0.45975903639422366,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 57.120000000000005,
+    "position": [
+      7.3790106773376465,
+      0.7612873315811157
+    ],
+    "checkpoint": [
+      7.5,
+      -1.0999999999999979
+    ],
+    "observation_target": null,
+    "measured_data_clearance_m": 4.919349550499538,
+    "extra_data_reserve_m": 0.45975903639422366,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 58.64,
+    "position": [
+      7.378869533538818,
+      0.7618669271469116
+    ],
+    "checkpoint": [
+      7.5,
+      -1.0999999999999979
+    ],
+    "observation_target": null,
+    "measured_data_clearance_m": 4.919349550499538,
+    "extra_data_reserve_m": 0.45975903639422366,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  },
+  {
+    "event": "descent_reverse_start",
+    "time": 60.160000000000004,
+    "position": [
+      7.377803325653076,
+      0.7566489577293396
+    ],
+    "reason": "checkpoint progress stalled"
+  },
+  {
+    "event": "descent_reverse_end",
+    "time": 66.18,
+    "position": [
+      7.713772296905518,
+      0.824533998966217
+    ],
+    "success": false,
+    "reverse_displacement_m": 0.3391570326574835,
+    "duration_s": 6.020000000000003,
+    "peak_request_mps": 1.0,
+    "escalations": [
+      {
+        "time": 62.76,
+        "request_mps": 0.7,
+        "reverse_displacement_m": 0.13129910144015158
+      },
+      {
+        "time": 65.26,
+        "request_mps": 1.0,
+        "reverse_displacement_m": 0.22868330793082792
+      }
+    ]
+  },
+  {
+    "event": "descent_checkpoint_selected",
+    "time": 69.2,
+    "position": [
+      7.3820481300354,
+      0.6039154529571533
+    ],
+    "checkpoint": [
+      7.300000000000004,
+      -1.0999999999999979
+    ],
+    "observation_target": null,
+    "measured_data_clearance_m": 5.646237685397242,
+    "extra_data_reserve_m": 0.43039710973662937,
+    "cost_model": "wheelbase exponential absolute-grade; 15 degree knee / 6 degree scale"
+  }
+]

@@ -143,7 +143,7 @@ def _parse_args():
 
     # Mission
     p.add_argument("--mission",
-                   choices=["traverse", "survey", "rim_circuit", "velocity_goal", "ascent", "round_trip"],
+                   choices=["traverse", "survey", "rim_circuit", "velocity_goal", "ascent", "round_trip", "crater_loop"],
                    default="traverse")
 
     # velocity_goal — single flat-terrain waypoint for motion debugging
@@ -293,6 +293,11 @@ def _load_policy(checkpoint_path: str, nav_env, agent_cfg, device: str):
 
 def main():
     args = _parse_args()
+    loop_mode = args.mission == 'crater_loop'
+    if loop_mode:
+        from rexmi_rl.nav.crater_loop import configure
+        try: configure(args, sys.argv[1:])
+        except ValueError as exc: raise SystemExit(str(exc)) from exc
     args.nav_controller = args.nav_controller or ('ascent' if args.mission in ('ascent', 'round_trip') else 'checkpoint')
     if args.mission == 'round_trip':
         from rexmi_rl.nav.round_trip import configure
@@ -301,7 +306,7 @@ def main():
     if args.max_uphill_deg is None:
         args.max_uphill_deg = 33. if args.nav_controller == 'ascent' and args.ascent_architecture in ('behavior_tree', 'remote') else 25.
     if args.perception_view is None:
-        args.perception_view=not args.headless and args.nav_controller=='ascent'
+        args.perception_view=not args.headless and (args.nav_controller=='ascent' or loop_mode)
     if args.simulator_survey or args.terrain_prior:
         if args.nav_controller!='ascent':
             raise SystemExit('Full-crater prior tests currently use --nav_controller ascent.')
@@ -370,21 +375,21 @@ def main():
     if args.ascent_uphill_speed_response and not (args.nav_controller=='ascent'
             and args.ascent_architecture=='behavior_tree' and args.ascent_mode=='characterize'):
         raise SystemExit('Uphill speed response requires behavior-tree ascent characterization.')
-    if args.joint_log_dir and not (args.nav_controller=='ascent'
+    if args.joint_log_dir and not loop_mode and not (args.nav_controller=='ascent'
             and args.ascent_architecture in ('behavior_tree', 'remote') and args.ascent_mode=='characterize'):
         raise SystemExit('Joint diagnostics require behavior-tree ascent characterization.')
     if args.ascent_route_objective != 'baseline' and not (args.nav_controller=='ascent' and args.ascent_architecture=='remote'):
         raise SystemExit('--ascent_route_objective requires the remote ascent controller.')
-    if args.ascent_goal == 'any_exit' and not (args.mission == 'ascent'
+    if args.ascent_goal == 'any_exit' and not loop_mode and not (args.mission == 'ascent'
             and args.nav_controller == 'ascent' and args.ascent_architecture == 'remote'
             and args.ascent_mode == 'characterize' and args.ascent_route_objective == 'baseline'
             and args.terrain_prior and not args.manual_checkpoints and not args.checkpoint_replay):
         raise SystemExit('--ascent_goal any_exit requires remote ascent characterization, baseline additive costs and a terrain prior.')
-    if args.ascent_architecture == 'remote' and (args.nav_controller != 'ascent' or args.ascent_mode != 'characterize'):
+    if args.ascent_architecture == 'remote' and not loop_mode and (args.nav_controller != 'ascent' or args.ascent_mode != 'characterize'):
         raise SystemExit('Remote execution requires ascent characterization.')
     if args.ascent_path_result and (args.ascent_goal != 'any_exit' or not os.path.isfile(args.ascent_path_result)):
         raise SystemExit('--ascent_path_result requires an existing result JSON and --ascent_goal any_exit.')
-    if args.ascent_unguarded and not args.ascent_path_result:
+    if args.ascent_unguarded and not args.ascent_path_result and not loop_mode:
         raise SystemExit('--ascent_unguarded requires a saved path simulation experiment.')
     if args.nav_controller in ("checkpoint", "ascent"):
         checkpoint = args.ckpt_rocky or args.checkpoint

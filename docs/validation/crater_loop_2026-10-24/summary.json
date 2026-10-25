@@ -1,0 +1,420 @@
+{
+  "result": "complete",
+  "seed": 42,
+  "sim_seconds": 158.12,
+  "waypoints_reached": 2,
+  "diagnostic": false,
+  "controller": "checkpoint",
+  "mission": "crater_loop",
+  "terrain_prior": null,
+  "ascent_architecture": "remote",
+  "perception_overlay_requested": false,
+  "perception_overlay_enabled": false,
+  "perception_overlay_tiles": 0,
+  "spawn": [
+    13.0,
+    0.0,
+    4.5,
+    3.141592653589793
+  ],
+  "goal": null,
+  "ascent_mode": "characterize",
+  "model_id": null,
+  "probability_model_qualified": false,
+  "source_id": "6a6304571c7d9635d9dad324921288a01a9958e39ec88d070836e9a3a1342c8a",
+  "policy_sha256": "c8c997e2bff200522e01dfa45c0b85201777b919034bb3671fca452ae56e9aaa",
+  "min_up_z": 0.45815765857696533,
+  "peak_actual_speed_mps": 1.2003412036351635,
+  "peak_command_mps": 0.4,
+  "min_active_up_z": 0.45815765857696533,
+  "peak_active_speed_mps": 1.2003412036351635,
+  "peak_slope_speed_mps": 1.2003412036351635,
+  "slope_overspeed_seconds": 5.279999999999975,
+  "controller_ms_mean": 2.4583664970010948,
+  "controller_ms_p95": 0.48890300386119634,
+  "recovery_controller_timing_ms": {
+    "admission": {
+      "count": 0,
+      "mean": null,
+      "p95": null,
+      "maximum": null
+    },
+    "continued_reverse": {
+      "count": 0,
+      "mean": null,
+      "p95": null,
+      "maximum": null
+    },
+    "core_observation": {
+      "count": 0,
+      "mean": null,
+      "p95": null,
+      "maximum": null
+    },
+    "termination": {
+      "count": 0,
+      "mean": null,
+      "p95": null,
+      "maximum": null
+    }
+  },
+  "recovery_admission_timing": [],
+  "checkpoint_replay": null,
+  "replayed_selections": 0,
+  "total_waypoints": 2,
+  "manual_intervention": false,
+  "max_cross_track_m": 0.45782668272962734,
+  "policy": "rocky_slope",
+  "policy_switches": 0,
+  "flat_sidesteps": false,
+  "switch_events": [],
+  "footprint_radius_m": 0.5028250873088836,
+  "cruise_ceiling": 0.4,
+  "body_envelope": {
+    "half_length": 0.47263298034667967,
+    "half_width": 0.2736251413822174
+  },
+  "hold_failures": 0,
+  "rolling_checkpoints": 0,
+  "final_state": "COMPLETE",
+  "final_reason": "selected exterior endpoint reached upright and settled",
+  "local_recovery_attempts": 0,
+  "feedback_recovery_history": [],
+  "feedback_recovery_active": null,
+  "furthest_saved_route_progress_m": 16.274373082585242,
+  "final_saved_route_progress_m": 16.274205235905555,
+  "last_hold_failure": "",
+  "climb_failures": null,
+  "climb_failure_classification_available": false,
+  "backslide_m": 0.0003179957585439302,
+  "turn_repositions": 0,
+  "route_profile": {
+    "length_m": 16.38718054718486,
+    "ascent_m": 3.907092279044,
+    "uphill_over_25deg_m": 1.8601126159491472,
+    "max_uphill_deg": 30.692501526692766,
+    "max_side_slope_deg": 30.267824596498365,
+    "max_ground_slope_deg": 32.11215370176294,
+    "max_footprint_slope_deg": 36.18950550154714
+  },
+  "motion_events": [],
+  "escape_events": [],
+  "failed_climbs": [],
+  "route_purpose": "mission",
+  "retreat_goal": null,
+  "retreat_candidates": [],
+  "preferred_uphill_deg": 20.0,
+  "max_uphill_deg": 25.0,
+  "max_side_slope_deg": 25.0,
+  "learned_no_go_cells": 0,
+  "route_options": [],
+  "route_searches": [],
+  "mission_route_complete": true,
+  "map_update_ms_mean": 71.19552909634865,
+  "validated": false,
+  "goal_mode": "any_exit",
+  "selected_exit": [
+    11.700000000000003,
+    2.1000000000000014
+  ],
+  "exit_rim_radius_m": 11.0,
+  "crater_loop": {
+    "stage": "COMPLETE",
+    "goal": [
+      11.700000000000003,
+      2.1000000000000014
+    ],
+    "goal_mode": "crater_loop",
+    "completed_destinations": 2,
+    "center_arrival_time": 69.46000000000001,
+    "descent": {
+      "time": 68.84,
+      "position": [
+        0.33987003564834595,
+        -0.22079730033874512
+      ],
+      "waypoints_reached": 1,
+      "hold_failures": 1,
+      "rolling_checkpoints": 0
+    },
+    "plan": {
+      "map_path": "/home/susan/rexmi_rl/outputs/crater_loop/mission-jQyHzrxu/exit-plan-01/request-uz884zku.npz",
+      "map_sha256": "8afbdb610ef736231926ef2125b61a3b9e9832c9e4cf70a2ef5f8916ea236756",
+      "route_name": "live_descent_any_exit",
+      "parameters": {
+        "easy_angle_deg": 15.0,
+        "exponential_scale_deg": 6.0,
+        "uphill_weight": 1.0,
+        "roughness_interaction": 0.5,
+        "cross_weight": 1.0,
+        "terrain_weight": 1.0
+      },
+      "start": [
+        0.3510117530822754,
+        -0.22546564042568207
+      ],
+      "yaw": 2.3041145830916876,
+      "planned_at_sim_time": 69.46000000000001,
+      "planning_seconds": 0.41180715699738357,
+      "map_source": "live sensors retained during this descent",
+      "known_cells": 15712,
+      "observed_area_m2": 628.4800000000001,
+      "predicted_metrics": {
+        "length_m": 16.387180547184855,
+        "fitted_score": 294.7217187281804
+      },
+      "selected_exit": [
+        11.700000000000003,
+        2.1000000000000014
+      ],
+      "routes": {
+        "any_exit": [
+          [
+            0.3510117530822754,
+            -0.22546564042568207
+          ],
+          [
+            0.7000000000000028,
+            -0.5
+          ],
+          [
+            1.8999999999999986,
+            -0.8999999999999986
+          ],
+          [
+            2.1000000000000014,
+            -0.8999999999999986
+          ],
+          [
+            2.700000000000003,
+            -1.0999999999999979
+          ],
+          [
+            3.1000000000000014,
+            -1.2999999999999972
+          ],
+          [
+            4.5,
+            -2.6999999999999993
+          ],
+          [
+            4.700000000000003,
+            -2.6999999999999993
+          ],
+          [
+            5.300000000000004,
+            -2.8999999999999986
+          ],
+          [
+            5.5,
+            -2.8999999999999986
+          ],
+          [
+            5.899999999999999,
+            -3.099999999999998
+          ],
+          [
+            6.100000000000001,
+            -3.299999999999997
+          ],
+          [
+            6.300000000000004,
+            -3.299999999999997
+          ],
+          [
+            6.700000000000003,
+            -2.8999999999999986
+          ],
+          [
+            6.900000000000006,
+            -2.299999999999997
+          ],
+          [
+            7.300000000000004,
+            -2.099999999999998
+          ],
+          [
+            7.5,
+            -1.5
+          ],
+          [
+            7.5,
+            -0.8999999999999986
+          ],
+          [
+            7.300000000000004,
+            -0.29999999999999716
+          ],
+          [
+            7.700000000000003,
+            0.10000000000000142
+          ],
+          [
+            7.700000000000003,
+            1.3000000000000043
+          ],
+          [
+            8.300000000000004,
+            1.3000000000000043
+          ],
+          [
+            8.5,
+            1.5
+          ],
+          [
+            9.100000000000001,
+            1.5
+          ],
+          [
+            10.300000000000004,
+            1.8999999999999986
+          ],
+          [
+            10.900000000000006,
+            1.8999999999999986
+          ],
+          [
+            11.5,
+            2.1000000000000014
+          ],
+          [
+            11.700000000000003,
+            2.1000000000000014
+          ]
+        ]
+      },
+      "rim_radius": 11.0,
+      "nodes": 11818,
+      "directed_edges": 310254,
+      "result_path": "/home/susan/rexmi_rl/outputs/crater_loop/mission-jQyHzrxu/exit-plan-01/exit_plan.json",
+      "result_sha256": "e2ae6cd3b78c8d4ba12a0801c1ab6fda16e35f988b7818d069ba0c70637f9fd6"
+    },
+    "failure": null,
+    "manual_intervention": false,
+    "events": [
+      {
+        "event": "crater_loop_stage",
+        "stage": "SETTLE_AT_CENTER",
+        "time": 68.84,
+        "position": [
+          0.33987003564834595,
+          -0.22079730033874512
+        ]
+      },
+      {
+        "event": "crater_loop_stage",
+        "stage": "PLAN_ASCENT",
+        "time": 69.46000000000001,
+        "position": [
+          0.3510117530822754,
+          -0.22546564042568207
+        ],
+        "output": "/home/susan/rexmi_rl/outputs/crater_loop/mission-jQyHzrxu/exit-plan-01"
+      },
+      {
+        "event": "crater_loop_stage",
+        "stage": "ASCEND_TO_EXTERIOR",
+        "time": 69.8,
+        "position": [
+          0.35817140340805054,
+          -0.2265404313802719
+        ],
+        "selected_exit": [
+          11.700000000000003,
+          2.1000000000000014
+        ],
+        "plan_path": "/home/susan/rexmi_rl/outputs/crater_loop/mission-jQyHzrxu/exit-plan-01/exit_plan.json"
+      },
+      {
+        "event": "crater_loop_stage",
+        "stage": "COMPLETE",
+        "time": 158.12,
+        "position": [
+          11.587024688720703,
+          2.086732864379883
+        ]
+      }
+    ],
+    "map_source": "live sensor observations from this mission; no loaded prior"
+  },
+  "mission_stages": [
+    {
+      "event": "mission_stage",
+      "time": 0.0,
+      "position": [
+        13.0,
+        0.0
+      ],
+      "stage": "DESCEND_TO_CENTER",
+      "goal": [
+        0.0,
+        0.0
+      ],
+      "goal_mode": "crater_loop",
+      "completed_destinations": 0
+    },
+    {
+      "event": "mission_stage",
+      "time": 68.84,
+      "position": [
+        0.33987003564834595,
+        -0.22079730033874512
+      ],
+      "stage": "SETTLE_AT_CENTER",
+      "goal": [
+        0.0,
+        0.0
+      ],
+      "goal_mode": "crater_loop",
+      "completed_destinations": 0
+    },
+    {
+      "event": "mission_stage",
+      "time": 69.46000000000001,
+      "position": [
+        0.3510117530822754,
+        -0.22546564042568207
+      ],
+      "stage": "PLAN_ASCENT",
+      "goal": [
+        0.0,
+        0.0
+      ],
+      "goal_mode": "crater_loop",
+      "completed_destinations": 1
+    },
+    {
+      "event": "mission_stage",
+      "time": 69.8,
+      "position": [
+        0.35817140340805054,
+        -0.2265404313802719
+      ],
+      "stage": "ASCEND_TO_EXTERIOR",
+      "goal": [
+        11.700000000000003,
+        2.1000000000000014
+      ],
+      "goal_mode": "crater_loop",
+      "completed_destinations": 1
+    },
+    {
+      "event": "mission_stage",
+      "time": 158.12,
+      "position": [
+        11.587024688720703,
+        2.086732864379883
+      ],
+      "stage": "COMPLETE",
+      "goal": [
+        11.700000000000003,
+        2.1000000000000014
+      ],
+      "goal_mode": "crater_loop",
+      "completed_destinations": 2
+    }
+  ],
+  "mission_deadline_seconds": 900.0,
+  "counts_as_mission": true,
+  "counts_as_qualification": false
+}

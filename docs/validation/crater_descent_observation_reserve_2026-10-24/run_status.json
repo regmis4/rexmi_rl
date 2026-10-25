@@ -1,0 +1,12 @@
+{
+  "run": "outputs/crater_loop/mission-AHG7trWx",
+  "launcher_session_exit_code": 143,
+  "termination": "SIGTERM",
+  "cause": "not established",
+  "mission_summary_produced": false,
+  "full_loop_completed": false,
+  "last_sim_time": 341.78,
+  "descent_completed": true,
+  "physically_exercised_reverse_ceiling_mps": 0.7,
+  "unit_tested_reverse_ceiling_mps": 1.0
+}
